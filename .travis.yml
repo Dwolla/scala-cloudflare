@@ -1,0 +1,12 @@
+language: scala
+
+scala:
+  - 2.12.1
+
+env:
+  - JDK=oraclejdk8
+
+before_script:
+  - jdk_switcher use $JDK
+
+script: sbt ++$TRAVIS_SCALA_VERSION clean stack/clean 'test-only -- timefactor 10' 'stack/test-only -- timefactor 10'
