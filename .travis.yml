@@ -9,4 +9,18 @@ env:
 before_script:
   - jdk_switcher use $JDK
 
-script: sbt ++$TRAVIS_SCALA_VERSION clean stack/clean 'test-only -- timefactor 10' 'stack/test-only -- timefactor 10'
+script: sbt ++$TRAVIS_SCALA_VERSION 'test-only -- timefactor 10'
+
+before_deploy:
+  - mkdir -p $HOME/.bintray $HOME/.ssh
+  - openssl aes-256-cbc -K $encrypted_de0eaf700a42_key -iv $encrypted_de0eaf700a42_iv -in secrets.tgz.enc -out secrets.tgz -d
+  - tar -xzOf $HOME/secrets.tgz credentials > $HOME/.bintray/.credentials
+  - tar -xzOf $HOME/secrets.tgz release-key > $HOME/.ssh/id_rsa
+  - chmod 0600 $HOME/.ssh/id_rsa
+
+deploy:
+  - provider: script
+    script: .travis/release.sh
+    on:
+      branch: master
+      scala: 2.12.1

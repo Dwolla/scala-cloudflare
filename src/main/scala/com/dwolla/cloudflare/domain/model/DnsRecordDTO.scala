@@ -1,8 +1,8 @@
-package com.dwolla.cloudflare.model
+package com.dwolla.cloudflare.domain.model
 
-import com.dwolla.lambda.cloudflare.record.JsonWritable
+import com.dwolla.cloudflare.common.JsonWritable
 
-case class DnsRecordDTO(id: Option[String] = None,
+private[cloudflare] case class DnsRecordDTO(id: Option[String] = None,
                         name: String,
                         content: String,
                         `type`: String,

@@ -1,4 +1,4 @@
-package com.dwolla.cloudflare.model
+package com.dwolla.cloudflare.domain.model
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{higherKinds, implicitConversions, reflectiveCalls}

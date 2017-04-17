@@ -1,22 +1,20 @@
 package com.dwolla.cloudflare
 
-import com.dwolla.cloudflare.model.{DnsRecordDTO, Error, IdentifiedDnsRecord, Implicits, UnidentifiedDnsRecord}
-import com.dwolla.lambda.cloudflare.record.JsonEntity._
+import com.dwolla.cloudflare.common.JsonEntity._
+import com.dwolla.cloudflare.domain.model.{DnsRecordDTO, Error, IdentifiedDnsRecord, UnidentifiedDnsRecord}
 import org.apache.http.HttpResponse
 import org.apache.http.client.methods.{HttpDelete, HttpGet, HttpPost, HttpPut}
 import org.json4s.native._
 import org.json4s.{DefaultFormats, Formats, MonadicJValue}
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 
 class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: ExecutionContext) {
 
-  import Implicits._
+  import com.dwolla.cloudflare.domain.model.Implicits._
 
-  protected lazy val logger: Logger = LoggerFactory.getLogger("LambdaLogger")
-  protected implicit val formats: Formats = DefaultFormats ++ org.json4s.ext.JodaTimeSerializers.all
+  protected implicit val formats: Formats = DefaultFormats
 
   def createDnsRecord(record: UnidentifiedDnsRecord): Future[IdentifiedDnsRecord] = {
     getZoneId(domainNameToZoneName(record.name)).flatMap { zoneId ⇒
@@ -52,8 +50,6 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     }
   }
 
-  def domainNameToZoneName(name: String): String = name.split('.').takeRight(2).mkString(".")
-
   def deleteDnsRecord(physicalResourceId: String): Future[String] = {
     val request = new HttpDelete(physicalResourceId)
 
@@ -84,6 +80,8 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     }
   }
 
+  private def domainNameToZoneName(name: String): String = name.split('.').takeRight(2).mkString(".")
+
   implicit def httpResponseToJsonInput(httpResponse: HttpResponse): MonadicJValue = parseJson(httpResponse.getEntity.getContent)
 }
 
@@ -93,7 +91,7 @@ case class MultipleCloudflareRecordsExistForDomainNameException(domainName: Stri
      | - ${records.mkString("\n - ")}
      |
      |This resource refuses to process multiple records because the intention is not clear.
-     |Clean up the records manually or enhance the custom resource Lambda to handle multiple records.""".stripMargin)
+     |Clean up the records manually or enhance this library to handle multiple records.""".stripMargin)
 
 case class DnsRecordIdDoesNotExistException(resourceId: String) extends RuntimeException(
   s"The given DNS record ID does not exist ($resourceId)."
