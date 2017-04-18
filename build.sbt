@@ -5,6 +5,10 @@ lazy val buildSettings = Seq(
   description := "Scala library for the Cloudflare v4 API",
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   releaseVersionBump := sbtrelease.Version.Bump.Minor,
+  releaseCommitMessage :=
+    s"""${releaseCommitMessage.value}
+        |
+        |[ci skip]""".stripMargin,
   scalaVersion := "2.12.1",
   startYear := Option(2016),
   resolvers ++= Seq(
