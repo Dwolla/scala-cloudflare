@@ -2,7 +2,7 @@ package com.dwolla.cloudflare
 
 import java.net.URI
 
-import com.dwolla.cloudflare.model.{IdentifiedDnsRecord, UnidentifiedDnsRecord}
+import com.dwolla.cloudflare.domain.model.{IdentifiedDnsRecord, UnidentifiedDnsRecord}
 import com.dwolla.testutils.httpclient.SimpleHttpRequestMatcher.http
 import org.apache.http.HttpVersion.HTTP_1_1
 import org.apache.http.client.HttpClient
@@ -12,7 +12,6 @@ import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.message.{BasicHttpResponse, BasicStatusLine}
 import org.apache.http.{HttpEntity, HttpResponse, StatusLine}
 import org.json4s.DefaultFormats
-import org.slf4j.Logger
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.JsonMatchers
 import org.specs2.mock.Mockito
@@ -28,16 +27,13 @@ import scala.reflect.ClassTag
 class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with Mockito with JsonMatchers {
 
   trait Setup extends Scope {
-    implicit val formats = DefaultFormats ++ org.json4s.ext.JodaTimeSerializers.all
+    implicit val formats = DefaultFormats
     implicit val mockHttpClient = mock[CloseableHttpClient]
-    val mockLogger = mock[Logger]
     val fakeExecutor = new CloudflareApiExecutor(CloudflareAuthorization("email", "key")) {
       override lazy val httpClient: CloseableHttpClient = mockHttpClient
     }
 
-    val client = new DnsRecordClient(fakeExecutor) {
-      override protected lazy val logger: Logger = mockLogger
-    }
+    val client = new DnsRecordClient(fakeExecutor)
   }
 
   "Cloudflare API Client lookup" should {
@@ -92,7 +88,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
             | - DnsRecordDTO(Some(fake-dns-record-id-2),example.dwolla.com,example2.dwollalabs.com,CNAME,Some(1),Some(true))
             |
             |This resource refuses to process multiple records because the intention is not clear.
-            |Clean up the records manually or enhance the custom resource Lambda to handle multiple records.""".stripMargin
+            |Clean up the records manually or enhance this library to handle multiple records.""".stripMargin
       }.await
     }
   }

@@ -1,5 +1,6 @@
 package com.dwolla.cloudflare.model
 
+import com.dwolla.cloudflare.domain.model.{Create, CreateOrUpdate, Update}
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope

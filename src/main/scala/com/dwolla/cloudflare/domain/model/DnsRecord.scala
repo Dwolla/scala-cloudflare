@@ -1,4 +1,4 @@
-package com.dwolla.cloudflare.model
+package com.dwolla.cloudflare.domain.model
 
 import scala.language.implicitConversions
 import scala.util.matching.Regex
