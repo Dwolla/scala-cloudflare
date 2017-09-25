@@ -36,9 +36,14 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     }.map((_, record.zoneId))
   }
 
-  def getExistingDnsRecord(name: String): Future[Option[IdentifiedDnsRecord]] = {
+  def getExistingDnsRecord(name: String, content: Option[String]=None, recordType: Option[String]=None): Future[Option[IdentifiedDnsRecord]] = {
     getZoneId(domainNameToZoneName(name)).flatMap { zoneId ⇒
-      val request: HttpGet = new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?name=$name")
+      val parameters = Seq(Option("name" → name), content.map("content" → _), recordType.map("type" → _))
+        .collect {
+          case Some((key, value)) ⇒ s"$key=$value"
+        }
+        .mkString("&")
+      val request: HttpGet = new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?$parameters")
 
       executor.fetch(request) { response ⇒
         val records = (response \ "result").extract[Set[DnsRecordDTO]]
@@ -91,7 +96,7 @@ case class MultipleCloudflareRecordsExistForDomainNameException(domainName: Stri
      | - ${records.mkString("\n - ")}
      |
      |This resource refuses to process multiple records because the intention is not clear.
-     |Clean up the records manually or enhance this library to handle multiple records.""".stripMargin)
+     |Clean up the records manually or provide additional parameters to filter on.""".stripMargin)
 
 case class DnsRecordIdDoesNotExistException(resourceId: String) extends RuntimeException(
   s"The given DNS record ID does not exist ($resourceId)."

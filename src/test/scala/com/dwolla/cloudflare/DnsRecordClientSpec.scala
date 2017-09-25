@@ -49,7 +49,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
 
     "accept a domain name and return existing record" in new Setup {
       mockGetZoneId("dwolla.com")
-      mockGetDnsRecords("fake-zone-id", "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithOneResult)
+      mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithOneResult)
 
       val output = client.getExistingDnsRecord("example.dwolla.com")
 
@@ -65,9 +65,45 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
       )).await
     }
 
+    "accept a domain name and content and return existing record" in new Setup {
+      mockGetZoneId("dwolla.com")
+      mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com&content=example.dwollalabs.com", SampleResponses.Successes.listDnsRecordsWithOneResult)
+
+      val output = client.getExistingDnsRecord(name="example.dwolla.com", content=Option("example.dwollalabs.com"))
+
+      output must beSome(IdentifiedDnsRecord(
+        physicalResourceId = "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id",
+        zoneId = "fake-zone-id",
+        resourceId = "fake-resource-id",
+        name = "example.dwolla.com",
+        content = "example.dwollalabs.com",
+        recordType = "CNAME",
+        ttl = Option(1),
+        proxied = Option(true)
+      )).await
+    }
+
+    "accept a domain name and recordType and return existing record" in new Setup {
+      mockGetZoneId("dwolla.com")
+      mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com&type=CNAME", SampleResponses.Successes.listDnsRecordsWithOneResult)
+
+      val output = client.getExistingDnsRecord(name="example.dwolla.com", content=None, recordType=Option("CNAME"))
+
+      output must beSome(IdentifiedDnsRecord(
+        physicalResourceId = "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id",
+        zoneId = "fake-zone-id",
+        resourceId = "fake-resource-id",
+        name = "example.dwolla.com",
+        content = "example.dwollalabs.com",
+        recordType = "CNAME",
+        ttl = Option(1),
+        proxied = Option(true)
+      )).await
+    }
+
     "accept a domain name and return None when no matching record exists" in new Setup {
       mockGetZoneId("dwolla.com")
-      mockGetDnsRecords("fake-zone-id", "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithNoResults)
+      mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithNoResults)
 
       val output = client.getExistingDnsRecord("example.dwolla.com")
 
@@ -76,7 +112,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
 
     "accept a domain name and throw an exception when multiple matching records exist" in new Setup {
       mockGetZoneId("dwolla.com")
-      mockGetDnsRecords("fake-zone-id", "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithManyResults)
+      mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithManyResults)
 
       val output = client.getExistingDnsRecord("example.dwolla.com")
 
@@ -88,7 +124,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
             | - DnsRecordDTO(Some(fake-dns-record-id-2),example.dwolla.com,example2.dwollalabs.com,CNAME,Some(1),Some(true))
             |
             |This resource refuses to process multiple records because the intention is not clear.
-            |Clean up the records manually or enhance this library to handle multiple records.""".stripMargin
+            |Clean up the records manually or provide additional parameters to filter on.""".stripMargin
       }.await
     }
   }
@@ -98,9 +134,9 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
     mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones?name=$domain&status=active"))) returns response
   }
 
-  def mockGetDnsRecords(zone: String, name: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
+  def mockGetDnsRecords(zone: String, requestParameters: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
     val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
-    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zone/dns_records?name=$name"))) returns response
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zone/dns_records?$requestParameters"))) returns response
   }
 
   def mockExecuteWithCaptor[T <: HttpUriRequest : ClassTag](response: HttpResponse)(implicit mockHttpClient: HttpClient): ArgumentCapture[T] = {
