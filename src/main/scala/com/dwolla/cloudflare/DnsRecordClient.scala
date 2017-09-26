@@ -1,5 +1,7 @@
 package com.dwolla.cloudflare
 
+import java.net.URLEncoder
+
 import com.dwolla.cloudflare.common.JsonEntity._
 import com.dwolla.cloudflare.domain.model.{DnsRecordDTO, Error, IdentifiedDnsRecord, UnidentifiedDnsRecord}
 import org.apache.http.HttpResponse
@@ -40,7 +42,7 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     getZoneId(domainNameToZoneName(name)).flatMap { zoneId ⇒
       val parameters = Seq(Option("name" → name), content.map("content" → _), recordType.map("type" → _))
         .collect {
-          case Some((key, value)) ⇒ s"$key=$value"
+          case Some((key, value)) ⇒ s"$key=${URLEncoder.encode(value, "UTF-8")}"
         }
         .mkString("&")
       val request: HttpGet = new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?$parameters")
