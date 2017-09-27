@@ -38,7 +38,7 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     }.map((_, record.zoneId))
   }
 
-  def getExistingDnsRecord(name: String, content: Option[String]=None, recordType: Option[String]=None): Future[Option[IdentifiedDnsRecord]] = {
+  def getExistingDnsRecord(name: String, content: Option[String] = None, recordType: Option[String] = None): Future[Option[IdentifiedDnsRecord]] = {
     getZoneId(domainNameToZoneName(name)).flatMap { zoneId ⇒
       val parameters = Seq(Option("name" → name), content.map("content" → _), recordType.map("type" → _))
         .collect {
@@ -53,6 +53,25 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
         records.headOption.flatMap { dto ⇒
           dto.id.map(dto.identifyAs(zoneId, _))
         }
+      }
+    }
+  }
+
+  def getExistingDnsRecordsWithContentFilter(name: String, contentPredicate: String ⇒ Boolean, recordType: Option[String] = None): Future[Set[IdentifiedDnsRecord]] = {
+    getZoneId(domainNameToZoneName(name)).flatMap { zoneId ⇒
+      val parameters = Seq(Option("name" → name), recordType.map("type" → _))
+        .collect {
+          case Some((key, value)) ⇒ s"$key=${URLEncoder.encode(value, "UTF-8")}"
+        }
+        .mkString("&")
+      val request: HttpGet = new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?$parameters")
+
+      executor.fetch(request) { response ⇒
+        val records = (response \ "result").extract[Set[DnsRecordDTO]]
+        val filteredRecords = records.filter(r ⇒ contentPredicate(r.content))
+        filteredRecords.map { dto ⇒
+          dto.id.map(dto.identifyAs(zoneId, _))
+        }.flatten
       }
     }
   }

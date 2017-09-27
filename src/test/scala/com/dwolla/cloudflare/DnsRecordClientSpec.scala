@@ -69,7 +69,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
       mockGetZoneId("dwolla.com")
       mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com&content=example.dwollalabs.com", SampleResponses.Successes.listDnsRecordsWithOneResult)
 
-      val output = client.getExistingDnsRecord(name="example.dwolla.com", content=Option("example.dwollalabs.com"))
+      val output = client.getExistingDnsRecord(name = "example.dwolla.com", content = Option("example.dwollalabs.com"))
 
       output must beSome(IdentifiedDnsRecord(
         physicalResourceId = "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id",
@@ -87,7 +87,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
       mockGetZoneId("dwolla.com")
       mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com&type=CNAME", SampleResponses.Successes.listDnsRecordsWithOneResult)
 
-      val output = client.getExistingDnsRecord(name="example.dwolla.com", content=None, recordType=Option("CNAME"))
+      val output = client.getExistingDnsRecord(name = "example.dwolla.com", content = None, recordType = Option("CNAME"))
 
       output must beSome(IdentifiedDnsRecord(
         physicalResourceId = "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id",
@@ -126,6 +126,51 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
             |This resource refuses to process multiple records because the intention is not clear.
             |Clean up the records manually or provide additional parameters to filter on.""".stripMargin
       }.await
+    }
+
+    "accept a domain name and contentPredicate and return existing record" in new Setup {
+      mockGetZoneId("dwolla.com")
+      mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithOneResult)
+
+      val output = client.getExistingDnsRecordsWithContentFilter("example.dwolla.com", _ == "example.dwollalabs.com")
+
+      output must be_==(Seq(IdentifiedDnsRecord(
+        physicalResourceId = "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id",
+        zoneId = "fake-zone-id",
+        resourceId = "fake-resource-id",
+        name = "example.dwolla.com",
+        content = "example.dwollalabs.com",
+        recordType = "CNAME",
+        ttl = Option(1),
+        proxied = Option(true)
+      ))).await
+    }
+
+    "accept a domain name, contentPredicate, and recordType and return existing record" in new Setup {
+      mockGetZoneId("dwolla.com")
+      mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com&type=CNAME", SampleResponses.Successes.listDnsRecordsWithOneResult)
+
+      val output = client.getExistingDnsRecordsWithContentFilter("example.dwolla.com", _ ⇒ true, recordType = Option("CNAME"))
+
+      output must be_==(Seq(IdentifiedDnsRecord(
+        physicalResourceId = "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id",
+        zoneId = "fake-zone-id",
+        resourceId = "fake-resource-id",
+        name = "example.dwolla.com",
+        content = "example.dwollalabs.com",
+        recordType = "CNAME",
+        ttl = Option(1),
+        proxied = Option(true)
+      ))).await
+    }
+
+    "accept a domain name and contentPredicate and return empty set when no matching record exists" in new Setup {
+      mockGetZoneId("dwolla.com")
+      mockGetDnsRecords("fake-zone-id", "name=example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithNoResults)
+
+      val output = client.getExistingDnsRecordsWithContentFilter("example.dwolla.com", _ ⇒ true)
+
+      output must be_==(Set[IdentifiedDnsRecord]()).await
     }
   }
 
