@@ -10,20 +10,20 @@ lazy val buildSettings = Seq(
     s"""${releaseCommitMessage.value}
         |
         |[ci skip]""".stripMargin,
-  scalaVersion := "2.12.1",
+  scalaVersion := "2.12.6",
   startYear := Option(2016),
   resolvers ++= Seq(
-    Resolver.bintrayIvyRepo("dwolla", "maven")
+    Resolver.bintrayIvyRepo("dwolla", "maven"),
   ),
   scalacOptions += "-deprecation"
 )
 
 lazy val bintraySettings = Seq(
   bintrayVcsUrl := homepage.value.map(_.toString),
-  publishMavenStyle := false,
+  publishMavenStyle := true,
   bintrayRepository := "maven",
   bintrayOrganization := Option("dwolla"),
-  pomIncludeRepository := { _ ⇒ false }
+  pomIncludeRepository := { _ ⇒ false },
 )
 
 
@@ -41,11 +41,18 @@ lazy val client = (project in file("client"))
       specs2Core % Test,
       specs2Mock % Test,
       specs2Matchers % Test,
-      dwollaTestUtils % Test
+      dwollaTestUtils % Test,
     )
   )
   .dependsOn(dto)
 
 lazy val scalaCloudflare = (project in file("."))
-  .settings(buildSettings ++ bintraySettings: _*)
+  .settings(buildSettings ++ noPublishSettings: _*)
   .aggregate(dto, client)
+
+lazy val noPublishSettings = Seq(
+  publish := {},
+  publishLocal := {},
+  publishArtifact := false,
+  Keys.`package` := file(""),
+)

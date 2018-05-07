@@ -1,7 +1,7 @@
 language: scala
 
 scala:
-  - 2.12.1
+  - 2.12.6
 
 env:
   - JDK=oraclejdk8
@@ -9,7 +9,7 @@ env:
 before_script:
   - jdk_switcher use $JDK
 
-script: sbt ++$TRAVIS_SCALA_VERSION 'test-only -- timefactor 10'
+script: sbt ++$TRAVIS_SCALA_VERSION 'testOnly -- timefactor 10'
 
 before_deploy:
   - mkdir -p $HOME/.bintray $HOME/.ssh
@@ -23,4 +23,4 @@ deploy:
     script: .travis/release.sh
     on:
       branch: master
-      scala: 2.12.1
+      scala: 2.12.6
