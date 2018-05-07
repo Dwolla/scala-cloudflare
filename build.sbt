@@ -18,12 +18,21 @@ lazy val buildSettings = Seq(
   scalacOptions += "-deprecation"
 )
 
+lazy val bintraySettings = Seq(
+  bintrayVcsUrl := homepage.value.map(_.toString),
+  publishMavenStyle := false,
+  bintrayRepository := "maven",
+  bintrayOrganization := Option("dwolla"),
+  pomIncludeRepository := { _ ⇒ false }
+)
+
+
 lazy val dto = (project in file("dto"))
-  .settings(buildSettings: _*)
+  .settings(buildSettings ++ bintraySettings: _*)
   .settings(name := "cloudflare-api-dto")
 
 lazy val client = (project in file("client"))
-  .settings(buildSettings: _*)
+  .settings(buildSettings ++ bintraySettings: _*)
   .settings(name := "cloudflare-api-client")
   .settings(libraryDependencies ++= Seq(
       scalaArm,
@@ -36,15 +45,6 @@ lazy val client = (project in file("client"))
     )
   )
   .dependsOn(dto)
-
-
-lazy val bintraySettings = Seq(
-  bintrayVcsUrl := homepage.value.map(_.toString),
-  publishMavenStyle := false,
-  bintrayRepository := "maven",
-  bintrayOrganization := Option("dwolla"),
-  pomIncludeRepository := { _ ⇒ false }
-)
 
 lazy val scalaCloudflare = (project in file("."))
   .settings(buildSettings ++ bintraySettings: _*)
