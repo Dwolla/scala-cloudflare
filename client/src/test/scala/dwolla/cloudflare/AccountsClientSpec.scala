@@ -1,20 +1,19 @@
 package dwolla.cloudflare
 
 import java.net.URI
-import java.time.Instant
-import java.time.format.DateTimeFormatter
 
-import SampleAccountsResponses.Failures
-import com.dwolla.cloudflare.{AccountsClient, CloudflareApiExecutor, CloudflareAuthorization}
+import cats.implicits._
 import com.dwolla.cloudflare.domain.model.accounts._
+import com.dwolla.cloudflare.{AccountsClient, CloudflareAuthorization, _}
+import dwolla.cloudflare.SampleAccountsResponses.Failures
 import dwolla.testutils.httpclient.SimpleHttpRequestMatcher.http
 import org.apache.http.HttpVersion.HTTP_1_1
-import org.apache.http.{HttpEntity, HttpResponse, StatusLine}
 import org.apache.http.client.HttpClient
 import org.apache.http.client.methods._
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.CloseableHttpClient
-import org.apache.http.message.{BasicHttpResponse, BasicStatusLine}
+import org.apache.http.message._
+import org.apache.http._
 import org.json4s.DefaultFormats
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.JsonMatchers
@@ -23,14 +22,14 @@ import org.specs2.mock.mockito.ArgumentCapture
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent._
 import scala.reflect.ClassTag
 
 class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with Mockito with JsonMatchers {
   trait Setup extends Scope {
     implicit val formats = DefaultFormats
     implicit val mockHttpClient = mock[CloseableHttpClient]
-    val fakeExecutor = new CloudflareApiExecutor(CloudflareAuthorization("email", "key")) {
+    val fakeExecutor = new FutureCloudflareApiExecutor(CloudflareAuthorization("email", "key")) {
       override lazy val httpClient: CloseableHttpClient = mockHttpClient
     }
 

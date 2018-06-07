@@ -2,22 +2,19 @@ package com.dwolla.cloudflare
 
 import java.io.Closeable
 
+import cats.effect._
+import cats.implicits._
 import org.apache.http.HttpResponse
 import org.apache.http.client.methods.HttpRequestBase
-import org.apache.http.impl.client.{CloseableHttpClient, HttpClients}
+import org.apache.http.impl.client._
 import resource._
 
 import scala.concurrent._
-import scala.language.implicitConversions
+import scala.language.higherKinds
 import scala.util.Try
 
-class CloudflareApiExecutor(authorization: CloudflareAuthorization)(implicit val ec: ExecutionContext) extends Closeable {
-  lazy val httpClient: CloseableHttpClient = HttpClients.createDefault()
-  private def blockingFetch[T]: (HttpRequestBase, HttpResponse ⇒ T) ⇒ Try[T] = CloudflareApiExecutor.blockingFetch[T](authorization, httpClient)
-
-  def fetch[T](request: HttpRequestBase)(f: HttpResponse ⇒ T): Future[T] = Future(blocking(blockingFetch(request, f))).flatMap(Future.fromTry)
-
-  override def close(): Unit = httpClient.close()
+trait CloudflareApiExecutor[F[_]] {
+  def fetch[T](request: HttpRequestBase)(f: HttpResponse ⇒ T): F[T]
 }
 
 object CloudflareApiExecutor {
@@ -32,5 +29,29 @@ object CloudflareApiExecutor {
   }
 }
 
+class FutureCloudflareApiExecutor(authorization: CloudflareAuthorization)(implicit ec: ExecutionContext) extends CloudflareApiExecutor[Future] with Closeable {
+  lazy val httpClient: CloseableHttpClient = HttpClients.createDefault()
+  private def blockingFetchFunction[T]: (HttpRequestBase, HttpResponse ⇒ T) ⇒ Try[T] = CloudflareApiExecutor.blockingFetch(authorization, httpClient)
+
+  override def fetch[T](request: HttpRequestBase)(f: HttpResponse ⇒ T): Future[T] =
+    Future(blocking(blockingFetchFunction(request, f)))
+      .flatMap(Future.fromTry)
+
+  override def close(): Unit = httpClient.close()
+}
 
 case class CloudflareAuthorization(email: String, key: String)
+
+class AsyncCloudflareApiExecutor[F[_]: Async](authorization: CloudflareAuthorization)(implicit ec: ExecutionContext) extends CloudflareApiExecutor[F] with Closeable {
+  lazy val httpClient: CloseableHttpClient = HttpClients.createDefault()
+  private def blockingFetchFunction[T]: (HttpRequestBase, HttpResponse ⇒ T) ⇒ Try[T] = CloudflareApiExecutor.blockingFetch(authorization, httpClient)
+
+  override def fetch[T](request: HttpRequestBase)(f: HttpResponse ⇒ T): F[T] =
+    for {
+      _ ← Async.shift(ec)
+      tried ← Sync[F].delay(blockingFetchFunction(request, f))
+      output ← Async[F].fromTry(tried)
+    } yield output
+
+  override def close(): Unit = httpClient.close()
+}
