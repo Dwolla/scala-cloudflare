@@ -4,6 +4,7 @@ import java.net.URLEncoder
 
 import com.dwolla.cloudflare.common.JsonEntity._
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
+import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.{Error, IdentifiedDnsRecord, UnidentifiedDnsRecord}
 import org.apache.http.HttpResponse
 import org.apache.http.client.methods._
@@ -123,12 +124,4 @@ case class MultipleCloudflareRecordsExistForDomainNameException(domainName: Stri
      |Clean up the records manually or provide additional parameters to filter on.""".stripMargin)
 
 case class DnsRecordIdDoesNotExistException(resourceId: String) extends RuntimeException(
-  s"The given DNS record ID does not exist ($resourceId)."
-)
-
-case class UnexpectedCloudflareErrorException(errors: List[Error]) extends RuntimeException(
-  s"""An unexpected Cloudflare error occurred. Errors:
-     |
-     | - ${errors.mkString("\n - ")}
-   """.stripMargin
-)
+  s"The given DNS record ID does not exist ($resourceId).")
