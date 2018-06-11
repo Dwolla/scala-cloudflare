@@ -19,10 +19,10 @@ import org.specs2.mock.Mockito
 import org.specs2.mock.mockito.ArgumentCapture
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
+import cats.implicits._
 
 import scala.concurrent.Promise
 import scala.io.Source
-import scala.language.reflectiveCalls
 import scala.reflect.ClassTag
 
 class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with Mockito with JsonMatchers {
@@ -30,7 +30,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
   trait Setup extends Scope {
     implicit val formats = DefaultFormats
     implicit val mockHttpClient = mock[CloseableHttpClient]
-    val fakeExecutor = new CloudflareApiExecutor(CloudflareAuthorization("email", "key")) {
+    val fakeExecutor = new FutureCloudflareApiExecutor(CloudflareAuthorization("email", "key")) {
       override lazy val httpClient: CloseableHttpClient = mockHttpClient
     }
 

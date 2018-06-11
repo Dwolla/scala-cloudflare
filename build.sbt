@@ -15,7 +15,7 @@ lazy val buildSettings = Seq(
   resolvers ++= Seq(
     Resolver.bintrayIvyRepo("dwolla", "maven"),
   ),
-  scalacOptions += "-deprecation"
+  scalacOptions += "-deprecation",
 )
 
 lazy val bintraySettings = Seq(
@@ -38,6 +38,8 @@ lazy val client = (project in file("client"))
       scalaArm,
       json4s,
       httpComponents,
+      catsCore,
+      catsEffect,
       specs2Core % Test,
       specs2Mock % Test,
       specs2Matchers % Test,

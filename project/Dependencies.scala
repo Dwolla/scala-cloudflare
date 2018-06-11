@@ -8,4 +8,6 @@ object Dependencies {
   val specs2Mock = "org.specs2" %% "specs2-mock" % specs2Core.revision
   val specs2Matchers = "org.specs2" %% "specs2-matcher-extra" % specs2Core.revision
   val dwollaTestUtils = "com.dwolla" %% "testutils" % "1.4.0"
+  val catsCore = "org.typelevel" %% "cats-core" % "1.1.0"
+  val catsEffect = "org.typelevel" %% "cats-effect" % "0.10.1"
 }

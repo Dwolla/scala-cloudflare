@@ -1,7 +1,7 @@
 package com.dwolla.cloudflare.domain.model
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.{higherKinds, implicitConversions, reflectiveCalls}
+import scala.language.implicitConversions
 
 sealed trait CreateOrUpdate[+A] extends Product with Serializable {
   val value: A

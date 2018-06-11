@@ -6,20 +6,22 @@ import com.dwolla.cloudflare.common.JsonEntity._
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 import com.dwolla.cloudflare.domain.model.{Error, IdentifiedDnsRecord, UnidentifiedDnsRecord}
 import org.apache.http.HttpResponse
-import org.apache.http.client.methods.{HttpDelete, HttpGet, HttpPost, HttpPut}
+import org.apache.http.client.methods._
 import org.json4s.native._
 import org.json4s.{DefaultFormats, Formats, MonadicJValue}
+import cats._
+import cats.implicits._
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.language.implicitConversions
+import scala.concurrent.ExecutionContext
+import scala.language.{higherKinds, implicitConversions}
 
-class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: ExecutionContext) {
+class DnsRecordClient[F[_] : Monad](executor: CloudflareApiExecutor[F])(implicit val ec: ExecutionContext) {
 
   import com.dwolla.cloudflare.domain.model.Implicits._
 
   protected implicit val formats: Formats = DefaultFormats
 
-  def createDnsRecord(record: UnidentifiedDnsRecord): Future[IdentifiedDnsRecord] = {
+  def createDnsRecord(record: UnidentifiedDnsRecord): F[IdentifiedDnsRecord] = {
     getZoneId(domainNameToZoneName(record.name)).flatMap { zoneId ⇒
       val request = new HttpPost(s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records")
       request.setEntity(record)
@@ -30,7 +32,7 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     }
   }
 
-  def updateDnsRecord(record: IdentifiedDnsRecord): Future[IdentifiedDnsRecord] = {
+  def updateDnsRecord(record: IdentifiedDnsRecord): F[IdentifiedDnsRecord] = {
     val request = new HttpPut(record.physicalResourceId)
     request.setEntity(record.unidentify)
 
@@ -39,7 +41,7 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     }.map((_, record.zoneId))
   }
 
-  def getExistingDnsRecord(name: String, content: Option[String] = None, recordType: Option[String] = None): Future[Option[IdentifiedDnsRecord]] = {
+  def getExistingDnsRecord(name: String, content: Option[String] = None, recordType: Option[String] = None): F[Option[IdentifiedDnsRecord]] = {
     getZoneId(domainNameToZoneName(name)).flatMap { zoneId ⇒
       val parameters = Seq(Option("name" → name), content.map("content" → _), recordType.map("type" → _))
         .collect {
@@ -58,7 +60,7 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     }
   }
 
-  def getExistingDnsRecordsWithContentFilter(name: String, contentPredicate: String ⇒ Boolean, recordType: Option[String] = None): Future[Set[IdentifiedDnsRecord]] = {
+  def getExistingDnsRecordsWithContentFilter(name: String, contentPredicate: String ⇒ Boolean, recordType: Option[String] = None): F[Set[IdentifiedDnsRecord]] = {
     getZoneId(domainNameToZoneName(name)).flatMap { zoneId ⇒
       val parameters = Seq(Option("name" → name), recordType.map("type" → _))
         .collect {
@@ -70,14 +72,14 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
       executor.fetch(request) { response ⇒
         val records = (response \ "result").extract[Set[DnsRecordDTO]]
         val filteredRecords = records.filter(r ⇒ contentPredicate(r.content))
-        filteredRecords.map { dto ⇒
+        filteredRecords.flatMap { dto ⇒
           dto.id.map(dto.identifyAs(zoneId, _))
-        }.flatten
+        }
       }
     }
   }
 
-  def deleteDnsRecord(physicalResourceId: String): Future[String] = {
+  def deleteDnsRecord(physicalResourceId: String): F[String] = {
     val request = new HttpDelete(physicalResourceId)
 
     executor.fetch(request) { response ⇒
@@ -99,7 +101,7 @@ class DnsRecordClient(executor: CloudflareApiExecutor)(implicit val ec: Executio
     }
   }
 
-  def getZoneId(domain: String): Future[String] = {
+  def getZoneId(domain: String): F[String] = {
     val request = new HttpGet(s"https://api.cloudflare.com/client/v4/zones?name=$domain&status=active")
 
     executor.fetch(request) { response ⇒
