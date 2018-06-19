@@ -6,5 +6,5 @@ case class AccountMemberDTO (
   id: String,
   user: UserDTO,
   status: String,
-  roles: List[AccountRoleDTO]
+  roles: Seq[AccountRoleDTO]
 ) extends JsonWritable

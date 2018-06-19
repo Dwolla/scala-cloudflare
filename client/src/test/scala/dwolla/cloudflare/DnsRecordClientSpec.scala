@@ -25,7 +25,7 @@ import scala.concurrent.Promise
 import scala.io.Source
 import scala.reflect.ClassTag
 
-class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with Mockito with JsonMatchers {
+class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with Mockito with JsonMatchers with HttpClientHelper {
 
   trait Setup extends Scope {
     implicit val formats = DefaultFormats
@@ -175,23 +175,6 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
     }
   }
 
-  def mockGetZoneId(domain: String, response: HttpResponse = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.getZones)))
-                   (implicit mockHttpClient: HttpClient) = {
-    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones?name=$domain&status=active"))) returns response
-  }
-
-  def mockGetDnsRecords(zone: String, requestParameters: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
-    val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
-    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zone/dns_records?$requestParameters"))) returns response
-  }
-
-  def mockExecuteWithCaptor[T <: HttpUriRequest : ClassTag](response: HttpResponse)(implicit mockHttpClient: HttpClient): ArgumentCapture[T] = {
-    val captor = capture[T]
-    mockHttpClient.execute(captor) returns response
-
-    captor
-  }
-
   "Cloudflare API client record create" should {
     "accept a DNS Record and return it with its new ID" in new Setup {
       val captor = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, 201, "Created"), new StringEntity(SampleResponses.Successes.createDnsRecord)))
@@ -301,249 +284,245 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
     }
   }
 
-  def fakeResponse(statusLine: StatusLine, entity: HttpEntity) = {
-    val res = new BasicHttpResponse(statusLine) with CloseableHttpResponse {
-      val promisedClose = Promise[Unit]
+  def mockGetZoneId(domain: String, response: HttpResponse = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.getZones)))
+                   (implicit mockHttpClient: HttpClient) = {
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones?name=$domain&status=active"))) returns response
+  }
 
-      override def close(): Unit = promisedClose.success(Unit)
+  def mockGetDnsRecords(zone: String, requestParameters: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
+    val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zone/dns_records?$requestParameters"))) returns response
+  }
 
-      def isClosed: Boolean = promisedClose.isCompleted
+  private object SampleResponses {
+
+    object Successes {
+      val getZones =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-zone-id",
+          |      "name": "dwolla.com",
+          |      "status": "active",
+          |      "paused": false,
+          |      "type": "full",
+          |      "development_mode": 0,
+          |      "name_servers": [
+          |        "eric.ns.cloudflare.com",
+          |        "lucy.ns.cloudflare.com"
+          |      ]
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 20,
+          |    "total_pages": 1,
+          |    "count": 1,
+          |    "total_count": 1
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listDnsRecordsWithOneResult =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-resource-id",
+          |      "type": "CNAME",
+          |      "name": "example.dwolla.com",
+          |      "content": "example.dwollalabs.com",
+          |      "proxiable": true,
+          |      "proxied": true,
+          |      "ttl": 1,
+          |      "locked": false,
+          |      "zone_id": "fake-zone-id",
+          |      "zone_name": "dwolla.com",
+          |      "modified_on": "2016-12-20T18:45:30.268036Z",
+          |      "created_on": "2016-12-20T18:45:30.268036Z",
+          |      "meta": {
+          |        "auto_added": false
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 20,
+          |    "total_pages": 1,
+          |    "count": 1,
+          |    "total_count": 1
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listDnsRecordsWithNoResults =
+        """{
+          |  "result": [],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 20,
+          |    "total_pages": 0,
+          |    "count": 0,
+          |    "total_count": 0
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listDnsRecordsWithManyResults =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-dns-record-id-1",
+          |      "type": "CNAME",
+          |      "name": "example.dwolla.com",
+          |      "content": "example.dwollalabs.com",
+          |      "proxiable": true,
+          |      "proxied": false,
+          |      "ttl": 1,
+          |      "locked": false,
+          |      "zone_id": "fake-zone-id",
+          |      "zone_name": "dwolla.com",
+          |      "modified_on": "2016-12-20T18:45:19.525129Z",
+          |      "created_on": "2016-12-20T18:45:19.525129Z",
+          |      "meta": {
+          |        "auto_added": false
+          |      }
+          |    },
+          |    {
+          |      "id": "fake-dns-record-id-2",
+          |      "type": "CNAME",
+          |      "name": "example.dwolla.com",
+          |      "content": "example2.dwollalabs.com",
+          |      "proxiable": true,
+          |      "proxied": true,
+          |      "ttl": 1,
+          |      "locked": false,
+          |      "zone_id": "fake-zone-id",
+          |      "zone_name": "dwolla.com",
+          |      "modified_on": "2016-12-20T18:45:30.268036Z",
+          |      "created_on": "2016-12-20T18:45:30.268036Z",
+          |      "meta": {
+          |        "auto_added": false
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 2,
+          |    "total_pages": 31,
+          |    "count": 2,
+          |    "total_count": 61
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val createDnsRecord =
+        """{
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": [],
+          |  "result": {
+          |    "id": "fake-record-id",
+          |    "type": "CNAME",
+          |    "name": "example.dwollalabs.com",
+          |    "content": "example.dwollalabs.com",
+          |    "proxiable": true,
+          |    "proxied": true,
+          |    "ttl": 1,
+          |    "locked": false,
+          |    "zone_id": "fake-zone-id",
+          |    "zone_name": "dwolla.com",
+          |    "created_on": "2014-01-01T05:20:00.12345Z",
+          |    "modified_on": "2014-01-01T05:20:00.12345Z",
+          |    "data": {}
+          |  }
+          |}
+        """.stripMargin
+
+      val updateDnsRecord =
+        """{
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": [],
+          |  "result": {
+          |    "id": "fake-record-id",
+          |    "type": "CNAME",
+          |    "name": "example.dwolla.com",
+          |    "content": "new-content.dwollalabs.com",
+          |    "proxiable": true,
+          |    "proxied": false,
+          |    "ttl": 1,
+          |    "locked": false,
+          |    "zone_id": "fake-zone-id",
+          |    "zone_name": "dwolla.com",
+          |    "created_on": "2014-01-01T05:20:00.12345Z",
+          |    "modified_on": "2014-01-01T05:20:00.12345Z",
+          |    "data": {}
+          |  }
+          |}
+        """.stripMargin
+
+      val deleteDnsRecord =
+        """{
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": [],
+          |  "result": {
+          |    "id": "fake-record-id"
+          |  }
+          |}
+        """.stripMargin
     }
 
-    res.setEntity(entity)
+    object Failures {
 
-    res
+      case class Failure(statusCode: Int, json: String)
+
+      val deleteDnsRecordButIdDoesNotExist = Failure(400,
+        """{
+          |  "success": false,
+          |  "errors": [
+          |    {
+          |      "code": 1032,
+          |      "message": "Invalid DNS record identifier"
+          |    }
+          |  ],
+          |  "messages": [],
+          |  "result": null
+          |}
+        """.stripMargin)
+
+      val validationError = Failure(400,
+        """{
+          |    "success": false,
+          |    "errors": [
+          |        {
+          |            "code": 1004,
+          |            "message": "DNS Validation Error",
+          |            "error_chain": [
+          |                {
+          |                    "code": 9021,
+          |                    "message": "Invalid TTL. Must be between 120 and 2,147,483,647 seconds, or 1 for automatic"
+          |                }
+          |            ]
+          |        }
+          |    ],
+          |    "messages": [],
+          |    "result": null
+          |}
+        """.stripMargin)
+    }
+
   }
-}
-
-private object SampleResponses {
-
-  object Successes {
-    val getZones =
-      """{
-        |  "result": [
-        |    {
-        |      "id": "fake-zone-id",
-        |      "name": "dwolla.com",
-        |      "status": "active",
-        |      "paused": false,
-        |      "type": "full",
-        |      "development_mode": 0,
-        |      "name_servers": [
-        |        "eric.ns.cloudflare.com",
-        |        "lucy.ns.cloudflare.com"
-        |      ]
-        |    }
-        |  ],
-        |  "result_info": {
-        |    "page": 1,
-        |    "per_page": 20,
-        |    "total_pages": 1,
-        |    "count": 1,
-        |    "total_count": 1
-        |  },
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": []
-        |}
-      """.stripMargin
-
-    val listDnsRecordsWithOneResult =
-      """{
-        |  "result": [
-        |    {
-        |      "id": "fake-resource-id",
-        |      "type": "CNAME",
-        |      "name": "example.dwolla.com",
-        |      "content": "example.dwollalabs.com",
-        |      "proxiable": true,
-        |      "proxied": true,
-        |      "ttl": 1,
-        |      "locked": false,
-        |      "zone_id": "fake-zone-id",
-        |      "zone_name": "dwolla.com",
-        |      "modified_on": "2016-12-20T18:45:30.268036Z",
-        |      "created_on": "2016-12-20T18:45:30.268036Z",
-        |      "meta": {
-        |        "auto_added": false
-        |      }
-        |    }
-        |  ],
-        |  "result_info": {
-        |    "page": 1,
-        |    "per_page": 20,
-        |    "total_pages": 1,
-        |    "count": 1,
-        |    "total_count": 1
-        |  },
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": []
-        |}
-      """.stripMargin
-
-    val listDnsRecordsWithNoResults =
-      """{
-        |  "result": [],
-        |  "result_info": {
-        |    "page": 1,
-        |    "per_page": 20,
-        |    "total_pages": 0,
-        |    "count": 0,
-        |    "total_count": 0
-        |  },
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": []
-        |}
-      """.stripMargin
-
-    val listDnsRecordsWithManyResults =
-      """{
-        |  "result": [
-        |    {
-        |      "id": "fake-dns-record-id-1",
-        |      "type": "CNAME",
-        |      "name": "example.dwolla.com",
-        |      "content": "example.dwollalabs.com",
-        |      "proxiable": true,
-        |      "proxied": false,
-        |      "ttl": 1,
-        |      "locked": false,
-        |      "zone_id": "fake-zone-id",
-        |      "zone_name": "dwolla.com",
-        |      "modified_on": "2016-12-20T18:45:19.525129Z",
-        |      "created_on": "2016-12-20T18:45:19.525129Z",
-        |      "meta": {
-        |        "auto_added": false
-        |      }
-        |    },
-        |    {
-        |      "id": "fake-dns-record-id-2",
-        |      "type": "CNAME",
-        |      "name": "example.dwolla.com",
-        |      "content": "example2.dwollalabs.com",
-        |      "proxiable": true,
-        |      "proxied": true,
-        |      "ttl": 1,
-        |      "locked": false,
-        |      "zone_id": "fake-zone-id",
-        |      "zone_name": "dwolla.com",
-        |      "modified_on": "2016-12-20T18:45:30.268036Z",
-        |      "created_on": "2016-12-20T18:45:30.268036Z",
-        |      "meta": {
-        |        "auto_added": false
-        |      }
-        |    }
-        |  ],
-        |  "result_info": {
-        |    "page": 1,
-        |    "per_page": 2,
-        |    "total_pages": 31,
-        |    "count": 2,
-        |    "total_count": 61
-        |  },
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": []
-        |}
-      """.stripMargin
-
-    val createDnsRecord =
-      """{
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": [],
-        |  "result": {
-        |    "id": "fake-record-id",
-        |    "type": "CNAME",
-        |    "name": "example.dwollalabs.com",
-        |    "content": "example.dwollalabs.com",
-        |    "proxiable": true,
-        |    "proxied": true,
-        |    "ttl": 1,
-        |    "locked": false,
-        |    "zone_id": "fake-zone-id",
-        |    "zone_name": "dwolla.com",
-        |    "created_on": "2014-01-01T05:20:00.12345Z",
-        |    "modified_on": "2014-01-01T05:20:00.12345Z",
-        |    "data": {}
-        |  }
-        |}
-      """.stripMargin
-
-    val updateDnsRecord =
-      """{
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": [],
-        |  "result": {
-        |    "id": "fake-record-id",
-        |    "type": "CNAME",
-        |    "name": "example.dwolla.com",
-        |    "content": "new-content.dwollalabs.com",
-        |    "proxiable": true,
-        |    "proxied": false,
-        |    "ttl": 1,
-        |    "locked": false,
-        |    "zone_id": "fake-zone-id",
-        |    "zone_name": "dwolla.com",
-        |    "created_on": "2014-01-01T05:20:00.12345Z",
-        |    "modified_on": "2014-01-01T05:20:00.12345Z",
-        |    "data": {}
-        |  }
-        |}
-      """.stripMargin
-
-    val deleteDnsRecord =
-      """{
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": [],
-        |  "result": {
-        |    "id": "fake-record-id"
-        |  }
-        |}
-      """.stripMargin
-  }
-
-  object Failures {
-
-    case class Failure(statusCode: Int, json: String)
-
-    val deleteDnsRecordButIdDoesNotExist = Failure(400,
-      """{
-        |  "success": false,
-        |  "errors": [
-        |    {
-        |      "code": 1032,
-        |      "message": "Invalid DNS record identifier"
-        |    }
-        |  ],
-        |  "messages": [],
-        |  "result": null
-        |}
-      """.stripMargin)
-
-    val validationError = Failure(400,
-      """{
-        |    "success": false,
-        |    "errors": [
-        |        {
-        |            "code": 1004,
-        |            "message": "DNS Validation Error",
-        |            "error_chain": [
-        |                {
-        |                    "code": 9021,
-        |                    "message": "Invalid TTL. Must be between 120 and 2,147,483,647 seconds, or 1 for automatic"
-        |                }
-        |            ]
-        |        }
-        |    ],
-        |    "messages": [],
-        |    "result": null
-        |}
-      """.stripMargin)
-  }
-
 }

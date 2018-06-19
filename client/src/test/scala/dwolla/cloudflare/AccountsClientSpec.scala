@@ -6,15 +6,13 @@ import cats.implicits._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.accounts._
 import com.dwolla.cloudflare.{AccountMemberDoesNotExistException, AccountsClient, CloudflareAuthorization, _}
-import dwolla.cloudflare.SampleAccountsResponses.Failures
 import dwolla.testutils.httpclient.SimpleHttpRequestMatcher.http
 import org.apache.http.HttpVersion.HTTP_1_1
 import org.apache.http.client.HttpClient
 import org.apache.http.client.methods._
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.CloseableHttpClient
-import org.apache.http.message.{BasicHttpResponse, BasicStatusLine}
-import org.apache.http.{HttpEntity, HttpResponse, StatusLine}
+import org.apache.http.message.BasicStatusLine
 import org.json4s.DefaultFormats
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.matcher.{JsonMatchers, JsonType, Matcher}
@@ -23,11 +21,10 @@ import org.specs2.mock.mockito.ArgumentCapture
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 import scala.io.Source
-import scala.reflect.ClassTag
 
-class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with Mockito with JsonMatchers {
+class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with Mockito with JsonMatchers with HttpClientHelper {
   trait Setup extends Scope {
     implicit val formats = DefaultFormats
     implicit val mockHttpClient = mock[CloseableHttpClient]
@@ -40,7 +37,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
 
   "listAccounts" should {
     "return accounts ordered asc" in new Setup {
-      mockListAccounts(SampleAccountsResponses.Successes.listAccounts)
+      mockListAccounts(SampleResponses.Successes.listAccounts)
 
       val output: Future[Set[Account]] = client.listAccounts()
       output must be_==(Set(
@@ -62,7 +59,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     "get account by name" in new Setup {
       val accountName = "Another Fake Account Biz"
 
-      mockListAccounts(SampleAccountsResponses.Successes.listAccounts)
+      mockListAccounts(SampleResponses.Successes.listAccounts)
 
       val output: Future[Option[Account]] = client.getByName(accountName)
       output must beSome(
@@ -75,7 +72,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     }
 
     "return None if not found" in new Setup {
-      mockListAccounts(SampleAccountsResponses.Successes.listAccounts)
+      mockListAccounts(SampleResponses.Successes.listAccounts)
 
       val output: Future[Option[Account]] = client.getByName("Test Stuff")
       output must beNone.await
@@ -86,7 +83,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     "get account by id" in new Setup {
       val accountId = "fake-account-id1"
 
-      mockGetAccountById(accountId, SampleAccountsResponses.Successes.getAccount)
+      mockGetAccountById(accountId, SampleResponses.Successes.getAccount)
 
       val output: Future[Option[Account]] = client.getById(accountId)
       output must beSome(
@@ -101,7 +98,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     "return None if not found" in new Setup {
       val accountId = "missing-id"
 
-      val failure: Failures.Failure = SampleAccountsResponses.Failures.accountDoesNotExist
+      val failure = SampleResponses.Failures.accountDoesNotExist
       val captor: ArgumentCapture[HttpGet] = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
 
       val output: Future[Option[Account]] = client.getById(accountId)
@@ -117,7 +114,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     "return all roles for an account" in new Setup {
       val accountId = "fake-account-id"
 
-      val captor = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleAccountsResponses.Successes.getRoles)))
+      val captor = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.getRoles)))
 
       val output: Future[Set[AccountRole]] = client.getRolesForAccount(accountId)
       output must be_==(Set(
@@ -154,7 +151,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
 
-      mockGetAccountMember(accountId, accountMemberId, SampleAccountsResponses.Successes.accountMember)
+      mockGetAccountMember(accountId, accountMemberId, SampleResponses.Successes.accountMember)
 
       val output: Future[Option[AccountMember]] = client.getAccountMember(accountId, accountMemberId)
       output must beSome(
@@ -193,7 +190,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val accountId = "fake-account-id1"
       val accountMemberId = "missing-account-member-id"
 
-      val failure: Failures.Failure = SampleAccountsResponses.Failures.accountMemberDoesNotExist
+      val failure = SampleResponses.Failures.accountMemberDoesNotExist
       val captor: ArgumentCapture[HttpGet] = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
 
       val output: Future[Option[AccountMember]] = client.getAccountMember(accountId, accountMemberId)
@@ -212,7 +209,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val email = "myemail@test.com"
       val roleIds = List("1111", "2222")
 
-      val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleAccountsResponses.Successes.accountMember)))
+      val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.accountMember)))
 
       val output: Future[AccountMember] = client.addMemberToAccount(accountId, email, roleIds)
       output must be_==(
@@ -265,7 +262,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val email = "me@abc123test.com"
       val roleIds = List("1111", "2222")
 
-      val failure: Failures.Failure = SampleAccountsResponses.Failures.accountMemberCreationError
+      val failure = SampleResponses.Failures.accountMemberCreationError
       val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
       client.addMemberToAccount(accountId, email, roleIds) must throwA[UnexpectedCloudflareErrorException].like {
@@ -321,12 +318,10 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
         )
       )
 
-      val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleAccountsResponses.Successes.updatedAccountMember)))
+      val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.updatedAccountMember)))
 
       val output: Future[AccountMember] = client.updateAccountMember(accountId, updatedAccountMember)
-      output must be_==(
-        updatedAccountMember
-      ).await
+      output must be_==(updatedAccountMember).await
 
       val httpPut: HttpPut = captor.value
       httpPut.getMethod must_== "PUT"
@@ -388,7 +383,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
         )
       )
 
-      val failure: Failures.Failure = SampleAccountsResponses.Failures.accountMemberUpdateError
+      val failure = SampleResponses.Failures.accountMemberUpdateError
       val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
       client.updateAccountMember(accountId, updatedAccountMember) must throwA[UnexpectedCloudflareErrorException].like {
@@ -406,7 +401,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
 
-      val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleAccountsResponses.Successes.removedAccountMember)))
+      val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.removedAccountMember)))
 
       val output: Future[String] = client.removeAccountMember(accountId, accountMemberId)
       output must be_==(
@@ -422,7 +417,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
 
-      val failure: Failures.Failure = SampleAccountsResponses.Failures.accountMemberRemovalError
+      val failure = SampleResponses.Failures.accountMemberRemovalError
       val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
       client.removeAccountMember(accountId, accountMemberId) must throwA[UnexpectedCloudflareErrorException].like {
@@ -439,7 +434,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
 
-      val failure: Failures.Failure = SampleAccountsResponses.Failures.accountDoesNotExist
+      val failure = SampleResponses.Failures.accountDoesNotExist
       val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
 
       client.removeAccountMember(accountId, accountMemberId) must throwA[AccountMemberDoesNotExistException].like {
@@ -447,13 +442,6 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           "The account member fake-account-member-id not found for account fake-account-id1."
       }.await
     }
-  }
-
-  def mockExecuteWithCaptor[T <: HttpUriRequest : ClassTag](response: HttpResponse)(implicit mockHttpClient: HttpClient): ArgumentCapture[T] = {
-    val captor = capture[T]
-    mockHttpClient.execute(captor) returns response
-
-    captor
   }
 
   def mockListAccounts(responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
@@ -471,351 +459,338 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId"))) returns response
   }
 
-  def fakeResponse(statusLine: StatusLine, entity: HttpEntity) = {
-    val res = new BasicHttpResponse(statusLine) with CloseableHttpResponse {
-      val promisedClose = Promise[Unit]
-
-      override def close(): Unit = promisedClose.success(Unit)
-
-      def isClosed: Boolean = promisedClose.isCompleted
-    }
-
-    res.setEntity(entity)
-
-    res
-  }
-
   def aRoleWith(id: Matcher[JsonType], name: Matcher[JsonType],  description: Matcher[JsonType]): Matcher[String] =
     /("id").andHave(id) and /("name").andHave(name) and /("description").andHave(description)
 
   def haveRoles(roles: Matcher[String]*): Matcher[String] =
     /("roles").andHave(allOf(roles:_*))
-}
 
-private object SampleAccountsResponses {
-  object Successes {
-    val listAccounts =
-      """{
-        |  "result": [
-        |    {
-        |      "id": "fake-account-id1",
-        |      "name": "Fake Account Org",
-        |      "settings":
-        |      {
-        |        "enforce_twofactor": false
-        |      }
-        |    },
-        |    {
-        |      "id": "fake-account-id2",
-        |      "name": "Another Fake Account Biz",
-        |      "settings":
-        |      {
-        |        "enforce_twofactor": true
-        |      }
-        |    }
-        |  ],
-        |  "result_info": {
-        |    "page": 1,
-        |    "per_page": 20,
-        |    "total_pages": 1,
-        |    "count": 2,
-        |    "total_count": 2
-        |  },
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": []
-        |}
-      """.stripMargin
+  private object SampleResponses {
+    object Successes {
+      val listAccounts =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-account-id1",
+          |      "name": "Fake Account Org",
+          |      "settings":
+          |      {
+          |        "enforce_twofactor": false
+          |      }
+          |    },
+          |    {
+          |      "id": "fake-account-id2",
+          |      "name": "Another Fake Account Biz",
+          |      "settings":
+          |      {
+          |        "enforce_twofactor": true
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 20,
+          |    "total_pages": 1,
+          |    "count": 2,
+          |    "total_count": 2
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
 
-    val getAccount =
-      """{
-        |  "result": {
-        |    "id": "fake-account-id1",
-        |    "name": "Fake Account Org",
-        |    "settings": {
-        |      "enforce_twofactor": false
-        |    }
-        |  },
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": []
-        |}
-      """.stripMargin
+      val getAccount =
+        """{
+          |  "result": {
+          |    "id": "fake-account-id1",
+          |    "name": "Fake Account Org",
+          |    "settings": {
+          |      "enforce_twofactor": false
+          |    }
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
 
-    val getRoles =
-      """
-      |{
-      |  "result": [
-      |    {
-      |      "id": "1111",
-      |      "name": "Fake Role 1",
-      |      "description": "this is the first fake role",
-      |      "permissions":
-      |      {
-      |        "analytics":
-      |        {
-      |          "read": true,
-      |          "edit": false
-      |        }
-      |      }
-      |    },
-      |    {
-      |      "id": "2222",
-      |      "name": "Fake Role 2",
-      |      "description": "second fake role",
-      |      "permissions":
-      |      {
-      |        "zone":
-      |        {
-      |          "read": true,
-      |          "edit": false
-      |        },
-      |        "logs":
-      |        {
-      |          "read": true,
-      |          "edit": false
-      |        }
-      |      }
-      |    },
-      |    {
-      |      "id": "3333",
-      |      "name": "Fake Full Role 3",
-      |      "description": "full permissions",
-      |      "permissions":
-      |      {
-      |        "legal":
-      |        {
-      |          "read": true,
-      |          "edit": true
-      |        },
-      |        "billing":
-      |        {
-      |          "read": true,
-      |          "edit": true
-      |        }
-      |      }
-      |    }
-      |  ],
-      |  "result_info": {
-      |    "page": 1,
-      |    "per_page": 20,
-      |    "total_pages": 1,
-      |    "count": 3,
-      |    "total_count": 3
-      |  },
-      |  "success": true,
-      |  "errors": [],
-      |  "messages": []
-      |}
-      """.stripMargin
+      val getRoles =
+        """
+          |{
+          |  "result": [
+          |    {
+          |      "id": "1111",
+          |      "name": "Fake Role 1",
+          |      "description": "this is the first fake role",
+          |      "permissions":
+          |      {
+          |        "analytics":
+          |        {
+          |          "read": true,
+          |          "edit": false
+          |        }
+          |      }
+          |    },
+          |    {
+          |      "id": "2222",
+          |      "name": "Fake Role 2",
+          |      "description": "second fake role",
+          |      "permissions":
+          |      {
+          |        "zone":
+          |        {
+          |          "read": true,
+          |          "edit": false
+          |        },
+          |        "logs":
+          |        {
+          |          "read": true,
+          |          "edit": false
+          |        }
+          |      }
+          |    },
+          |    {
+          |      "id": "3333",
+          |      "name": "Fake Full Role 3",
+          |      "description": "full permissions",
+          |      "permissions":
+          |      {
+          |        "legal":
+          |        {
+          |          "read": true,
+          |          "edit": true
+          |        },
+          |        "billing":
+          |        {
+          |          "read": true,
+          |          "edit": true
+          |        }
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 20,
+          |    "total_pages": 1,
+          |    "count": 3,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
 
-    val accountMember =
-      """{
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": [],
-        |  "result": {
-        |    "id": "fake-account-member-id",
-        |    "user":
-        |    {
-        |      "id": "fake-user-id",
-        |      "first_name": null,
-        |      "last_name": null,
-        |      "email": "myemail@test.com",
-        |      "two_factor_authentication_enabled": false
-        |    },
-        |    "status": "pending",
-        |    "roles": [
-        |      {
-        |        "id": "1111",
-        |        "name": "Fake Role 1",
-        |        "description": "this is the first fake role",
-        |        "permissions":
-        |        {
-        |          "analytics":
-        |          {
-        |            "read": true,
-        |            "edit": false
-        |          }
-        |        }
-        |      },
-        |      {
-        |        "id": "2222",
-        |        "name": "Fake Role 2",
-        |        "description": "second fake role",
-        |        "permissions":
-        |        {
-        |          "zone":
-        |          {
-        |            "read": true,
-        |            "edit": false
-        |          },
-        |          "logs":
-        |          {
-        |            "read": true,
-        |            "edit": false
-        |          }
-        |        }
-        |      }
-        |    ]
-        |  }
-        |}
-      """.stripMargin
+      val accountMember =
+        """{
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": [],
+          |  "result": {
+          |    "id": "fake-account-member-id",
+          |    "user":
+          |    {
+          |      "id": "fake-user-id",
+          |      "first_name": null,
+          |      "last_name": null,
+          |      "email": "myemail@test.com",
+          |      "two_factor_authentication_enabled": false
+          |    },
+          |    "status": "pending",
+          |    "roles": [
+          |      {
+          |        "id": "1111",
+          |        "name": "Fake Role 1",
+          |        "description": "this is the first fake role",
+          |        "permissions":
+          |        {
+          |          "analytics":
+          |          {
+          |            "read": true,
+          |            "edit": false
+          |          }
+          |        }
+          |      },
+          |      {
+          |        "id": "2222",
+          |        "name": "Fake Role 2",
+          |        "description": "second fake role",
+          |        "permissions":
+          |        {
+          |          "zone":
+          |          {
+          |            "read": true,
+          |            "edit": false
+          |          },
+          |          "logs":
+          |          {
+          |            "read": true,
+          |            "edit": false
+          |          }
+          |        }
+          |      }
+          |    ]
+          |  }
+          |}
+        """.stripMargin
 
-    val updatedAccountMember =
-      """{
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": [],
-        |  "result": {
-        |    "id": "fake-account-member-id",
-        |    "user":
-        |    {
-        |      "id": "fake-user-id",
-        |      "first_name": null,
-        |      "last_name": null,
-        |      "email": "myemail@test.com",
-        |      "two_factor_authentication_enabled": false
-        |    },
-        |    "status": "pending",
-        |    "roles": [
-        |      {
-        |        "id": "1111",
-        |        "name": "Fake Role 1",
-        |        "description": "this is the first fake role",
-        |        "permissions":
-        |        {
-        |          "analytics":
-        |          {
-        |            "read": true,
-        |            "edit": false
-        |          }
-        |        }
-        |      },
-        |      {
-        |        "id": "2222",
-        |        "name": "Fake Role 2",
-        |        "description": "second fake role",
-        |        "permissions":
-        |        {
-        |          "zone":
-        |          {
-        |            "read": true,
-        |            "edit": false
-        |          },
-        |          "logs":
-        |          {
-        |            "read": true,
-        |            "edit": false
-        |          }
-        |        }
-        |      },
-        |      {
-        |        "id": "3333",
-        |        "name": "Fake Role 3",
-        |        "description": "third fake role",
-        |        "permissions":
-        |        {
-        |          "crypto":
-        |          {
-        |            "read": true,
-        |            "edit": false
-        |          }
-        |        }
-        |      }
-        |    ]
-        |  }
-        |}
-      """.stripMargin
+      val updatedAccountMember =
+        """{
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": [],
+          |  "result": {
+          |    "id": "fake-account-member-id",
+          |    "user":
+          |    {
+          |      "id": "fake-user-id",
+          |      "first_name": null,
+          |      "last_name": null,
+          |      "email": "myemail@test.com",
+          |      "two_factor_authentication_enabled": false
+          |    },
+          |    "status": "pending",
+          |    "roles": [
+          |      {
+          |        "id": "1111",
+          |        "name": "Fake Role 1",
+          |        "description": "this is the first fake role",
+          |        "permissions":
+          |        {
+          |          "analytics":
+          |          {
+          |            "read": true,
+          |            "edit": false
+          |          }
+          |        }
+          |      },
+          |      {
+          |        "id": "2222",
+          |        "name": "Fake Role 2",
+          |        "description": "second fake role",
+          |        "permissions":
+          |        {
+          |          "zone":
+          |          {
+          |            "read": true,
+          |            "edit": false
+          |          },
+          |          "logs":
+          |          {
+          |            "read": true,
+          |            "edit": false
+          |          }
+          |        }
+          |      },
+          |      {
+          |        "id": "3333",
+          |        "name": "Fake Role 3",
+          |        "description": "third fake role",
+          |        "permissions":
+          |        {
+          |          "crypto":
+          |          {
+          |            "read": true,
+          |            "edit": false
+          |          }
+          |        }
+          |      }
+          |    ]
+          |  }
+          |}
+        """.stripMargin
 
-    val removedAccountMember =
-      """
-        |{
-        |  "result": {
-        |    "id": "fake-account-member-id"
-        |  },
-        |  "success": true,
-        |  "errors": [],
-        |  "messages": []
-        |}
-      """.stripMargin
-  }
+      val removedAccountMember =
+        """
+          |{
+          |  "result": {
+          |    "id": "fake-account-member-id"
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+    }
 
-  object Failures {
-    case class Failure(statusCode: Int, json: String)
+    object Failures {
+      case class Failure(statusCode: Int, json: String)
 
-    val accountMemberRemovalError = Failure(400,
-    """{
-      |  "success": false,
-      |  "errors": [
-      |    {
-      |      "code": 7003,
-      |      "message": "Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?"
-      |    },
-      |    {
-      |      "code": 7000,
-      |      "message": "No route for that URI"
-      |    }
-      |  ],
-      |  "messages": [],
-      |  "result": null
-      |}
-    """.stripMargin)
-    val accountMemberUpdateError = Failure(400,
-      """{
-        |  "success": false,
-        |  "errors": [
-        |    {
-        |      "code": 1001,
-        |      "message": "Invalid request: Invalid roles"
-        |    }
-        |  ],
-        |  "messages": [],
-        |  "result": null
-        |}
-      """.stripMargin)
+      val accountMemberRemovalError = Failure(400,
+        """{
+          |  "success": false,
+          |  "errors": [
+          |    {
+          |      "code": 7003,
+          |      "message": "Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?"
+          |    },
+          |    {
+          |      "code": 7000,
+          |      "message": "No route for that URI"
+          |    }
+          |  ],
+          |  "messages": [],
+          |  "result": null
+          |}
+        """.stripMargin)
 
-    val accountMemberCreationError = Failure(400,
-      """{
-        |  "success": false,
-        |  "errors": [
-        |    {
-        |      "code": 1001,
-        |      "message": "Invalid request: Value required for parameter 'email'."
-        |    }
-        |  ],
-        |  "messages": [],
-        |  "result": null
-        |}
-      """.stripMargin)
+      val accountMemberUpdateError = Failure(400,
+        """{
+          |  "success": false,
+          |  "errors": [
+          |    {
+          |      "code": 1001,
+          |      "message": "Invalid request: Invalid roles"
+          |    }
+          |  ],
+          |  "messages": [],
+          |  "result": null
+          |}
+        """.stripMargin)
 
-    val accountMemberDoesNotExist = Failure(404,
-      """
-        |{
-        |  "success": false,
-        |  "errors": [
-        |    {
-        |      "code": 1003,
-        |      "message": "Member not found for account"
-        |     }
-        |  ],
-        |  "messages": [],
-        |  "result": null
-        |}
-      """.stripMargin)
+      val accountMemberCreationError = Failure(400,
+        """{
+          |  "success": false,
+          |  "errors": [
+          |    {
+          |      "code": 1001,
+          |      "message": "Invalid request: Value required for parameter 'email'."
+          |    }
+          |  ],
+          |  "messages": [],
+          |  "result": null
+          |}
+        """.stripMargin)
 
-    val accountDoesNotExist = Failure(404,
-      """{
-        |  "success": false,
-        |  "errors": [
-        |    {
-        |      "code": 1003,
-        |      "message": "Account not found"
-        |    }
-        |  ],
-        |  "messages": [],
-        |  "result": null
-        |}
-      """.stripMargin)
+      val accountMemberDoesNotExist = Failure(404,
+        """
+          |{
+          |  "success": false,
+          |  "errors": [
+          |    {
+          |      "code": 1003,
+          |      "message": "Member not found for account"
+          |     }
+          |  ],
+          |  "messages": [],
+          |  "result": null
+          |}
+        """.stripMargin)
+
+      val accountDoesNotExist = Failure(404,
+        """{
+          |  "success": false,
+          |  "errors": [
+          |    {
+          |      "code": 1003,
+          |      "message": "Account not found"
+          |    }
+          |  ],
+          |  "messages": [],
+          |  "result": null
+          |}
+        """.stripMargin)
+    }
   }
 }
