@@ -1,11 +1,14 @@
-package dwolla.cloudflare
+package dwolla.cloudflare.clients
 
 import java.net.URI
 
 import cats.implicits._
+import com.dwolla.cloudflare.clients.{AccountMemberDoesNotExistException, AccountsClient}
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.accounts._
-import com.dwolla.cloudflare.{AccountMemberDoesNotExistException, AccountsClient, CloudflareAuthorization, _}
+import com.dwolla.cloudflare.domain.model.response.{PagedResponse, PagingInfo}
+import com.dwolla.cloudflare.{CloudflareAuthorization, _}
+import dwolla.cloudflare.HttpClientHelper
 import dwolla.testutils.httpclient.SimpleHttpRequestMatcher.http
 import org.apache.http.HttpVersion.HTTP_1_1
 import org.apache.http.client.HttpClient
@@ -35,31 +38,121 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     val client = new AccountsClient(fakeExecutor)
   }
 
-  "listAccounts" should {
+  "list" should {
     "return accounts ordered asc" in new Setup {
-      mockListAccounts(SampleResponses.Successes.listAccounts)
+      mockList(SampleResponses.Successes.listAccounts)
 
-      val output: Future[Set[Account]] = client.listAccounts()
-      output must be_==(Set(
-        Account(
-          id = "fake-account-id1",
-          name = "Fake Account Org",
-          settings = AccountSettings(enforceTwoFactor = false)
-        ),
-        Account(
-          id = "fake-account-id2",
-          name = "Another Fake Account Biz",
-          settings = AccountSettings(enforceTwoFactor = true)
+      val output: Future[PagedResponse[Set[Account]]] = client.list()
+      output must be_==(
+        PagedResponse(
+          result = Set(
+            Account(
+              id = "fake-account-id1",
+              name = "Fake Account Org",
+              settings = AccountSettings(enforceTwoFactor = false)
+            ),
+            Account(
+              id = "fake-account-id2",
+              name = "Another Fake Account Biz",
+              settings = AccountSettings(enforceTwoFactor = true)
+            )
+          ),
+          paging = PagingInfo(
+            page = 1,
+            perPage = 20,
+            count = 2,
+            total = 2,
+            totalPages = 1
+          )
         )
-      )).await
+      ).await
+    }
+
+    "return accounts with paging" in new Setup {
+      val page = 3
+      val perPage = 10
+
+      mockList(SampleResponses.Successes.listAccounts, page, perPage)
+
+      val output: Future[PagedResponse[Set[Account]]] = client.list(page, perPage)
+      output must be_==(
+        PagedResponse(
+          result = Set(
+            Account(
+              id = "fake-account-id1",
+              name = "Fake Account Org",
+              settings = AccountSettings(enforceTwoFactor = false)
+            ),
+            Account(
+              id = "fake-account-id2",
+              name = "Another Fake Account Biz",
+              settings = AccountSettings(enforceTwoFactor = true)
+            )
+          ),
+          paging = PagingInfo(
+            page = 1,
+            perPage = 20,
+            count = 2,
+            total = 2,
+            totalPages = 1
+          )
+        )
+      ).await
+    }
+  }
+
+  "listAll" should {
+    "return all accounts across pages" in new Setup {
+      mockPagedList()
+
+      val output: Future[Set[Account]] = client.listAll()
+      output must be_==(
+        Set(
+          Account(
+            id = "fake-account-id1",
+            name = "Fake Account Org",
+            settings = AccountSettings(enforceTwoFactor = false)
+          ),
+          Account(
+            id = "fake-account-id2",
+            name = "Fake Account Org 2",
+            settings = AccountSettings(enforceTwoFactor = false)
+          ),
+          Account(
+            id = "fake-account-id3",
+            name = "Fake Account Org 3",
+            settings = AccountSettings(enforceTwoFactor = true)
+          )
+        )
+      ).await
+    }
+
+    "return results for first page if only one page" in new Setup {
+      mockList(SampleResponses.Successes.listAccounts)
+
+      val output: Future[Set[Account]] = client.listAll()
+      output must be_==(
+        Set(
+          Account(
+            id = "fake-account-id1",
+            name = "Fake Account Org",
+            settings = AccountSettings(enforceTwoFactor = false)
+          ),
+          Account(
+            id = "fake-account-id2",
+            name = "Another Fake Account Biz",
+            settings = AccountSettings(enforceTwoFactor = true)
+          )
+        )
+      ).await
     }
   }
 
   "getByName" should {
-    "get account by name" in new Setup {
+    "find account by name" in new Setup {
       val accountName = "Another Fake Account Biz"
 
-      mockListAccounts(SampleResponses.Successes.listAccounts)
+      mockList(SampleResponses.Successes.listAccounts)
 
       val output: Future[Option[Account]] = client.getByName(accountName)
       output must beSome(
@@ -71,8 +164,23 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       ).await
     }
 
+    "find account by name across multiple pages of accounts" in new Setup {
+      val accountName = "Fake Account Org 3"
+
+      mockPagedList()
+
+      val output: Future[Option[Account]] = client.getByName(accountName)
+      output must beSome(
+        Account(
+          id = "fake-account-id3",
+          name = accountName,
+          settings = AccountSettings(enforceTwoFactor = true)
+        )
+      ).await
+    }
+
     "return None if not found" in new Setup {
-      mockListAccounts(SampleResponses.Successes.listAccounts)
+      mockList(SampleResponses.Successes.listAccounts)
 
       val output: Future[Option[Account]] = client.getByName("Test Stuff")
       output must beNone.await
@@ -83,7 +191,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     "get account by id" in new Setup {
       val accountId = "fake-account-id1"
 
-      mockGetAccountById(accountId, SampleResponses.Successes.getAccount)
+      mockGetById(accountId, SampleResponses.Successes.getAccount)
 
       val output: Future[Option[Account]] = client.getById(accountId)
       output must beSome(
@@ -110,50 +218,65 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     }
   }
 
-  "getRolesForAccount" should {
+  "getRoles" should {
     "return all roles for an account" in new Setup {
       val accountId = "fake-account-id"
 
       val captor = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.getRoles)))
 
-      val output: Future[Set[AccountRole]] = client.getRolesForAccount(accountId)
-      output must be_==(Set(
-        AccountRole(
-          id = "1111",
-          name = "Fake Role 1",
-          description = "this is the first fake role",
-          permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
-        ),
-        AccountRole(
-          id = "2222",
-          name = "Fake Role 2",
-          description = "second fake role",
-          permissions = Map[String, AccountRolePermissions](
-            "zone" → AccountRolePermissions(read = true, edit = false),
-            "logs" → AccountRolePermissions(read = true, edit = false)
-          )
-        ),
-        AccountRole(
-          id = "3333",
-          name = "Fake Full Role 3",
-          description = "full permissions",
-          permissions = Map[String, AccountRolePermissions](
-            "legal" → AccountRolePermissions(read = true, edit = true),
-            "billing" → AccountRolePermissions(read = true, edit = true)
+      val output: Future[PagedResponse[Set[AccountRole]]] = client.getRoles(accountId)
+      output must be_==(
+        PagedResponse(
+          result = Set(
+            AccountRole(
+              id = "1111",
+              name = "Fake Role 1",
+              description = "this is the first fake role",
+              permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+            ),
+            AccountRole(
+              id = "2222",
+              name = "Fake Role 2",
+              description = "second fake role",
+              permissions = Map[String, AccountRolePermissions](
+                "zone" → AccountRolePermissions(read = true, edit = false),
+                "logs" → AccountRolePermissions(read = true, edit = false)
+              )
+            ),
+            AccountRole(
+              id = "3333",
+              name = "Fake Full Role 3",
+              description = "full permissions",
+              permissions = Map[String, AccountRolePermissions](
+                "legal" → AccountRolePermissions(read = true, edit = true),
+                "billing" → AccountRolePermissions(read = true, edit = true)
+              )
+            )
+          ),
+          paging = PagingInfo(
+            page = 1,
+            perPage = 20,
+            count = 3,
+            total = 3,
+            totalPages = 1
           )
         )
-      )).await
+      ).await
+
+      val httpGet: HttpGet = captor.value
+      httpGet.getMethod must_== "GET"
+      httpGet.getURI must_== new URI(s"https://api.cloudflare.com/client/v4/accounts/$accountId/roles?page=1&per_page=25")
     }
   }
 
-  "getAccountMember" should {
+  "getMember" should {
     "get account member by id and account id" in new Setup {
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
 
-      mockGetAccountMember(accountId, accountMemberId, SampleResponses.Successes.accountMember)
+      mockGetMember(accountId, accountMemberId, SampleResponses.Successes.accountMember)
 
-      val output: Future[Option[AccountMember]] = client.getAccountMember(accountId, accountMemberId)
+      val output: Future[Option[AccountMember]] = client.getMember(accountId, accountMemberId)
       output must beSome(
         AccountMember(
           id = accountMemberId,
@@ -193,7 +316,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val failure = SampleResponses.Failures.accountMemberDoesNotExist
       val captor: ArgumentCapture[HttpGet] = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
 
-      val output: Future[Option[AccountMember]] = client.getAccountMember(accountId, accountMemberId)
+      val output: Future[Option[AccountMember]] = client.getMember(accountId, accountMemberId)
       output must beNone.await
 
       val httpGet: HttpGet = captor.value
@@ -202,7 +325,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     }
   }
 
-  "addMemberToAccount" should {
+  "addMember" should {
     "add new member" in new Setup {
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
@@ -211,7 +334,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
 
       val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.accountMember)))
 
-      val output: Future[AccountMember] = client.addMemberToAccount(accountId, email, roleIds)
+      val output: Future[AccountMember] = client.addMember(accountId, email, roleIds)
       output must be_==(
         AccountMember(
           id = accountMemberId,
@@ -265,7 +388,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val failure = SampleResponses.Failures.accountMemberCreationError
       val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
-      client.addMemberToAccount(accountId, email, roleIds) must throwA[UnexpectedCloudflareErrorException].like {
+      client.addMember(accountId, email, roleIds) must throwA[UnexpectedCloudflareErrorException].like {
         case ex ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
@@ -275,7 +398,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     }
   }
 
-  "updateAccountMember" should {
+  "updateMember" should {
     "update existing member" in new Setup {
       val email = "myemail@test.com"
       val accountId = "fake-account-id1"
@@ -320,7 +443,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
 
       val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.updatedAccountMember)))
 
-      val output: Future[AccountMember] = client.updateAccountMember(accountId, updatedAccountMember)
+      val output: Future[AccountMember] = client.updateMember(accountId, updatedAccountMember)
       output must be_==(updatedAccountMember).await
 
       val httpPut: HttpPut = captor.value
@@ -386,7 +509,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val failure = SampleResponses.Failures.accountMemberUpdateError
       val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
-      client.updateAccountMember(accountId, updatedAccountMember) must throwA[UnexpectedCloudflareErrorException].like {
+      client.updateMember(accountId, updatedAccountMember) must throwA[UnexpectedCloudflareErrorException].like {
         case ex ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
@@ -396,14 +519,14 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     }
   }
 
-  "removeAccountMember" should {
+  "removeMember" should {
     "remove member from account" in new Setup {
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
 
       val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.removedAccountMember)))
 
-      val output: Future[String] = client.removeAccountMember(accountId, accountMemberId)
+      val output: Future[String] = client.removeMember(accountId, accountMemberId)
       output must be_==(
         accountMemberId
       ).await
@@ -420,7 +543,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val failure = SampleResponses.Failures.accountMemberRemovalError
       val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
-      client.removeAccountMember(accountId, accountMemberId) must throwA[UnexpectedCloudflareErrorException].like {
+      client.removeMember(accountId, accountMemberId) must throwA[UnexpectedCloudflareErrorException].like {
         case ex ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
@@ -437,24 +560,35 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val failure = SampleResponses.Failures.accountDoesNotExist
       val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
 
-      client.removeAccountMember(accountId, accountMemberId) must throwA[AccountMemberDoesNotExistException].like {
+      client.removeMember(accountId, accountMemberId) must throwA[AccountMemberDoesNotExistException].like {
         case ex ⇒ ex.getMessage must_==
           "The account member fake-account-member-id not found for account fake-account-id1."
       }.await
     }
   }
 
-  def mockListAccounts(responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
+  def mockList(responseBody: String, page: Int = 1, perPage: Int = 25)(implicit mockHttpClient: HttpClient): Unit = {
     val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
-    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts?direction=asc"))) returns response
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts?page=$page&per_page=$perPage&direction=asc"))) returns response
   }
 
-  def mockGetAccountById(accountId: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
+  def mockPagedList()(implicit mockHttpClient: HttpClient): Unit = {
+    val response1 = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.listAccountsPage1))
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts?page=1&per_page=25&direction=asc"))) returns response1
+
+    val response2 = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.listAccountsPage2))
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts?page=2&per_page=25&direction=asc"))) returns response2
+
+    val response3 = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.listAccountsPage3))
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts?page=3&per_page=25&direction=asc"))) returns response3
+  }
+
+  def mockGetById(accountId: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
     val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
     mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts/$accountId"))) returns response
   }
 
-  def mockGetAccountMember(accountId: String, accountMemberId: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
+  def mockGetMember(accountId: String, accountMemberId: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
     val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
     mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId"))) returns response
   }
@@ -493,6 +627,81 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |    "total_pages": 1,
           |    "count": 2,
           |    "total_count": 2
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listAccountsPage1 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-account-id1",
+          |      "name": "Fake Account Org",
+          |      "settings":
+          |      {
+          |        "enforce_twofactor": false
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listAccountsPage2 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-account-id2",
+          |      "name": "Fake Account Org 2",
+          |      "settings":
+          |      {
+          |        "enforce_twofactor": false
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 2,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listAccountsPage3 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-account-id3",
+          |      "name": "Fake Account Org 3",
+          |      "settings":
+          |      {
+          |        "enforce_twofactor": true
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 3,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
           |  },
           |  "success": true,
           |  "errors": [],
