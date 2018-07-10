@@ -13,6 +13,7 @@ import com.dwolla.cloudflare.domain.model.accounts.Implicits._
 import com.dwolla.cloudflare.domain.model.accounts.{Account, AccountMember, AccountRole}
 import com.dwolla.cloudflare.domain.model.response.Implicits._
 import com.dwolla.cloudflare.domain.model.response.PagedResponse
+import fs2._
 import org.apache.http.client.methods._
 import org.json4s.native._
 import org.json4s.{DefaultFormats, Formats}
@@ -42,6 +43,19 @@ class AccountsClient[F[_] : Monad](executor: CloudflareApiExecutor[F]) {
           (accumulated, a) ⇒ accumulated ++ a
         })
     }
+  }
+
+  def listAllStream(): Stream[F, Account] = {
+//    list(1).flatMap { pagedResponse ⇒
+//      val totalPages = pagedResponse.paging.totalPages
+//      val firstAccounts = pagedResponse.result
+//
+//      Stream.emits(2 to totalPages)
+//        .map { page ⇒
+//          list(page)
+//        }
+//        .map(accounts ⇒ )
+//    }
   }
 
   def getById(accountId: String): F[Option[Account]] = {
