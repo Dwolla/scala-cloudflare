@@ -2,6 +2,7 @@ package dwolla.cloudflare.clients
 
 import java.net.URI
 
+import cats.effect.IO
 import cats.implicits._
 import com.dwolla.cloudflare.clients.{AccountMemberDoesNotExistException, AccountsClient}
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
@@ -125,6 +126,64 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           )
         )
       ).await
+    }
+
+    "return all accounts across pages with streaming" in new Setup {
+      mockPagedList()
+
+      val ioFakeExecutor = new AsyncCloudflareApiExecutor[IO](CloudflareAuthorization("email", "key")) {
+        override lazy val httpClient: CloseableHttpClient = mockHttpClient
+      }
+
+      val ioClient = new AccountsClient(ioFakeExecutor)
+
+
+      val output: Future[List[Account]] = ioClient.listAll().compile.toList.unsafeToFuture()
+      output must be_==(
+        List(
+          Account(
+            id = "fake-account-id1",
+            name = "Fake Account Org",
+            settings = AccountSettings(enforceTwoFactor = false)
+          ),
+          Account(
+            id = "fake-account-id2",
+            name = "Fake Account Org 2",
+            settings = AccountSettings(enforceTwoFactor = false)
+          ),
+          Account(
+            id = "fake-account-id3",
+            name = "Fake Account Org 3",
+            settings = AccountSettings(enforceTwoFactor = true)
+          )
+        )
+      ).await
+    }
+
+    "return all accounts across pages with streaming doesn't fetch eagerly" in new Setup {
+//      mockPagedList()
+      val response1 = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.listAccountsPage1))
+      mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts?page=1&per_page=25&direction=asc"))) returns response1
+
+      val ioFakeExecutor = new AsyncCloudflareApiExecutor[IO](CloudflareAuthorization("email", "key")) {
+        override lazy val httpClient: CloseableHttpClient = mockHttpClient
+      }
+
+      val ioClient = new AccountsClient(ioFakeExecutor)
+
+
+      val output: Future[List[Account]] = ioClient.listAll().take(2).compile.toList.unsafeToFuture()
+      output must be_==(
+        List(
+          Account(
+            id = "fake-account-id1",
+            name = "Fake Account Org",
+            settings = AccountSettings(enforceTwoFactor = false)
+          ),
+        )
+      ).await
+
+
     }
 
     "return results for first page if only one page" in new Setup {

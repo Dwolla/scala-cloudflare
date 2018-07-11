@@ -1,6 +1,7 @@
 package com.dwolla.cloudflare.clients
 
 import cats._
+import cats.effect._
 import cats.implicits._
 import com.dwolla.cloudflare.CloudflareApiExecutor
 import com.dwolla.cloudflare.common.JsonEntity._
@@ -20,7 +21,7 @@ import org.json4s.{DefaultFormats, Formats}
 
 import scala.language.higherKinds
 
-class AccountsClient[F[_] : Monad](executor: CloudflareApiExecutor[F]) {
+class AccountsClient[F[_] : Sync](executor: CloudflareApiExecutor[F]) {
   protected implicit val formats: Formats = DefaultFormats
 
   def list(page: Int = 1, perPage: Int = 25): F[PagedResponse[Set[Account]]] = {
@@ -32,31 +33,25 @@ class AccountsClient[F[_] : Monad](executor: CloudflareApiExecutor[F]) {
     }
   }
 
-  def listAll(): F[Set[Account]] = {
-    list(1).flatMap { pagedResponse ⇒
-      val totalPages = pagedResponse.paging.totalPages
-      val firstAccounts = pagedResponse.result
+  def listAll(): Stream[F, Account] = {
+    Stream.eval(list(1))
+      .flatMap { pagedResponse ⇒
+        val firstPage = Stream.emits(pagedResponse.result.toSeq)
 
-      (2 to totalPages).toList.traverse(page ⇒ list(page))
-        .map(responses ⇒ responses.map(_.result))
-        .map(accounts ⇒ accounts.foldLeft(firstAccounts) {
-          (accumulated, a) ⇒ accumulated ++ a
-        })
-    }
+        val remainingPages = Stream.unfoldSegmentEval[F, (Int, Int), Account]((2, pagedResponse.paging.totalPages - 1)) {
+          case (currentPage, pagesRemaining) ⇒ recursivePaging(currentPage, pagesRemaining)
+          case (_, 0) ⇒ Applicative[F].pure(None)
+        }
+
+        firstPage ++ remainingPages
+      }
   }
 
-  def listAllStream(): Stream[F, Account] = {
-//    list(1).flatMap { pagedResponse ⇒
-//      val totalPages = pagedResponse.paging.totalPages
-//      val firstAccounts = pagedResponse.result
-//
-//      Stream.emits(2 to totalPages)
-//        .map { page ⇒
-//          list(page)
-//        }
-//        .map(accounts ⇒ )
-//    }
-  }
+  private def recursivePaging(currentPage: Int, pagesRemaining: Int): F[Option[(Segment[Account, Unit], (Int, Int))]] =
+    list(currentPage)
+      .map { resp: PagedResponse[Set[Account]] ⇒
+        Some((Segment(resp.result.toList: _*), (currentPage + 1, pagesRemaining - 1)))
+      }
 
   def getById(accountId: String): F[Option[Account]] = {
     val request: HttpGet = new HttpGet(UriHelper.buildApiUri(s"accounts/$accountId"))
@@ -66,8 +61,9 @@ class AccountsClient[F[_] : Monad](executor: CloudflareApiExecutor[F]) {
     }
   }
 
-  def getByName(name: String): F[Option[Account]] = {
-    listAll().map(all => all.find(a ⇒ a.name.toUpperCase == name.toUpperCase))
+  def getByName(name: String): Stream[F, Account] = {
+    listAll()
+      .find(a ⇒ a.name.toUpperCase == name.toUpperCase())
   }
 
   def getRoles(accountId: String, page: Int = 1, perPage: Int = 25): F[PagedResponse[Set[AccountRole]]] = {
