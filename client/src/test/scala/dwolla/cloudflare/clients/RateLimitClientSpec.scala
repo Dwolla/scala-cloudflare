@@ -1,11 +1,14 @@
-package dwolla.cloudflare
+package dwolla.cloudflare.clients
 
 import java.net.URI
 
 import cats.implicits._
+import com.dwolla.cloudflare.clients.{RateLimitClient, RateLimitDoesNotExistException}
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.ratelimits._
-import com.dwolla.cloudflare.{CloudflareAuthorization, FutureCloudflareApiExecutor, RateLimitClient, RateLimitDoesNotExistException}
+import com.dwolla.cloudflare.domain.model.response.{PagedResponse, PagingInfo}
+import com.dwolla.cloudflare.{CloudflareAuthorization, FutureCloudflareApiExecutor}
+import dwolla.cloudflare.HttpClientHelper
 import dwolla.testutils.httpclient.SimpleHttpRequestMatcher.http
 import org.apache.http.HttpVersion.HTTP_1_1
 import org.apache.http.client.HttpClient
@@ -37,63 +40,286 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
     val client = new RateLimitClient(fakeExecutor)
   }
 
-  "listRateLimits" should {
+  "list" should {
     "return configured rate limits" in new Setup {
-      mockListRateLimits(zoneId, SampleResponses.Successes.listRateLimits)
+      mockList(zoneId, SampleResponses.Successes.listRateLimits)
 
-      val output: Future[Set[RateLimit]] = client.listRateLimits(zoneId)
-      output must be_==(Set(
-        RateLimit(
-          id = "fake-rate-limit-1",
-          disabled = Some(false),
-          description = Some("Rate Limit"),
-          trafficMatch = RateLimitMatch(
-            request = RateLimitMatchRequest(
-              methods = Some(List("POST")),
-              schemes = Some(List("_ALL_")),
-              url = "*.test.com/test/v2/*"
+      val output: Future[PagedResponse[Set[RateLimit]]] = client.list(zoneId)
+      output must be_==(
+        PagedResponse(
+          result = Set(
+            RateLimit(
+              id = "fake-rate-limit-1",
+              disabled = Some(false),
+              description = Some("Rate Limit"),
+              trafficMatch = RateLimitMatch(
+                request = RateLimitMatchRequest(
+                  methods = Some(List("POST")),
+                  schemes = Some(List("_ALL_")),
+                  url = "*.test.com/test/v2/*"
+                )
+              ),
+              threshold = 300,
+              period = 60,
+              action = RateLimitAction(
+                mode = "ban",
+                timeout = 60
+              )
+            ),
+            RateLimit(
+              id = "fake-rate-limit-2",
+              trafficMatch = RateLimitMatch(
+                request = RateLimitMatchRequest(
+                  methods = Some(List("_ALL_")),
+                  schemes = Some(List("_ALL_")),
+                  url = "*.anothertest.com/*"
+                ),
+                response = Some(RateLimitMatchResponse(
+                  originTraffic = Some(true),
+                  headers = List(RateLimitMatchResponseHeader(
+                    name = "Cf-Cache-Status",
+                    op = "ne",
+                    value = "HIT"
+                  ))
+                ))
+              ),
+              bypass = Some(List(RateLimitKeyValue(
+                name = "url",
+                value = "api.anothertest.com/*"
+              ))),
+              threshold = 50,
+              period = 600,
+              action = RateLimitAction(
+                mode = "ban",
+                timeout = 60,
+                response = Some(RateLimitActionResponse(
+                  contentType = "application/json",
+                  body = "{\n  \"code\": \"TooManyRequests\",\n  \"message\": \"Your number of requests has exceeded the limit allowed for the last 1 minute. Your client will be allowed to continue making requests after the specified time in the `Retry-After` header.\"\n}"
+                ))
+              )
             )
           ),
-          threshold = 300,
-          period = 60,
-          action = RateLimitAction(
-            mode = "ban",
-            timeout = 60
-          )
-        ),
-        RateLimit(
-          id = "fake-rate-limit-2",
-          trafficMatch = RateLimitMatch(
-            request = RateLimitMatchRequest(
-              methods = Some(List("_ALL_")),
-              schemes = Some(List("_ALL_")),
-              url = "*.anothertest.com/*"
-            ),
-            response = Some(RateLimitMatchResponse(
-              originTraffic = Some(true),
-              headers = List(RateLimitMatchResponseHeader(
-                name = "Cf-Cache-Status",
-                op = "ne",
-                value = "HIT"
-              ))
-            ))
-          ),
-          bypass = Some(List(RateLimitKeyValue(
-            name = "url",
-            value = "api.anothertest.com/*"
-          ))),
-          threshold = 50,
-          period = 600,
-          action = RateLimitAction(
-            mode = "ban",
-            timeout = 60,
-            response = Some(RateLimitActionResponse(
-              contentType = "application/json",
-              body = "{\n  \"code\": \"TooManyRequests\",\n  \"message\": \"Your number of requests has exceeded the limit allowed for the last 1 minute. Your client will be allowed to continue making requests after the specified time in the `Retry-After` header.\"\n}"
-            ))
+          paging = PagingInfo(
+            page = 1,
+            perPage = 20,
+            count = 2,
+            total = 2,
+            totalPages = 1
           )
         )
-      )).await
+      ).await
+    }
+
+    "return configured rate limits with paging" in new Setup {
+      val page = 3
+      val perPage = 10
+
+      mockList(zoneId, SampleResponses.Successes.listRateLimits, page, perPage)
+
+      val output: Future[PagedResponse[Set[RateLimit]]] = client.list(zoneId, page, perPage)
+      output must be_==(
+        PagedResponse(
+          result = Set(
+            RateLimit(
+              id = "fake-rate-limit-1",
+              disabled = Some(false),
+              description = Some("Rate Limit"),
+              trafficMatch = RateLimitMatch(
+                request = RateLimitMatchRequest(
+                  methods = Some(List("POST")),
+                  schemes = Some(List("_ALL_")),
+                  url = "*.test.com/test/v2/*"
+                )
+              ),
+              threshold = 300,
+              period = 60,
+              action = RateLimitAction(
+                mode = "ban",
+                timeout = 60
+              )
+            ),
+            RateLimit(
+              id = "fake-rate-limit-2",
+              trafficMatch = RateLimitMatch(
+                request = RateLimitMatchRequest(
+                  methods = Some(List("_ALL_")),
+                  schemes = Some(List("_ALL_")),
+                  url = "*.anothertest.com/*"
+                ),
+                response = Some(RateLimitMatchResponse(
+                  originTraffic = Some(true),
+                  headers = List(RateLimitMatchResponseHeader(
+                    name = "Cf-Cache-Status",
+                    op = "ne",
+                    value = "HIT"
+                  ))
+                ))
+              ),
+              bypass = Some(List(RateLimitKeyValue(
+                name = "url",
+                value = "api.anothertest.com/*"
+              ))),
+              threshold = 50,
+              period = 600,
+              action = RateLimitAction(
+                mode = "ban",
+                timeout = 60,
+                response = Some(RateLimitActionResponse(
+                  contentType = "application/json",
+                  body = "{\n  \"code\": \"TooManyRequests\",\n  \"message\": \"Your number of requests has exceeded the limit allowed for the last 1 minute. Your client will be allowed to continue making requests after the specified time in the `Retry-After` header.\"\n}"
+                ))
+              )
+            )
+          ),
+          paging = PagingInfo(
+            page = 1,
+            perPage = 20,
+            count = 2,
+            total = 2,
+            totalPages = 1
+          )
+        )
+      ).await
+    }
+  }
+
+  "listAll" should {
+    "return all rate limits across pages" in new Setup {
+      mockPagedList(zoneId)
+
+      val output: Future[Set[RateLimit]] = client.listAll(zoneId)
+      output must be_==(
+        Set(
+          RateLimit(
+            id = "fake-rate-limit-1",
+            disabled = Some(false),
+            description = Some("Rate Limit"),
+            trafficMatch = RateLimitMatch(
+              request = RateLimitMatchRequest(
+                methods = Some(List("POST")),
+                schemes = Some(List("_ALL_")),
+                url = "*.test.com/test/v2/*"
+              )
+            ),
+            threshold = 300,
+            period = 60,
+            action = RateLimitAction(
+              mode = "ban",
+              timeout = 60
+            )
+          ),
+          RateLimit(
+            id = "fake-rate-limit-2",
+            trafficMatch = RateLimitMatch(
+              request = RateLimitMatchRequest(
+                methods = Some(List("_ALL_")),
+                schemes = Some(List("_ALL_")),
+                url = "*.anothertest.com/*"
+              ),
+              response = Some(RateLimitMatchResponse(
+                originTraffic = Some(true),
+                headers = List(RateLimitMatchResponseHeader(
+                  name = "Cf-Cache-Status",
+                  op = "ne",
+                  value = "HIT"
+                ))
+              ))
+            ),
+            bypass = Some(List(RateLimitKeyValue(
+              name = "url",
+              value = "api.anothertest.com/*"
+            ))),
+            threshold = 50,
+            period = 600,
+            action = RateLimitAction(
+              mode = "ban",
+              timeout = 60,
+              response = Some(RateLimitActionResponse(
+                contentType = "application/json",
+                body = "{\n  \"code\": \"TooManyRequests\",\n  \"message\": \"Your number of requests has exceeded the limit allowed for the last 1 minute. Your client will be allowed to continue making requests after the specified time in the `Retry-After` header.\"\n}"
+              ))
+            )
+          ),
+          RateLimit(
+            id = "fake-rate-limit-3",
+            disabled = Some(false),
+            description = Some("Rate Limit 3"),
+            trafficMatch = RateLimitMatch(
+              request = RateLimitMatchRequest(
+                methods = Some(List("POST")),
+                schemes = Some(List("_ALL_")),
+                url = "*.thirdtest.com/test/v4/*"
+              )
+            ),
+            threshold = 300,
+            period = 60,
+            action = RateLimitAction(
+              mode = "ban",
+              timeout = 60
+            )
+          )
+        )
+      ).await
+    }
+
+    "return results for first page if only one page" in new Setup {
+      mockList(zoneId, SampleResponses.Successes.listRateLimits)
+
+      val output: Future[Set[RateLimit]] = client.listAll(zoneId)
+      output must be_==(
+        Set(
+          RateLimit(
+            id = "fake-rate-limit-1",
+            disabled = Some(false),
+            description = Some("Rate Limit"),
+            trafficMatch = RateLimitMatch(
+              request = RateLimitMatchRequest(
+                methods = Some(List("POST")),
+                schemes = Some(List("_ALL_")),
+                url = "*.test.com/test/v2/*"
+              )
+            ),
+            threshold = 300,
+            period = 60,
+            action = RateLimitAction(
+              mode = "ban",
+              timeout = 60
+            )
+          ),
+          RateLimit(
+            id = "fake-rate-limit-2",
+            trafficMatch = RateLimitMatch(
+              request = RateLimitMatchRequest(
+                methods = Some(List("_ALL_")),
+                schemes = Some(List("_ALL_")),
+                url = "*.anothertest.com/*"
+              ),
+              response = Some(RateLimitMatchResponse(
+                originTraffic = Some(true),
+                headers = List(RateLimitMatchResponseHeader(
+                  name = "Cf-Cache-Status",
+                  op = "ne",
+                  value = "HIT"
+                ))
+              ))
+            ),
+            bypass = Some(List(RateLimitKeyValue(
+              name = "url",
+              value = "api.anothertest.com/*"
+            ))),
+            threshold = 50,
+            period = 600,
+            action = RateLimitAction(
+              mode = "ban",
+              timeout = 60,
+              response = Some(RateLimitActionResponse(
+                contentType = "application/json",
+                body = "{\n  \"code\": \"TooManyRequests\",\n  \"message\": \"Your number of requests has exceeded the limit allowed for the last 1 minute. Your client will be allowed to continue making requests after the specified time in the `Retry-After` header.\"\n}"
+              ))
+            )
+          )
+        )
+      ).await
     }
   }
 
@@ -141,7 +367,7 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
     }
   }
 
-  "createRateLimit" should {
+  "create" should {
     "create new rate limit" in new Setup {
       val rateLimitId = "fake-rate-limit-1"
 
@@ -165,7 +391,7 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
 
       val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.rateLimit)))
 
-      val output: Future[RateLimit] = client.createRateLimit(zoneId, createRateLimit)
+      val output: Future[RateLimit] = client.create(zoneId, createRateLimit)
       output must be_==(
         RateLimit(
           id = rateLimitId,
@@ -230,7 +456,7 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
       val failure = SampleResponses.Failures.rateLimitCreationError
       val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
-      client.createRateLimit(zoneId, createRateLimit) must throwA[UnexpectedCloudflareErrorException].like {
+      client.create(zoneId, createRateLimit) must throwA[UnexpectedCloudflareErrorException].like {
         case ex ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
@@ -240,7 +466,7 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
     }
   }
 
-  "updateRateLimit" should {
+  "update" should {
     "update existing rate limit" in new Setup {
       val rateLimitId = "fake-rate-limit-1"
 
@@ -265,7 +491,7 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
 
       val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.updatedRateLimit)))
 
-      val output: Future[RateLimit] = client.updateRateLimit(zoneId, updatedRateLimit)
+      val output: Future[RateLimit] = client.update(zoneId, updatedRateLimit)
       output must be_==(updatedRateLimit).await
 
       val httpPut: HttpPut = captor.value
@@ -315,7 +541,7 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
       val failure = SampleResponses.Failures.rateLimitUpdateError
       val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
-      client.updateRateLimit(zoneId, updatedRateLimit) must throwA[UnexpectedCloudflareErrorException].like {
+      client.update(zoneId, updatedRateLimit) must throwA[UnexpectedCloudflareErrorException].like {
         case ex ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
@@ -325,13 +551,13 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
     }
   }
 
-  "deleteRateLimit" should {
+  "delete" should {
     "delete rate limit from zone" in new Setup {
       val rateLimitId = "fake-rate-limit-1"
 
       val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.removedRateLimit)))
 
-      val output: Future[String] = client.deleteRateLimit(zoneId, rateLimitId)
+      val output: Future[String] = client.delete(zoneId, rateLimitId)
       output must be_==(rateLimitId).await
 
       val httpDelete: HttpDelete = captor.value
@@ -345,7 +571,7 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
       val failure = SampleResponses.Failures.rateLimitDeleteError
       val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
 
-      client.deleteRateLimit(zoneId, rateLimitId) must throwA[UnexpectedCloudflareErrorException].like {
+      client.delete(zoneId, rateLimitId) must throwA[UnexpectedCloudflareErrorException].like {
         case ex ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
@@ -361,16 +587,27 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
       val failure = SampleResponses.Failures.rateLimitDoesNotExist
       val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
 
-      client.deleteRateLimit(zoneId, rateLimitId) must throwA[RateLimitDoesNotExistException].like {
+      client.delete(zoneId, rateLimitId) must throwA[RateLimitDoesNotExistException].like {
         case ex ⇒ ex.getMessage must_==
           s"The rate limit $rateLimitId not found for zone $zoneId."
       }.await
     }
   }
 
-  def mockListRateLimits(zoneId: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
+  def mockList(zoneId: String, responseBody: String, page: Int = 1, perPage: Int = 25)(implicit mockHttpClient: HttpClient): Unit = {
     val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
-    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits"))) returns response
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits?page=$page&per_page=$perPage"))) returns response
+  }
+
+  def mockPagedList(zoneId: String)(implicit mockHttpClient: HttpClient): Unit = {
+    val response1 = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.listRateLimitsPage1))
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits?page=1&per_page=25"))) returns response1
+
+    val response2 = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.listRateLimitsPage2))
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits?page=2&per_page=25"))) returns response2
+
+    val response3 = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.listRateLimitsPage3))
+    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits?page=3&per_page=25"))) returns response3
   }
 
   def mockGetRateLimitById(zoneId: String, rateLimitId: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
@@ -461,6 +698,142 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
           |}
         """.stripMargin
 
+      val listRateLimitsPage1 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-rate-limit-1",
+          |      "disabled": false,
+          |      "description": "Rate Limit",
+          |      "match":
+          |      {
+          |        "request":
+          |        {
+          |          "methods": ["POST"],
+          |          "schemes": ["_ALL_"],
+          |          "url": "*.test.com/test/v2/*"
+          |        }
+          |      },
+          |      "threshold": 300,
+          |      "period": 60,
+          |      "action":
+          |      {
+          |        "mode": "ban",
+          |        "timeout": 60
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listRateLimitsPage2 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-rate-limit-2",
+          |      "match":
+          |      {
+          |        "request":
+          |        {
+          |          "methods": ["_ALL_"],
+          |          "schemes": ["_ALL_"],
+          |          "url": "*.anothertest.com/*"
+          |        },
+          |        "response":
+          |        {
+          |          "origin_traffic": true,
+          |          "headers":
+          |          [
+          |            {
+          |              "name": "Cf-Cache-Status",
+          |              "op": "ne",
+          |              "value": "HIT"
+          |            }
+          |          ]
+          |        }
+          |      },
+          |      "bypass":
+          |      [
+          |        {
+          |          "name": "url",
+          |          "value": "api.anothertest.com/*"
+          |        }
+          |      ],
+          |      "threshold": 50,
+          |      "period": 600,
+          |      "action":
+          |      {
+          |        "mode": "ban",
+          |        "timeout": 60,
+          |        "response":
+          |        {
+          |          "content_type": "application/json",
+          |          "body": "{\n  \"code\": \"TooManyRequests\",\n  \"message\": \"Your number of requests has exceeded the limit allowed for the last 1 minute. Your client will be allowed to continue making requests after the specified time in the `Retry-After` header.\"\n}"
+          |        }
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 2,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listRateLimitsPage3 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-rate-limit-3",
+          |      "disabled": false,
+          |      "description": "Rate Limit 3",
+          |      "match":
+          |      {
+          |        "request":
+          |        {
+          |          "methods": ["POST"],
+          |          "schemes": ["_ALL_"],
+          |          "url": "*.thirdtest.com/test/v4/*"
+          |        }
+          |      },
+          |      "threshold": 300,
+          |      "period": 60,
+          |      "action":
+          |      {
+          |        "mode": "ban",
+          |        "timeout": 60
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 3,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
       val rateLimit =
         """{
           |  "success": true,
@@ -522,9 +895,7 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification with 
       val removedRateLimit =
         """
           |{
-          |  "result": {
-          |    "id": "fake-rate-limit-1"
-          |  },
+          |  "result": null,
           |  "success": true,
           |  "errors": [],
           |  "messages": []

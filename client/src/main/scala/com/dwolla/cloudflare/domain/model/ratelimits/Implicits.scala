@@ -1,8 +1,19 @@
 package com.dwolla.cloudflare.domain.model.ratelimits
 
+import com.dwolla.cloudflare.domain.dto.PagedResponseDTO
 import com.dwolla.cloudflare.domain.dto.ratelimits._
+import com.dwolla.cloudflare.domain.model.response.PagedResponse
 
-private[cloudflare] object Implicits {
+object Implicits {
+  import com.dwolla.cloudflare.domain.model.response.Implicits._
+
+  implicit def toModel(dto: PagedResponseDTO[Set[RateLimitDTO]]): PagedResponse[Set[RateLimit]] = {
+    PagedResponse(
+      result = dto.result.map(toModel),
+      paging = dto.result_info
+    )
+  }
+
   implicit def toModel(dto: RateLimitDTO): RateLimit = {
     RateLimit(
       id = dto.id.get,

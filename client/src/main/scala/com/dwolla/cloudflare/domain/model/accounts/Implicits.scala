@@ -1,8 +1,26 @@
 package com.dwolla.cloudflare.domain.model.accounts
 
+import com.dwolla.cloudflare.domain.dto.PagedResponseDTO
 import com.dwolla.cloudflare.domain.dto.accounts._
+import com.dwolla.cloudflare.domain.model.response.PagedResponse
 
-private[cloudflare] object Implicits {
+object Implicits {
+  import com.dwolla.cloudflare.domain.model.response.Implicits._
+
+  implicit def toPagedAccountModel(dto: PagedResponseDTO[Set[AccountDTO]]): PagedResponse[Set[Account]] = {
+    PagedResponse(
+      result = dto.result.map(toModel),
+      paging = dto.result_info
+    )
+  }
+
+  implicit def toPagedAccountRoleModel(dto: PagedResponseDTO[Set[AccountRoleDTO]]): PagedResponse[Set[AccountRole]] = {
+    PagedResponse(
+      result = dto.result.map(toModel),
+      paging = dto.result_info
+    )
+  }
+
   implicit def toModel(dto: AccountDTO): Account = {
     Account(
       id = dto.id,

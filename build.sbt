@@ -40,6 +40,7 @@ lazy val client = (project in file("client"))
       httpComponents,
       catsCore,
       catsEffect,
+      fs2,
       specs2Core % Test,
       specs2Mock % Test,
       specs2Matchers % Test,

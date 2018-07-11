@@ -1,9 +1,9 @@
 package dwolla.cloudflare
 
-import org.apache.http.{HttpEntity, HttpResponse, StatusLine}
 import org.apache.http.client.HttpClient
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpUriRequest}
 import org.apache.http.message.BasicHttpResponse
+import org.apache.http.{HttpEntity, HttpResponse, StatusLine}
 import org.specs2.mock.Mockito
 import org.specs2.mock.mockito.ArgumentCapture
 
