@@ -7,4 +7,6 @@ case class DnsRecordDTO(id: Option[String] = None,
                         content: String,
                         `type`: String,
                         ttl: Option[Int] = None,
-                        proxied: Option[Boolean] = None) extends JsonWritable
+                        proxied: Option[Boolean] = None,
+                        priority: Option[Int] = None,
+                       ) extends JsonWritable

@@ -121,8 +121,8 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
         case ex ⇒ ex.getMessage must_==
           """Multiple DNS records exist for domain name example.dwolla.com:
             |
-            | - DnsRecordDTO(Some(fake-dns-record-id-1),example.dwolla.com,example.dwollalabs.com,CNAME,Some(1),Some(false))
-            | - DnsRecordDTO(Some(fake-dns-record-id-2),example.dwolla.com,example2.dwollalabs.com,CNAME,Some(1),Some(true))
+            | - DnsRecordDTO(Some(fake-dns-record-id-1),example.dwolla.com,example.dwollalabs.com,CNAME,Some(1),Some(false),None)
+            | - DnsRecordDTO(Some(fake-dns-record-id-2),example.dwolla.com,example2.dwollalabs.com,CNAME,Some(1),Some(true),None)
             |
             |This resource refuses to process multiple records because the intention is not clear.
             |Clean up the records manually or provide additional parameters to filter on.""".stripMargin
