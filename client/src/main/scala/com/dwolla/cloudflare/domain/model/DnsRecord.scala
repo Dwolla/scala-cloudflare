@@ -11,13 +11,16 @@ trait DnsRecord {
   val recordType: String
   val ttl: Option[Int]
   val proxied: Option[Boolean]
+  val priority: Option[Int]
 }
 
 case class UnidentifiedDnsRecord(name: String,
                                  content: String,
                                  recordType: String,
                                  ttl: Option[Int] = None,
-                                 proxied: Option[Boolean] = None) extends DnsRecord {
+                                 proxied: Option[Boolean] = None,
+                                 priority: Option[Int] = None,
+                                ) extends DnsRecord {
 
   import IdentifiedDnsRecord._
 
@@ -31,7 +34,8 @@ case class UnidentifiedDnsRecord(name: String,
         content = this.content,
         recordType = this.recordType,
         ttl = this.ttl,
-        proxied = this.proxied
+        proxied = this.proxied,
+        priority = this.priority,
       )
     case _ ⇒ throw new RuntimeException("Passed string does not match URL pattern for Cloudflare DNS record")
   }
@@ -44,7 +48,8 @@ case class UnidentifiedDnsRecord(name: String,
     content = this.content,
     recordType = this.recordType,
     ttl = this.ttl,
-    proxied = this.proxied
+    proxied = this.proxied,
+    priority = this.priority,
   )
 
 }
@@ -56,13 +61,16 @@ case class IdentifiedDnsRecord(physicalResourceId: String,
                                content: String,
                                recordType: String,
                                ttl: Option[Int] = None,
-                               proxied: Option[Boolean] = None) extends DnsRecord {
+                               proxied: Option[Boolean] = None,
+                               priority: Option[Int] = None,
+                              ) extends DnsRecord {
   def unidentify: UnidentifiedDnsRecord = UnidentifiedDnsRecord(
     name = this.name,
     content = this.content,
     recordType = this.recordType,
     ttl = this.ttl,
-    proxied = this.proxied
+    proxied = this.proxied,
+    priority = this.priority,
   )
 
 }
@@ -81,7 +89,8 @@ object Implicits {
     content = dnsRecord.content,
     `type` = dnsRecord.recordType,
     ttl = dnsRecord.ttl,
-    proxied = dnsRecord.proxied
+    proxied = dnsRecord.proxied,
+    priority = dnsRecord.priority,
   )
 
   implicit def fromDto(dnsRecordDto: DnsRecordDTO): UnidentifiedDnsRecord = UnidentifiedDnsRecord(
@@ -89,7 +98,8 @@ object Implicits {
     content = dnsRecordDto.content,
     recordType = dnsRecordDto.`type`,
     ttl = dnsRecordDto.ttl,
-    proxied = dnsRecordDto.proxied
+    proxied = dnsRecordDto.proxied,
+    priority = dnsRecordDto.priority,
   )
 
   implicit def fromDtoZoneIdTuple(tuple: (DnsRecordDTO, String))(implicit ev: DnsRecordDTO ⇒ UnidentifiedDnsRecord): IdentifiedDnsRecord = tuple match {
