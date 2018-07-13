@@ -135,7 +135,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
 
       val output = client.getExistingDnsRecordsWithContentFilter("example.dwolla.com", _ == "example.dwollalabs.com")
 
-      output must be_==(Seq(IdentifiedDnsRecord(
+      output must be_==(Set(IdentifiedDnsRecord(
         physicalResourceId = "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id",
         zoneId = "fake-zone-id",
         resourceId = "fake-resource-id",
@@ -153,7 +153,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification with 
 
       val output = client.getExistingDnsRecordsWithContentFilter("example.dwolla.com", _ ⇒ true, recordType = Option("CNAME"))
 
-      output must be_==(Seq(IdentifiedDnsRecord(
+      output must be_==(Set(IdentifiedDnsRecord(
         physicalResourceId = "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id",
         zoneId = "fake-zone-id",
         resourceId = "fake-resource-id",

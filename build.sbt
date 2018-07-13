@@ -5,18 +5,38 @@ lazy val buildSettings = Seq(
   homepage := Some(url("https://github.com/Dwolla/scala-cloudflare")),
   description := "Scala library for the Cloudflare v4 API",
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
-  releaseVersionBump := sbtrelease.Version.Bump.Minor,
-  releaseCommitMessage :=
-    s"""${releaseCommitMessage.value}
-        |
-        |[ci skip]""".stripMargin,
   scalaVersion := "2.12.6",
   startYear := Option(2016),
   resolvers ++= Seq(
-    Resolver.bintrayIvyRepo("dwolla", "maven"),
+    Resolver.bintrayRepo("dwolla", "maven"),
   ),
   scalacOptions += "-deprecation",
 )
+
+lazy val releaseSettings = {
+  import ReleaseTransformations._
+  import sbtrelease.Version.Bump._
+  Seq(
+    releaseVersionBump := Minor,
+    releaseCommitMessage :=
+      s"""${releaseCommitMessage.value}
+         |
+        |[ci skip]""".stripMargin,
+    releaseProcess := Seq[ReleaseStep](
+      checkSnapshotDependencies,
+      inquireVersions,
+      runClean,
+      releaseStepCommandAndRemaining("testOnly -- timefactor 10"),
+      setReleaseVersion,
+      commitReleaseVersion,
+      tagRelease,
+      publishArtifacts,
+      setNextVersion,
+      commitNextVersion,
+      pushChanges
+    )
+  )
+}
 
 lazy val bintraySettings = Seq(
   bintrayVcsUrl := homepage.value.map(_.toString),
@@ -26,13 +46,12 @@ lazy val bintraySettings = Seq(
   pomIncludeRepository := { _ ⇒ false },
 )
 
-
 lazy val dto = (project in file("dto"))
-  .settings(buildSettings ++ bintraySettings: _*)
+  .settings(buildSettings ++ bintraySettings ++ releaseSettings: _*)
   .settings(name := "cloudflare-api-dto")
 
 lazy val client = (project in file("client"))
-  .settings(buildSettings ++ bintraySettings: _*)
+  .settings(buildSettings ++ bintraySettings ++ releaseSettings: _*)
   .settings(name := "cloudflare-api-client")
   .settings(libraryDependencies ++= Seq(
       scalaArm,
@@ -49,7 +68,7 @@ lazy val client = (project in file("client"))
   .dependsOn(dto)
 
 lazy val scalaCloudflare = (project in file("."))
-  .settings(buildSettings ++ noPublishSettings: _*)
+  .settings(buildSettings ++ noPublishSettings ++ releaseSettings: _*)
   .aggregate(dto, client)
 
 lazy val noPublishSettings = Seq(
