@@ -22,4 +22,5 @@ if [ "$TRAVIS_COMMIT" != "$MASTER" ]; then
   exit 0
 fi
 
-sbt clean "release with-defaults"
+echo "Automatic releases are disabled since the current version is a release candidate."
+# sbt clean "release with-defaults"
