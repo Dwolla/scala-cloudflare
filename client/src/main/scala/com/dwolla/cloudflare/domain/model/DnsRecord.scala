@@ -82,7 +82,7 @@ object IdentifiedDnsRecord {
 object Implicits {
   implicit def toDto(dnsRecord: DnsRecord): DnsRecordDTO = DnsRecordDTO(
     id = dnsRecord match {
-      case identified: IdentifiedDnsRecord ⇒ Option(identified.physicalResourceId)
+      case identified: IdentifiedDnsRecord ⇒ Option(identified.resourceId)
       case _: UnidentifiedDnsRecord ⇒ None
     },
     name = dnsRecord.name,
@@ -106,5 +106,9 @@ object Implicits {
     case (dnsRecordDTO: DnsRecordDTO, zoneId: String) ⇒ dnsRecordDTO.id.fold(throw new RuntimeException) { recordId ⇒
       dnsRecordDTO.identifyAs(zoneId, recordId)
     }
+  }
+
+  implicit class DnsRecordToDto(dnsRecord: DnsRecord) {
+    def toDto: DnsRecordDTO = Implicits.toDto(dnsRecord)
   }
 }

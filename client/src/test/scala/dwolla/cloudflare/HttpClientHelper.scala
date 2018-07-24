@@ -22,7 +22,9 @@ trait HttpClientHelper { self: Mockito ⇒
     val res = new BasicHttpResponse(statusLine) with CloseableHttpResponse {
       val promisedClose = Promise[Unit]
 
-      override def close(): Unit = promisedClose.success(Unit)
+      override def close(): Unit = {
+        promisedClose.success(())
+      }
 
       def isClosed: Boolean = promisedClose.isCompleted
     }
