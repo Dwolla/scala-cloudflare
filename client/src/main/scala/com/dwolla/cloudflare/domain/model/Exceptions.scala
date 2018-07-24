@@ -1,5 +1,7 @@
 package com.dwolla.cloudflare.domain.model
 
+import org.http4s.Status
+
 object Exceptions {
 
   case class UnexpectedCloudflareErrorException(errors: List[Error]) extends RuntimeException(
@@ -8,4 +10,6 @@ object Exceptions {
         | - ${errors.mkString("\n - ")}
      """.stripMargin
   )
+
+  case class UnexpectedCloudflareResponseStatus(status: Status) extends RuntimeException(s"Received $status response from Cloudflare, but don't know how to handle it")
 }

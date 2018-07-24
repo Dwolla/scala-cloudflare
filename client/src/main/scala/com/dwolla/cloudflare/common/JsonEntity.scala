@@ -11,6 +11,8 @@ import resource._
 private[cloudflare] case class JsonEntity[T <: AnyRef](output: T)(implicit formats: Formats) extends EntityTemplate((out: OutputStream) ⇒ {
   for (writer ← managed(new OutputStreamWriter(out))) {
     write(output, writer)(formats)
+
+    ()
   }
 }) {
   setContentType("application/json")
