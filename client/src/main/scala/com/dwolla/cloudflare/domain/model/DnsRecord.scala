@@ -107,4 +107,8 @@ object Implicits {
       dnsRecordDTO.identifyAs(zoneId, recordId)
     }
   }
+
+  implicit class DnsRecordToDto(dnsRecord: DnsRecord) {
+    def toDto: DnsRecordDTO = Implicits.toDto(dnsRecord)
+  }
 }
