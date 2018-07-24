@@ -2,7 +2,7 @@ package com.dwolla.cloudflare.domain.model.accounts
 
 import com.dwolla.cloudflare.domain.dto.accounts._
 
-private[cloudflare] object Implicits {
+object Implicits {
   implicit def toModel(dto: AccountDTO): Account = {
     Account(
       id = dto.id,
@@ -52,16 +52,16 @@ private[cloudflare] object Implicits {
     )
   }
 
-  implicit def toDTO(model: AccountMember): AccountMemberDTO = {
+  implicit def toDto(model: AccountMember): AccountMemberDTO = {
     AccountMemberDTO(
       id = model.id,
       user = model.user,
       status = model.status,
-      roles = model.roles.map(toDTO)
+      roles = model.roles.map(toDto)
     )
   }
 
-  implicit def toDTO(model: User): UserDTO = {
+  implicit def toDto(model: User): UserDTO = {
     UserDTO(
       id = model.id,
       first_name = model.firstName,
@@ -71,16 +71,16 @@ private[cloudflare] object Implicits {
     )
   }
 
-  implicit def toDTO(model: AccountRole): AccountRoleDTO = {
+  implicit def toDto(model: AccountRole): AccountRoleDTO = {
     AccountRoleDTO(
       id = model.id,
       name = model.name,
       description = model.description,
-      permissions = model.permissions.map(kv ⇒ (kv._1, toDTO(kv._2)))
+      permissions = model.permissions.map(kv ⇒ (kv._1, toDto(kv._2)))
     )
   }
 
-  implicit def toDTO(model: AccountRolePermissions): AccountRolePermissionsDTO = {
+  implicit def toDto(model: AccountRolePermissions): AccountRolePermissionsDTO = {
     AccountRolePermissionsDTO(
       read = model.read,
       edit = model.edit

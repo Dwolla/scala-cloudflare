@@ -10,3 +10,7 @@ case class DnsRecordDTO(id: Option[String] = None,
                         proxied: Option[Boolean] = None,
                         priority: Option[Int] = None,
                        ) extends JsonWritable
+
+case class ZoneDTO(id: Option[String],
+                   name: String,
+                  )
