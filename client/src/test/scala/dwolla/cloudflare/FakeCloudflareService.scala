@@ -169,6 +169,108 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       BadRequest(parseJson(responseBody))
   }
 
+  def listRateLimits(pages: Map[Int, String], zoneId: String) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zone / "rate_limits"  :? OptionalPageQueryParamMatcher(pageQuery) ⇒
+      if (zone != zoneId) BadRequest()
+      else {
+        pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
+          okWithJson(pageBody)
+        }
+      }
+  }
+
+  def rateLimitById(responseBody: String, zoneId: String, rateLimitId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zone / "rate_limits" / rateLimit ⇒
+      if (zoneId != zone || rateLimitId != rateLimit) BadRequest("Invalid account id")
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
+  def createRateLimit(responseBody: String, zoneId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / zone / "rate_limits" ⇒
+      if (zone != zoneId) BadRequest()
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
+  def updateRateLimit(responseBody: String, zoneId: String, rateLimitId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case PUT -> Root / "client" / "v4" / "zones" / zone / "rate_limits" / rateLimit ⇒
+      if (zone != zoneId || rateLimit != rateLimitId) BadRequest()
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
+  def deleteRateLimit(responseBody: String, zoneId: String, rateLimitId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zone / "rate_limits" / rateLimit ⇒
+      if (zone != zoneId || rateLimit != rateLimitId) BadRequest()
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
+  def listAccounts(pages: Map[Int, String]) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "accounts"  :? OptionalPageQueryParamMatcher(pageQuery) +& DirectionPageQueryParamMatcher(directionQuery) ⇒
+      if (directionQuery != "asc") BadRequest()
+      else {
+        pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
+          okWithJson(pageBody)
+        }
+      }
+  }
+
+  def accountById(responseBody: String, accountId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / account ⇒
+      if (account != accountId) BadRequest("Invalid account id")
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
+  def listAccountRoles(pages: Map[Int, String], accountId: String) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "accounts"  / account / "roles" :? OptionalPageQueryParamMatcher(pageQuery) ⇒
+      if (account != accountId) BadRequest()
+      else {
+        pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
+          okWithJson(pageBody)
+        }
+      }
+  }
+
+  def getAccountMember(responseBody: String, accountId: String, accountMemberId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / account / "members" / accountMember ⇒
+      if (account != accountId || accountMember != accountMemberId) BadRequest()
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
+  def addAccountMember(responseBody: String, accountId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "accounts" / account / "members" ⇒
+      if (account != accountId) BadRequest()
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
+  def updateAccountMember(responseBody: String, accountId: String, accountMemberId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case PUT -> Root / "client" / "v4" / "accounts" / account / "members" / accountMember ⇒
+      if (account != accountId || accountMember != accountMemberId) BadRequest()
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
+  def removeAccountMember(responseBody: String, accountId: String, accountMemberId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case DELETE -> Root / "client" / "v4" / "accounts" / account / "members" / accountMember ⇒
+      if (account != accountId || accountMember != accountMemberId) BadRequest()
+      else {
+        Response(status).withBody(parseJson(responseBody))
+      }
+  }
+
   private def okWithJson(responseBody: String) = {
     Ok(parseJson(responseBody))
   }

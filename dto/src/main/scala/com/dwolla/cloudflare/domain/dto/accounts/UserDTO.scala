@@ -4,8 +4,8 @@ import com.dwolla.cloudflare.domain.dto.JsonWritable
 
 case class UserDTO (
   id: String,
-  first_name: String,
-  last_name: String,
+  first_name: Option[String],
+  last_name: Option[String],
   email: String,
   two_factor_authentication_enabled: Boolean
 ) extends JsonWritable

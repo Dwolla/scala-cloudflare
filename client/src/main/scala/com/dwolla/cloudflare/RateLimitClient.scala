@@ -1,80 +1,110 @@
 package com.dwolla.cloudflare
 
-import cats.Monad
-import com.dwolla.cloudflare.common.JsonEntity._
+import cats._
+import cats.effect._
+import cats.implicits._
 import com.dwolla.cloudflare.domain.dto.ratelimits.RateLimitDTO
+import com.dwolla.cloudflare.domain.model
 import com.dwolla.cloudflare.domain.model.Error
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.ratelimits.Implicits._
-import com.dwolla.cloudflare.domain.model.ratelimits.{CreateRateLimit, RateLimit}
-import org.apache.http.client.methods._
-import org.json4s.native.parseJson
-import org.json4s.{DefaultFormats, Formats}
+import com.dwolla.cloudflare.domain.model.ratelimits._
+import io.circe.Json
+import io.circe.generic.auto._
+import io.circe.optics.JsonPath._
+import io.circe.syntax._
+import fs2._
+import org.http4s.Method._
+import org.http4s._
+import org.http4s.circe._
+import org.http4s.client.dsl.Http4sClientDsl
 
 import scala.language.higherKinds
 
-class RateLimitClient[F[_] : Monad](executor: CloudflareApiExecutor[F]) {
-  protected implicit val formats: Formats = DefaultFormats
+trait RateLimitClient[F[_]] {
+  def list(zoneId: String): Stream[F, RateLimit]
+  def getById(zoneId: String, rateLimitId: String): Stream[F, RateLimit]
+  def create(zoneId: String, rateLimit: CreateRateLimit): Stream[F, RateLimit]
+  def update(zoneId: String, rateLimit: RateLimit): Stream[F, RateLimit]
+  def delete(zoneId: String, rateLimitId: String): Stream[F, String]
+}
 
-  def listRateLimits(zoneId: String): F[Set[RateLimit]] = {
-    val request: HttpGet = new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits")
+object RateLimitClient {
+  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): RateLimitClient[F] = new RateLimitClientImpl[F](executor)
+}
 
-    executor.fetch(request) { response ⇒
-      (parseJson(response.getEntity.getContent) \ "result").extract[Set[RateLimitDTO]].map(toModel)
-    }
+class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends RateLimitClient[F] with Http4sClientDsl[F] {
+  def list(zoneId: String): Stream[F, RateLimit] = {
+    for {
+      req ← Stream.eval(GET(BaseUrl / "zones" / zoneId / "rate_limits"))
+      record ← executor.fetch[RateLimitDTO](req)
+    } yield record
   }
 
-  def getById(zoneId: String, rateLimitId: String): F[Option[RateLimit]] = {
-    val request: HttpGet = new HttpGet(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits/$rateLimitId")
+  def getById(zoneId: String, rateLimitId: String): Stream[F, RateLimit] =
+    for {
+      req ← Stream.eval(GET(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId))
+      res ← executor.fetch[RateLimitDTO](req)
+    } yield res
 
-    executor.fetch(request) { response ⇒
-      (parseJson(response.getEntity.getContent) \ "result").extract[Option[RateLimitDTO]].map(toModel)
-    }
+  def create(zoneId: String, rateLimit: CreateRateLimit): Stream[F, RateLimit] = {
+    for {
+      req ← Stream.eval(POST(BaseUrl / "zones" / zoneId / "rate_limits", rateLimit.asJson))
+      resp ← createOrUpdate(req)
+    } yield resp
   }
 
-  def createRateLimit(zoneId: String, rateLimit: CreateRateLimit): F[RateLimit] = {
-    val request: HttpPost = new HttpPost(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits")
-    request.setEntity(rateLimit)
-
-    createOrUpdate(request)
+  def update(zoneId: String, rateLimit: RateLimit): Stream[F, RateLimit] = {
+    for {
+      req ← Stream.eval(PUT(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimit.id, toDto(rateLimit).asJson))
+      resp ← createOrUpdate(req)
+    } yield resp
   }
 
-  def updateRateLimit(zoneId: String, rateLimit: RateLimit): F[RateLimit] = {
-    val request: HttpPut = new HttpPut(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits/${rateLimit.id}")
-    request.setEntity(rateLimit)
+  def delete(zoneId: String, rateLimitId: String): Stream[F, String] = Stream.eval(deleteF(zoneId, rateLimitId))
 
-    createOrUpdate(request)
-  }
-
-  def deleteRateLimit(zoneId: String, rateLimitId: String): F[String] = {
-    val request: HttpDelete = new HttpDelete(s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits/$rateLimitId")
-    executor.fetch(request) { response ⇒
-      val parsedJson = parseJson(response.getEntity.getContent)
-
-      response.getStatusLine.getStatusCode match {
-        case 200 ⇒
-          // This endpoint returns the "result" field as null currently, so just return the supplied rate limit id.
-          rateLimitId
-        case 404 ⇒
-          throw RateLimitDoesNotExistException(zoneId, rateLimitId)
-        case _ ⇒
-          throw UnexpectedCloudflareErrorException((parsedJson \ "errors").extract[List[Error]])
+  private def deleteF(zoneId: String, rateLimitId: String): F[String] =
+    for {
+      req ← DELETE(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId)
+      id ← executor.raw(req) { res ⇒
+        for {
+          json ← res.decodeJson[Json]
+          output ← handleDeleteResponseJson(json, res.status, zoneId, rateLimitId)
+        } yield output
       }
+    } yield id
+
+  private def handleDeleteResponseJson(json: Json, status: Status, zoneId: String, rateLimitId: String): F[String] =
+    if (status.isSuccess)
+      deletedRecordLens(json).fold(Applicative[F].pure(rateLimitId))(Applicative[F].pure)
+    else {
+      if (status == Status.NotFound)
+        Sync[F].raiseError(RateLimitDoesNotExistException(zoneId, rateLimitId))
+      else
+        Sync[F].raiseError(UnexpectedCloudflareErrorException(errorsLens(json)))
+    }
+
+  private def createOrUpdate(request: Request[F]): Stream[F, RateLimit] = Stream.eval(createOrUpdateF(request))
+
+  private def createOrUpdateF(request: Request[F]): F[RateLimit] = {
+    executor.raw(request) { res ⇒
+      for {
+        json ← res.decodeJson[Json]
+        output ← handleCreateUpdateResponseJson(json, res.status)
+      } yield output
     }
   }
 
-  private def createOrUpdate(request: HttpRequestBase): F[RateLimit] = {
-    executor.fetch(request) { response ⇒
-      val parsedJson = parseJson(response.getEntity.getContent)
-
-      response.getStatusLine.getStatusCode match {
-        case 200 ⇒
-          (parsedJson \ "result").extract[RateLimitDTO]
-        case _ ⇒
-          throw UnexpectedCloudflareErrorException((parsedJson \ "errors").extract[List[Error]])
-      }
+  private def handleCreateUpdateResponseJson(json: Json, status: Status): F[RateLimit] =
+    if (status.isSuccess)
+      Applicative[F].pure(rateLimitLens(json))
+    else {
+      Sync[F].raiseError(UnexpectedCloudflareErrorException(errorsLens(json)))
     }
-  }
+
+  private val deletedRecordLens: Json ⇒ Option[String] = root.result.id.string.getOption
+  private val rateLimitLens: Json ⇒ RateLimit = root.result.as[RateLimitDTO].getOption(_).get
+  private val errorsLens: Json ⇒ List[Error] = root.errors.each.as[model.Error].getAll
 }
 
 case class RateLimitDoesNotExistException(zoneId: String, rateLimitId: String) extends RuntimeException(
