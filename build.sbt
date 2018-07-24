@@ -5,7 +5,6 @@ lazy val buildSettings = Seq(
   homepage := Some(url("https://github.com/Dwolla/scala-cloudflare")),
   description := "Scala library for the Cloudflare v4 API",
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
-  scalaVersion := "2.12.6",
   startYear := Option(2016),
   resolvers ++= Seq(
     Resolver.bintrayRepo("dwolla", "maven"),
@@ -18,6 +17,7 @@ lazy val releaseSettings = {
   import sbtrelease.Version.Bump._
   Seq(
     releaseVersionBump := Minor,
+    releaseCrossBuild := true,
     releaseCommitMessage :=
       s"""${releaseCommitMessage.value}
          |
