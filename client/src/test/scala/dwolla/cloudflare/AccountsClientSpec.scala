@@ -1,81 +1,63 @@
 package dwolla.cloudflare
 
-import java.net.URI
-
-import cats.implicits._
+import cats.effect._
+import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.accounts._
-import com.dwolla.cloudflare.{AccountMemberDoesNotExistException, AccountsClient, CloudflareAuthorization, _}
-import dwolla.testutils.httpclient.SimpleHttpRequestMatcher.http
-import org.apache.http.HttpVersion.HTTP_1_1
-import org.apache.http.client.HttpClient
-import org.apache.http.client.methods._
-import org.apache.http.entity.StringEntity
-import org.apache.http.impl.client.CloseableHttpClient
-import org.apache.http.message.BasicStatusLine
-import org.json4s.DefaultFormats
-import org.specs2.concurrent.ExecutionEnv
-import org.specs2.matcher.{JsonMatchers, JsonType, Matcher}
-import org.specs2.mock.Mockito
-import org.specs2.mock.mockito.ArgumentCapture
+import org.http4s.Status
+import org.http4s.client.Client
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 
-import scala.concurrent.Future
-import scala.io.Source
+import scala.language.higherKinds
 
-class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with Mockito with JsonMatchers with HttpClientHelper {
+class AccountsClientSpec extends Specification {
   trait Setup extends Scope {
-    implicit val formats = DefaultFormats
-    implicit val mockHttpClient = mock[CloseableHttpClient]
-    val fakeExecutor = new FutureCloudflareApiExecutor(CloudflareAuthorization("email", "key")) {
-      override lazy val httpClient: CloseableHttpClient = mockHttpClient
-    }
-
-    val client = new AccountsClient(fakeExecutor)
+    val authorization = CloudflareAuthorization("email", "key")
+    val fakeService = new FakeCloudflareService(authorization)
   }
 
-  "listAccounts" should {
-    "return accounts ordered asc" in new Setup {
-      mockListAccounts(SampleResponses.Successes.listAccounts)
+  "list" should {
+    "return all accounts across pages" in new Setup {
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccountsPage1, 2 → SampleResponses.Successes.listAccountsPage2, 3 → SampleResponses.Successes.listAccountsPage3)))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[Set[Account]] = client.listAccounts()
-      output must be_==(Set(
-        Account(
-          id = "fake-account-id1",
-          name = "Fake Account Org",
-          settings = AccountSettings(enforceTwoFactor = false)
-        ),
-        Account(
-          id = "fake-account-id2",
-          name = "Another Fake Account Biz",
-          settings = AccountSettings(enforceTwoFactor = true)
+      val output: List[Account] = client.list().compile.toList.unsafeRunSync()
+      output must be_==(
+        List(
+          Account(
+            id = "fake-account-id1",
+            name = "Fake Account Org",
+            settings = AccountSettings(enforceTwoFactor = false)
+          ),
+          Account(
+            id = "fake-account-id2",
+            name = "Fake Account Org 2",
+            settings = AccountSettings(enforceTwoFactor = false)
+          ),
+          Account(
+            id = "fake-account-id3",
+            name = "Fake Account Org 3",
+            settings = AccountSettings(enforceTwoFactor = true)
+          )
         )
-      )).await
-    }
-  }
-
-  "getByName" should {
-    "get account by name" in new Setup {
-      val accountName = "Another Fake Account Biz"
-
-      mockListAccounts(SampleResponses.Successes.listAccounts)
-
-      val output: Future[Option[Account]] = client.getByName(accountName)
-      output must beSome(
-        Account(
-          id = "fake-account-id2",
-          name = accountName,
-          settings = AccountSettings(enforceTwoFactor = true)
-        )
-      ).await
+      )
     }
 
-    "return None if not found" in new Setup {
-      mockListAccounts(SampleResponses.Successes.listAccounts)
+    "return all accounts across pages doesn't fetch eagerly" in new Setup {
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccountsPage1)))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[Option[Account]] = client.getByName("Test Stuff")
-      output must beNone.await
+      val output: List[Account] = client.list().take(1).compile.toList.unsafeRunSync()
+      output must be_==(
+        List(
+          Account(
+            id = "fake-account-id1",
+            name = "Fake Account Org",
+            settings = AccountSettings(enforceTwoFactor = false)
+          )
+        )
+      )
     }
   }
 
@@ -83,84 +65,159 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     "get account by id" in new Setup {
       val accountId = "fake-account-id1"
 
-      mockGetAccountById(accountId, SampleResponses.Successes.getAccount)
+      val http4sClient = fakeService.client(fakeService.accountById(SampleResponses.Successes.getAccount, accountId))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[Option[Account]] = client.getById(accountId)
+      val output: Option[Account] = client.getById(accountId)
+        .compile.toList.map(_.headOption).unsafeRunSync()
+
       output must beSome(
         Account(
           id = accountId,
           name = "Fake Account Org",
           settings = AccountSettings(enforceTwoFactor = false)
         )
-      ).await
+      )
     }
 
     "return None if not found" in new Setup {
       val accountId = "missing-id"
 
       val failure = SampleResponses.Failures.accountDoesNotExist
-      val captor: ArgumentCapture[HttpGet] = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
+      val http4sClient = fakeService.client(fakeService.accountById(failure.json, accountId, failure.status))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[Option[Account]] = client.getById(accountId)
-      output must beNone.await
+      val output: Option[Account] = client.getById(accountId)
+        .compile.toList.map(_.headOption).unsafeRunSync()
 
-      val httpGet: HttpGet = captor.value
-      httpGet.getMethod must_== "GET"
-      httpGet.getURI must_== new URI(s"https://api.cloudflare.com/client/v4/accounts/$accountId")
+      output must beNone
     }
   }
 
-  "getRolesForAccount" should {
-    "return all roles for an account" in new Setup {
+  "getByName" should {
+    "get account by name" in new Setup {
+      val accountName = "Another Fake Account Biz"
+
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccounts)))
+      val client = buildAccountsClient(http4sClient, authorization)
+
+      val output: Option[Account] = client.getByName(accountName)
+        .compile.toList.map(_.headOption).unsafeRunSync()
+
+      output must beSome(
+        Account(
+          id = "fake-account-id2",
+          name = accountName,
+          settings = AccountSettings(enforceTwoFactor = true)
+        )
+      )
+    }
+
+    "find account by name across multiple pages of accounts" in new Setup {
+      val accountName = "Fake Account Org 3"
+
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccountsPage1, 2 → SampleResponses.Successes.listAccountsPage2, 3 → SampleResponses.Successes.listAccountsPage3)))
+      val client = buildAccountsClient(http4sClient, authorization)
+
+      val output: Option[Account] = client.getByName(accountName)
+        .compile.toList.map(_.headOption).unsafeRunSync()
+
+      output must beSome(
+        Account(
+          id = "fake-account-id3",
+          name = accountName,
+          settings = AccountSettings(enforceTwoFactor = true)
+        )
+      )
+    }
+
+    "return None if not found" in new Setup {
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccounts)))
+      val client = buildAccountsClient(http4sClient, authorization)
+
+      val output: Option[Account] = client.getByName("Test Stuff")
+        .compile.toList.map(_.headOption).unsafeRunSync()
+
+      output must beNone
+    }
+  }
+
+  "listRoles" should {
+    "return all account roles across pages" in new Setup {
       val accountId = "fake-account-id"
 
-      val captor = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.getRoles)))
+      val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 → SampleResponses.Successes.getRolesPage1, 2 → SampleResponses.Successes.getRolesPage2, 3 → SampleResponses.Successes.getRolesPage3), accountId))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[Set[AccountRole]] = client.getRolesForAccount(accountId)
-      output must be_==(Set(
-        AccountRole(
-          id = "1111",
-          name = "Fake Role 1",
-          description = "this is the first fake role",
-          permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
-        ),
-        AccountRole(
-          id = "2222",
-          name = "Fake Role 2",
-          description = "second fake role",
-          permissions = Map[String, AccountRolePermissions](
-            "zone" → AccountRolePermissions(read = true, edit = false),
-            "logs" → AccountRolePermissions(read = true, edit = false)
-          )
-        ),
-        AccountRole(
-          id = "3333",
-          name = "Fake Full Role 3",
-          description = "full permissions",
-          permissions = Map[String, AccountRolePermissions](
-            "legal" → AccountRolePermissions(read = true, edit = true),
-            "billing" → AccountRolePermissions(read = true, edit = true)
+      val output: List[AccountRole] = client.listRoles(accountId).compile.toList.unsafeRunSync()
+      output must be_==(
+        List(
+          AccountRole(
+            id = "1111",
+            name = "Fake Role 1",
+            description = "this is the first fake role",
+            permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+          ),
+          AccountRole(
+            id = "2222",
+            name = "Fake Role 2",
+            description = "second fake role",
+            permissions = Map[String, AccountRolePermissions](
+              "zone" → AccountRolePermissions(read = true, edit = false),
+              "logs" → AccountRolePermissions(read = true, edit = false)
+            )
+          ),
+          AccountRole(
+            id = "3333",
+            name = "Fake Full Role 3",
+            description = "full permissions",
+            permissions = Map[String, AccountRolePermissions](
+              "legal" → AccountRolePermissions(read = true, edit = true),
+              "billing" → AccountRolePermissions(read = true, edit = true)
+            )
           )
         )
-      )).await
+      )
+    }
+
+    "return all account roles across pages doesn't fetch eagerly" in new Setup {
+      val accountId = "fake-account-id"
+
+      val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 → SampleResponses.Successes.getRolesPage1), accountId))
+      val client = buildAccountsClient(http4sClient, authorization)
+
+      val output: List[AccountRole] = client.listRoles(accountId).take(1).compile.toList.unsafeRunSync()
+      output must be_==(
+        List(
+          AccountRole(
+            id = "1111",
+            name = "Fake Role 1",
+            description = "this is the first fake role",
+            permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+          )
+        )
+      )
     }
   }
 
-  "getAccountMember" should {
+  "getMember" should {
     "get account member by id and account id" in new Setup {
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
 
-      mockGetAccountMember(accountId, accountMemberId, SampleResponses.Successes.accountMember)
+      val http4sClient = fakeService.client(fakeService.getAccountMember(SampleResponses.Successes.accountMember, accountId, accountMemberId))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[Option[AccountMember]] = client.getAccountMember(accountId, accountMemberId)
+      val output: Option[AccountMember] = client.getMember(accountId, accountMemberId)
+        .compile.toList.map(_.headOption).unsafeRunSync()
+
       output must beSome(
         AccountMember(
           id = accountMemberId,
           user = User(
             id = "fake-user-id",
-            firstName = null,
-            lastName = null,
+            firstName = None,
+            lastName = None,
             emailAddress = "myemail@test.com",
             twoFactorEnabled = false
           ),
@@ -183,7 +240,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
             )
           )
         )
-      ).await
+      )
     }
 
     "return None if not found" in new Setup {
@@ -191,70 +248,60 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val accountMemberId = "missing-account-member-id"
 
       val failure = SampleResponses.Failures.accountMemberDoesNotExist
-      val captor: ArgumentCapture[HttpGet] = mockExecuteWithCaptor[HttpGet](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
+      val http4sClient = fakeService.client(fakeService.getAccountMember(failure.json, accountId, accountMemberId, failure.status))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[Option[AccountMember]] = client.getAccountMember(accountId, accountMemberId)
-      output must beNone.await
+      val output: Option[AccountMember] = client.getMember(accountId, accountMemberId)
+        .compile.toList.map(_.headOption).unsafeRunSync()
 
-      val httpGet: HttpGet = captor.value
-      httpGet.getMethod must_== "GET"
-      httpGet.getURI must_== new URI(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId")
+      output must beNone
     }
   }
 
-  "addMemberToAccount" should {
+  "addMember" should {
     "add new member" in new Setup {
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
       val email = "myemail@test.com"
       val roleIds = List("1111", "2222")
 
-      val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.accountMember)))
+      val http4sClient = fakeService.client(fakeService.addAccountMember(SampleResponses.Successes.accountMember, accountId))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[AccountMember] = client.addMemberToAccount(accountId, email, roleIds)
+      val output = client.addMember(accountId, email, roleIds)
+        .compile.toList.unsafeRunSync()
+
       output must be_==(
-        AccountMember(
-          id = accountMemberId,
-          user = User(
-            id = "fake-user-id",
-            firstName = null,
-            lastName = null,
-            emailAddress = email,
-            twoFactorEnabled = false
-          ),
-          status = "pending",
-          roles = List(
-            AccountRole(
-              id = "1111",
-              name = "Fake Role 1",
-              description = "this is the first fake role",
-              permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+        List(AccountMember(
+            id = accountMemberId,
+            user = User(
+              id = "fake-user-id",
+              firstName = None,
+              lastName = None,
+              emailAddress = email,
+              twoFactorEnabled = false
             ),
-            AccountRole(
-              id = "2222",
-              name = "Fake Role 2",
-              description = "second fake role",
-              permissions = Map[String, AccountRolePermissions](
-                "zone" → AccountRolePermissions(read = true, edit = false),
-                "logs" → AccountRolePermissions(read = true, edit = false)
+            status = "pending",
+            roles = List(
+              AccountRole(
+                id = "1111",
+                name = "Fake Role 1",
+                description = "this is the first fake role",
+                permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+              ),
+              AccountRole(
+                id = "2222",
+                name = "Fake Role 2",
+                description = "second fake role",
+                permissions = Map[String, AccountRolePermissions](
+                  "zone" → AccountRolePermissions(read = true, edit = false),
+                  "logs" → AccountRolePermissions(read = true, edit = false)
+                )
               )
             )
           )
         )
-      ).await
-
-      val httpPost: HttpPost = captor.value
-      httpPost.getMethod must_== "POST"
-      httpPost.getURI must_== new URI(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members")
-
-      private val httpEntity = httpPost.getEntity
-
-      httpEntity.getContentType.getValue must_== "application/json"
-      val postedJson: String = Source.fromInputStream(httpEntity.getContent).mkString
-
-      postedJson must /("email" → email)
-      postedJson must /("status" → "pending")
-      postedJson must /("roles").andHave(exactly("1111", "2222"))
+      )
     }
 
     "throw unexpected exception if error adding new member" in new Setup {
@@ -263,19 +310,26 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val roleIds = List("1111", "2222")
 
       val failure = SampleResponses.Failures.accountMemberCreationError
-      val captor: ArgumentCapture[HttpPost] = mockExecuteWithCaptor[HttpPost](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
+      val http4sClient = fakeService.client(fakeService.addAccountMember(failure.json, accountId, failure.status))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      client.addMemberToAccount(accountId, email, roleIds) must throwA[UnexpectedCloudflareErrorException].like {
-        case ex ⇒ ex.getMessage must_==
+      val output = client.addMember(accountId, email, roleIds)
+        .compile
+        .toList
+        .attempt
+        .unsafeRunSync()
+
+      output must beLeft[Throwable].like {
+        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(1001,Invalid request: Value required for parameter 'email'.)
             |     """.stripMargin
-      }.await
+      }
     }
   }
 
-  "updateAccountMember" should {
+  "updateMember" should {
     "update existing member" in new Setup {
       val email = "myemail@test.com"
       val accountId = "fake-account-id1"
@@ -285,8 +339,8 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
         id = accountMemberId,
         user = User(
           id = "fake-user-id",
-          firstName = null,
-          lastName = null,
+          firstName = Some("Joe"),
+          lastName = Some("Smith"),
           emailAddress = email,
           twoFactorEnabled = false
         ),
@@ -318,28 +372,13 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
         )
       )
 
-      val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.updatedAccountMember)))
+      val http4sClient = fakeService.client(fakeService.updateAccountMember(SampleResponses.Successes.updatedAccountMember, accountId, updatedAccountMember.id))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[AccountMember] = client.updateAccountMember(accountId, updatedAccountMember)
-      output must be_==(updatedAccountMember).await
+      val output = client.updateMember(accountId, updatedAccountMember)
+        .compile.toList.unsafeRunSync()
 
-      val httpPut: HttpPut = captor.value
-      httpPut.getMethod must_== "PUT"
-      httpPut.getURI must_== new URI(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId")
-
-      private val httpEntity = httpPut.getEntity
-
-      httpEntity.getContentType.getValue must_== "application/json"
-      val putJson: String = Source.fromInputStream(httpEntity.getContent).mkString
-
-      putJson must / ("user") /("email" → email)
-      putJson must / ("status" → "pending")
-
-      putJson must haveRoles(
-        aRoleWith(id = "1111", name = "Fake Role 1", description = "this is the first fake role"),
-        aRoleWith(id = "2222", name = "Fake Role 2", description = "second fake role"),
-        aRoleWith(id = "3333", name = "Fake Role 3", description = "third fake role")
-      )
+      output must be_==(List(updatedAccountMember))
     }
 
     "throw unexpected exception if error updating existing member" in new Setup {
@@ -350,8 +389,8 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
         id = accountMemberId,
         user = User(
           id = "fake-user-id",
-          firstName = null,
-          lastName = null,
+          firstName = Some("Joe"),
+          lastName = Some("Smith"),
           emailAddress = "myemail@test.com",
           twoFactorEnabled = false
         ),
@@ -384,33 +423,37 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       )
 
       val failure = SampleResponses.Failures.accountMemberUpdateError
-      val captor: ArgumentCapture[HttpPut] = mockExecuteWithCaptor[HttpPut](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
+      val http4sClient = fakeService.client(fakeService.updateAccountMember(failure.json, accountId, updatedAccountMember.id, failure.status))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      client.updateAccountMember(accountId, updatedAccountMember) must throwA[UnexpectedCloudflareErrorException].like {
-        case ex ⇒ ex.getMessage must_==
+      val output = client.updateMember(accountId, updatedAccountMember)
+        .compile
+        .toList
+        .attempt
+        .unsafeRunSync()
+
+      output must beLeft[Throwable].like {
+        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(1001,Invalid request: Invalid roles)
             |     """.stripMargin
-      }.await
+      }
     }
   }
 
-  "removeAccountMember" should {
+  "removeMember" should {
     "remove member from account" in new Setup {
       val accountId = "fake-account-id1"
       val accountMemberId = "fake-account-member-id"
 
-      val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(SampleResponses.Successes.removedAccountMember)))
+      val http4sClient = fakeService.client(fakeService.removeAccountMember(SampleResponses.Successes.removedAccountMember, accountId, accountMemberId))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      val output: Future[String] = client.removeAccountMember(accountId, accountMemberId)
-      output must be_==(
-        accountMemberId
-      ).await
+      val output = client.removeMember(accountId, accountMemberId)
+        .compile.toList.unsafeRunSync()
 
-      val httpDelete: HttpDelete = captor.value
-      httpDelete.getMethod must_== "DELETE"
-      httpDelete.getURI must_== new URI(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId")
+      output must be_==(List(accountMemberId))
     }
 
     "throw unexpected exception if error removing member" in new Setup {
@@ -418,16 +461,23 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val accountMemberId = "fake-account-member-id"
 
       val failure = SampleResponses.Failures.accountMemberRemovalError
-      val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Bad Request"), new StringEntity(failure.json)))
+      val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      client.removeAccountMember(accountId, accountMemberId) must throwA[UnexpectedCloudflareErrorException].like {
-        case ex ⇒ ex.getMessage must_==
+      val output = client.removeMember(accountId, accountMemberId)
+        .compile
+        .toList
+        .attempt
+        .unsafeRunSync()
+
+      output must beLeft[Throwable].like {
+        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(7003,Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?)
             | - Error(7000,No route for that URI)
             |     """.stripMargin
-      }.await
+      }
     }
 
     "throw not found exception if member not in account" in new Setup {
@@ -435,35 +485,26 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
       val accountMemberId = "fake-account-member-id"
 
       val failure = SampleResponses.Failures.accountDoesNotExist
-      val captor: ArgumentCapture[HttpDelete] = mockExecuteWithCaptor[HttpDelete](fakeResponse(new BasicStatusLine(HTTP_1_1, failure.statusCode, "Not Found"), new StringEntity(failure.json)))
+      val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
+      val client = buildAccountsClient(http4sClient, authorization)
 
-      client.removeAccountMember(accountId, accountMemberId) must throwA[AccountMemberDoesNotExistException].like {
-        case ex ⇒ ex.getMessage must_==
+      val output = client.removeMember(accountId, accountMemberId)
+        .compile
+        .toList
+        .attempt
+        .unsafeRunSync()
+
+      output must beLeft[Throwable].like {
+        case ex: AccountMemberDoesNotExistException ⇒ ex.getMessage must_==
           "The account member fake-account-member-id not found for account fake-account-id1."
-      }.await
+      }
     }
   }
 
-  def mockListAccounts(responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
-    val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
-    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts?direction=asc"))) returns response
+  def buildAccountsClient[F[_]: Sync](http4sClient: Client[F], authorization: CloudflareAuthorization): AccountsClient[F] = {
+    val fakeHttp4sExecutor = new StreamingCloudflareApiExecutor(http4sClient, authorization)
+    AccountsClient(fakeHttp4sExecutor)
   }
-
-  def mockGetAccountById(accountId: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
-    val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
-    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts/$accountId"))) returns response
-  }
-
-  def mockGetAccountMember(accountId: String, accountMemberId: String, responseBody: String)(implicit mockHttpClient: HttpClient): Unit = {
-    val response = fakeResponse(new BasicStatusLine(HTTP_1_1, 200, "Ok"), new StringEntity(responseBody))
-    mockHttpClient.execute(http(new HttpGet(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId"))) returns response
-  }
-
-  def aRoleWith(id: Matcher[JsonType], name: Matcher[JsonType],  description: Matcher[JsonType]): Matcher[String] =
-    /("id").andHave(id) and /("name").andHave(name) and /("description").andHave(description)
-
-  def haveRoles(roles: Matcher[String]*): Matcher[String] =
-    /("roles").andHave(allOf(roles:_*))
 
   private object SampleResponses {
     object Successes {
@@ -493,6 +534,81 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |    "total_pages": 1,
           |    "count": 2,
           |    "total_count": 2
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listAccountsPage1 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-account-id1",
+          |      "name": "Fake Account Org",
+          |      "settings":
+          |      {
+          |        "enforce_twofactor": false
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listAccountsPage2 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-account-id2",
+          |      "name": "Fake Account Org 2",
+          |      "settings":
+          |      {
+          |        "enforce_twofactor": false
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 2,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val listAccountsPage3 =
+        """{
+          |  "result": [
+          |    {
+          |      "id": "fake-account-id3",
+          |      "name": "Fake Account Org 3",
+          |      "settings":
+          |      {
+          |        "enforce_twofactor": true
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 3,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
           |  },
           |  "success": true,
           |  "errors": [],
@@ -549,7 +665,92 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |          "edit": false
           |        }
           |      }
-          |    },
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 20,
+          |    "total_pages": 1,
+          |    "count": 2,
+          |    "total_count": 2
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val getRolesPage1 =
+        """
+          |{
+          |  "result": [
+          |    {
+          |      "id": "1111",
+          |      "name": "Fake Role 1",
+          |      "description": "this is the first fake role",
+          |      "permissions":
+          |      {
+          |        "analytics":
+          |        {
+          |          "read": true,
+          |          "edit": false
+          |        }
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 1,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val getRolesPage2 =
+        """
+          |{
+          |  "result": [
+          |    {
+          |      "id": "2222",
+          |      "name": "Fake Role 2",
+          |      "description": "second fake role",
+          |      "permissions":
+          |      {
+          |        "zone":
+          |        {
+          |          "read": true,
+          |          "edit": false
+          |        },
+          |        "logs":
+          |        {
+          |          "read": true,
+          |          "edit": false
+          |        }
+          |      }
+          |    }
+          |  ],
+          |  "result_info": {
+          |    "page": 2,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
+          |    "total_count": 3
+          |  },
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": []
+          |}
+        """.stripMargin
+
+      val getRolesPage3 =
+        """
+          |{
+          |  "result": [
           |    {
           |      "id": "3333",
           |      "name": "Fake Full Role 3",
@@ -570,10 +771,10 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |    }
           |  ],
           |  "result_info": {
-          |    "page": 1,
-          |    "per_page": 20,
-          |    "total_pages": 1,
-          |    "count": 3,
+          |    "page": 3,
+          |    "per_page": 1,
+          |    "total_pages": 3,
+          |    "count": 1,
           |    "total_count": 3
           |  },
           |  "success": true,
@@ -645,8 +846,8 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |    "user":
           |    {
           |      "id": "fake-user-id",
-          |      "first_name": null,
-          |      "last_name": null,
+          |      "first_name": "Joe",
+          |      "last_name": "Smith",
           |      "email": "myemail@test.com",
           |      "two_factor_authentication_enabled": false
           |    },
@@ -715,9 +916,9 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
     }
 
     object Failures {
-      case class Failure(statusCode: Int, json: String)
+      case class Failure(status: Status, json: String)
 
-      val accountMemberRemovalError = Failure(400,
+      val accountMemberRemovalError = Failure(Status.BadRequest,
         """{
           |  "success": false,
           |  "errors": [
@@ -735,7 +936,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |}
         """.stripMargin)
 
-      val accountMemberUpdateError = Failure(400,
+      val accountMemberUpdateError = Failure(Status.BadRequest,
         """{
           |  "success": false,
           |  "errors": [
@@ -749,7 +950,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |}
         """.stripMargin)
 
-      val accountMemberCreationError = Failure(400,
+      val accountMemberCreationError = Failure(Status.BadRequest,
         """{
           |  "success": false,
           |  "errors": [
@@ -763,7 +964,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |}
         """.stripMargin)
 
-      val accountMemberDoesNotExist = Failure(404,
+      val accountMemberDoesNotExist = Failure(Status.NotFound,
         """
           |{
           |  "success": false,
@@ -778,7 +979,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification with M
           |}
         """.stripMargin)
 
-      val accountDoesNotExist = Failure(404,
+      val accountDoesNotExist = Failure(Status.NotFound,
         """{
           |  "success": false,
           |  "errors": [
