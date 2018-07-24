@@ -122,9 +122,6 @@ lazy val client = (project in file("client"))
         "io.circe" %% "circe-optics",
       ).map(_ % "0.9.3") ++
       Seq(
-        scalaArm,
-        json4s,
-        httpComponents,
         fs2,
         dwollaFs2Utils,
         catsCore,
@@ -132,8 +129,6 @@ lazy val client = (project in file("client"))
       ) ++
       Seq(
         specs2Core,
-        specs2Mock,
-        specs2Matchers,
         dwollaTestUtils,
         "org.http4s" %% "http4s-blaze-server" % http4sVersion,
       ).map(_ % Test)

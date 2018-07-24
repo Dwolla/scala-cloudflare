@@ -1,7 +1,5 @@
 package com.dwolla.cloudflare.domain.dto.ratelimits
 
-import com.dwolla.cloudflare.domain.dto.JsonWritable
-
 case class RateLimitDTO (
   id: Option[String],
   disabled: Option[Boolean],
@@ -11,9 +9,9 @@ case class RateLimitDTO (
   threshold: Int,
   period: Int,
   action: RateLimitActionDTO
-) extends JsonWritable
+)
 
 case class RateLimitKeyValueDTO (
   name: String,
   value: String
-) extends JsonWritable
+)
