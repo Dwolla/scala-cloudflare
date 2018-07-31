@@ -135,6 +135,16 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       } yield res
   }
 
+  def createRecordThatAlreadyExists(zoneId: String) = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / zone / "dns_records" if zone == zoneId ⇒
+      BadRequest(ResponseDTO[DnsRecordDTO](
+        result = None,
+        success = false,
+        errors = Option(List(ResponseInfoDTO(code = 81057, message = "The record already exists."))),
+        messages = None,
+      ).asJson)
+  }
+
   def updateRecordInZone(zoneId: String, recordId: String) = HttpService[IO] {
     case req@PUT -> Root / "client" / "v4" / "zones" / zone / "dns_records" / record if zone == zoneId && record == recordId ⇒
       for {
