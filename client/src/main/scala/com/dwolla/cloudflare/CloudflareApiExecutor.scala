@@ -1,5 +1,6 @@
 package com.dwolla.cloudflare
 
+import cats._
 import cats.effect._
 import cats.implicits._
 import com.dwolla.cloudflare.domain.dto._
@@ -29,18 +30,20 @@ class StreamingCloudflareApiExecutor[F[_]: Sync](client: Client[F], authorizatio
 
   def fetch[T](req: Request[F])
               (implicit decoder: Decoder[T]): Stream[F, T] =
-    Pagination.offsetUnfoldSegmentEval { maybePageNumber: Option[Int] ⇒
+    Pagination.offsetUnfoldSegmentEval[F, Int, T] { maybePageNumber: Option[Int] ⇒
       val pagedRequest = maybePageNumber.fold(req) { pageNumber ⇒
         req.withUri(req.uri.withQueryParam("page", pageNumber))
       }
 
       for {
         pageData ← raw(pagedRequest)(responseToJson[T])
-        (segment, nextPage) = pageData match {
+        (segment, nextPage) ← pageData match {
+          case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == 81057) ⇒
+            Sync[F].raiseError(RecordAlreadyExists)
           case single: ResponseDTO[T] ⇒
-            (Segment.seq(single.result.toSeq), None)
+            Applicative[F].pure((Segment.seq(single.result.toSeq), None))
           case paged: PagedResponseDTO[T] ⇒
-            (Segment.seq(paged.result), calculateNextPage(paged.result_info.page, paged.result_info.total_pages))
+            Applicative[F].pure((Segment.seq(paged.result), calculateNextPage(paged.result_info.page, paged.result_info.total_pages)))
         }
       } yield (segment, nextPage)
     }

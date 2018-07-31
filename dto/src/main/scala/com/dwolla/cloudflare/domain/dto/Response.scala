@@ -6,6 +6,11 @@ trait BaseResponseDTO[T] {
   def messages: Option[Seq[ResponseInfoDTO]]
 }
 
+object BaseResponseDTO {
+  def unapply(arg: BaseResponseDTO[_]): Option[(Boolean, Option[Seq[ResponseInfoDTO]], Option[Seq[ResponseInfoDTO]])] =
+    Option((arg.success, arg.errors, arg.messages))
+}
+
 case class ResponseInfoDTO (
   code: Int,
   message: String

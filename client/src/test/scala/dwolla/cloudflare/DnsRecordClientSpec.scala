@@ -5,6 +5,7 @@ import cats.data._
 import cats.effect._
 import cats.implicits._
 import com.dwolla.cloudflare._
+import com.dwolla.cloudflare.domain.model.Exceptions.RecordAlreadyExists
 import com.dwolla.cloudflare.domain.model._
 import org.http4s._
 import org.http4s.client.Client
@@ -166,6 +167,19 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
         ttl = Option(1),
         proxied = Option(true)
       ))).await
+    }
+
+    "return a failed stream if the record already exists" in new Setup {
+      val createDnsRecordFailure = new FakeCloudflareService(authorization).createRecordThatAlreadyExists("fake-zone-id")
+
+      val output = client(createDnsRecordFailure <+> getZoneId).createDnsRecord(
+        UnidentifiedDnsRecord(
+          name = "example.dwolla.com",
+          content = "example.dwollalabs.com",
+          recordType = "TXT",
+        )).compile.toList
+
+      output.unsafeToFuture() must throwA[RecordAlreadyExists.type].await
     }
   }
 

@@ -12,4 +12,6 @@ object Exceptions {
   )
 
   case class UnexpectedCloudflareResponseStatus(status: Status) extends RuntimeException(s"Received $status response from Cloudflare, but don't know how to handle it")
+
+  case object RecordAlreadyExists extends RuntimeException("Cloudflare already has a matching record, and refuses to create a new one.")
 }
