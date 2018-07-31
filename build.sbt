@@ -63,6 +63,8 @@ lazy val buildSettings = Seq(
   }),
   scalacOptions in (Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings"),
   scalacOptions in Compile in Test -= "-Xfatal-warnings",
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6"),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.2.4"),
 )
 
 lazy val releaseSettings = {
@@ -138,7 +140,6 @@ lazy val client = (project in file("client"))
       catsEffect,
       fs2
     ),
-    addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.6"),
   )
   .dependsOn(dto)
 
