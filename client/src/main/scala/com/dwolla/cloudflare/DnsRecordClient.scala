@@ -68,7 +68,7 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
   def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord] = {
     for {
       zoneId ← getZoneId(domainNameToZoneName(name))
-      record ← executor.fetch[DnsRecordDTO](Request[F](uri = cloudflareBaseUri / "zones" / zoneId +?("name", name) +??("content", content) +??("type", recordType)))
+      record ← executor.fetch[DnsRecordDTO](Request[F](uri = cloudflareBaseUri / "zones" / zoneId / "dns_records" +?("name", name) +??("content", content) +??("type", recordType)))
     } yield (record, zoneId)
   }
 
