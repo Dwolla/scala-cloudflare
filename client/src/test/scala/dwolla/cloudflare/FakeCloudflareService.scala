@@ -108,7 +108,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
                         ) = {
     import ListRecordsForZoneQueryParameters._
     HttpService[IO] {
-      case GET -> Root / "client" / "v4" / "zones" / zone :? recordNameParam(name) +& contentParam(c) +& recordTypeParam(t)
+      case GET -> Root / "client" / "v4" / "zones" / zone / "dns_records" :? recordNameParam(name) +& contentParam(c) +& recordTypeParam(t)
         if zone == zoneId &&
           name == recordName &&
           c == contentFilter &&
