@@ -2,9 +2,10 @@ package dwolla.cloudflare
 
 import cats.data._
 import cats.effect._
-import com.dwolla.cloudflare.CloudflareAuthorization
+import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
+import com.dwolla.cloudflare.domain.model.ZoneSettings.CloudflareSettingValue
 import com.dwolla.cloudflare.domain.model._
 import io.circe.Json
 import io.circe.generic.auto._
@@ -279,6 +280,48 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       else {
         Response(status).withBody(parseJson(responseBody))
       }
+  }
+
+  def setTlsLevelService(zoneId: String, expectedValue: String) = HttpService[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / id / "settings" / "ssl" if id == zoneId ⇒
+      for {
+        input ← req.decodeJson[CloudflareSettingValue]
+        _ ← if (input.value != expectedValue) IO.raiseError(new RuntimeException(s"Expected $expectedValue but got ${input.value}")) else IO.unit
+        res ← okWithJson(
+          """{
+            |  "success": true,
+            |  "errors": [],
+            |  "messages": [],
+            |  "result": {
+            |    "id": "ssl",
+            |    "value": "full",
+            |    "editable": true,
+            |    "modified_on": "2014-01-01T05:20:00.12345Z"
+            |  }
+            |}
+          """.stripMargin)
+      } yield res
+  }
+
+  def setSecurityLevelService(zoneId: String, expectedValue: String) = HttpService[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / id / "settings" / "security_level" if id == zoneId ⇒
+      for {
+        input ← req.decodeJson[CloudflareSettingValue]
+        _ ← if (input.value != expectedValue) IO.raiseError(new RuntimeException(s"Expected $expectedValue but got ${input.value}")) else IO.unit
+        res ← okWithJson(
+          """{
+            |  "success": true,
+            |  "errors": [],
+            |  "messages": [],
+            |  "result": {
+            |    "id": "security_level",
+            |    "value": "high",
+            |    "editable": true,
+            |    "modified_on": "2014-01-01T05:20:00.12345Z"
+            |  }
+            |}
+          """.stripMargin)
+      } yield res
   }
 
   private def okWithJson(responseBody: String) = {
