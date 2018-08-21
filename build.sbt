@@ -128,6 +128,7 @@ lazy val client = (project in file("client"))
         dwollaFs2Utils,
         catsCore,
         catsEffect,
+        shapeless,
       ) ++
       Seq(
         specs2Core,

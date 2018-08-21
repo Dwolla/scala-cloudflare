@@ -35,7 +35,7 @@ object CloudflareSettingFunctions {
     * Given a Zone and a Zone ID, return a Some((Uri, Json)) if the
     * setting should be updated, or a None if it should not.
     */
-  type CloudflareSettingFunction = Zone ⇒ String ⇒ Option[(Uri, Json)]
+  type CloudflareSettingFunction = Zone ⇒ ZoneId ⇒ Option[(Uri, Json)]
 
   val setTlsLevel: CloudflareSettingFunction = zone ⇒ zoneId ⇒ Option((BaseUrl / "zones" / zoneId / "settings" / "ssl", zone.tlsLevel.asJson))
 
@@ -61,11 +61,10 @@ class ZoneSettingsClientImpl[F[_] : Effect](executor: StreamingCloudflareApiExec
     } yield res.toValidatedNel
   }.foldMonoid
 
-  private def applySettings(zoneId: String, zone: Zone): Stream[F, Stream[F, Unit]] = {
+  private def applySettings(zoneId: ZoneId, zone: Zone): Stream[F, Stream[F, Unit]] =
     Stream.emits(settings.toList).map(_(zone)(zoneId)).collect {
       case Some((uri, zoneSetting)) ⇒ patchValue(uri, zoneSetting)
     }
-  }
 
   private def patchValue[T](uri: Uri, cloudflareSettingValue: Json) =
     for {

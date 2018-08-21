@@ -25,7 +25,7 @@ trait DnsRecordClient[F[_]] {
   def getExistingDnsRecord(physicalResourceId: String): Stream[F, IdentifiedDnsRecord]
   def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord]
   def deleteDnsRecord(physicalResourceId: String): Stream[F, String]
-  def getZoneId(domain: String): Stream[F, String]
+  def getZoneId(domain: String): Stream[F, ZoneId]
 }
 
 object DnsRecordClient {
@@ -103,11 +103,11 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
 
   private val cloudflareBaseUri = Uri.uri("https://api.cloudflare.com") / "client" / "v4"
 
-  def getZoneId(domain: String): Stream[F, String] =
+  def getZoneId(domain: String): Stream[F, ZoneId] =
     executor.fetch[ZoneDTO](Request[F](uri = cloudflareBaseUri / "zones" +? ("name", domain) +? ("status", "active")))
       .map(_.id)
       .collect {
-        case Some(id) ⇒ id
+        case Some(id) ⇒ tagZoneId(id)
       }
 
   private def domainNameToZoneName(name: String): String = name.split('.').takeRight(2).mkString(".")
