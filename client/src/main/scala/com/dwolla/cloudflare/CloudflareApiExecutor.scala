@@ -40,6 +40,8 @@ class StreamingCloudflareApiExecutor[F[_]: Sync](client: Client[F], authorizatio
         (segment, nextPage) ← pageData match {
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == 81057) ⇒
             Sync[F].raiseError(RecordAlreadyExists)
+          case BaseResponseDTO(false, Some(errors), _) if errors.exists(cloudflareAuthorizationFormatError) ⇒
+            Sync[F].raiseError(AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten))
           case single: ResponseDTO[T] ⇒
             Applicative[F].pure((Segment.seq(single.result.toSeq), None))
           case paged: PagedResponseDTO[T] ⇒
@@ -60,10 +62,13 @@ class StreamingCloudflareApiExecutor[F[_]: Sync](client: Client[F], authorizatio
   private def responseToJson[T: Decoder](resp: Response[F]): F[BaseResponseDTO[T]] =
     resp match {
       case Status.Successful(_) | Status.NotFound(_) | Status.BadRequest(_) ⇒ resp.decodeJson
+      case Status.Forbidden(_) ⇒ Sync[F].raiseError(AccessDenied())
       case _ ⇒ Sync[F].raiseError(UnexpectedCloudflareResponseStatus(resp.status))
     }
 
   private def calculateNextPage(currentPage: Int, totalPages: Int): Option[Int] =
     if (currentPage < totalPages) Option(currentPage + 1) else None
+
+  private val cloudflareAuthorizationFormatError: ResponseInfoDTO ⇒ Boolean = resp ⇒ resp.code == 6003 && resp.error_chain.exists(_.exists(x ⇒ Set(6102, 6103).contains(x.code)))
 
 }
