@@ -2,6 +2,7 @@ package com.dwolla.cloudflare
 
 import cats.effect._
 import com.dwolla.cloudflare.domain.dto._
+import com.dwolla.cloudflare.domain.model.Exceptions._
 import dwolla.cloudflare.FakeCloudflareService
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -61,6 +62,22 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
       ).asJson)
   }
 
+  val authorizationFailure = HttpService[IO] {
+    case GET -> Root / "forbidden" ⇒
+      Forbidden()
+    case GET -> Root / "invalid-headers" ⇒
+      Ok(ResponseDTO[Unit](
+        None,
+        success = false,
+        errors = Some(List(
+          ResponseInfoDTO(6003, "Invalid request headers", Option(List(
+            ResponseInfoDTO(6102, "Invalid format for X-Auth-Email header"),
+            ResponseInfoDTO(6103, "Invalid format for X-Auth-Key header"),
+          )))
+        )),
+        messages = None).asJson)
+  }
+
   trait Setup extends Scope {
     def client(service: HttpService[IO]) = new StreamingCloudflareApiExecutor[IO](fakeCloudflareService.client(service), authorization)
   }
@@ -82,6 +99,36 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
       } yield res
 
       output.compile.toList.unsafeToFuture() must be_==(List("single-result")).await
+    }
+
+    "raise an exception if authorization fails with a 403 response" in new Setup {
+      private val output = for {
+        req ← Stream.eval(GET(Uri.uri("https://api.cloudflare.com/forbidden")))
+        res ← client(authorizationFailure).fetch[String](req)
+      } yield res
+
+      output.compile.toList.unsafeToFuture() should throwAn[AccessDenied].like {
+        case ex ⇒
+          ex.getMessage must_== "The given credentials were invalid"
+      }.await
+    }
+
+    "raise an exception if the authorization fails due to invalid headers" in new Setup {
+      private val output = for {
+        req ← Stream.eval(GET(Uri.uri("https://api.cloudflare.com/invalid-headers")))
+        res ← client(authorizationFailure).fetch[String](req)
+      } yield res
+
+      output.compile.toList.unsafeToFuture() should throwAn[AccessDenied].like {
+        case ex@AccessDenied(msg) ⇒
+          msg should contain(ResponseInfoDTO(6102, "Invalid format for X-Auth-Email header"))
+          msg should contain(ResponseInfoDTO(6103, "Invalid format for X-Auth-Key header"))
+          ex.getMessage must startWith(
+            """The given credentials were invalid
+              |
+              |  See the following errors:
+              |   -""".stripMargin)
+      }.await
     }
   }
 }

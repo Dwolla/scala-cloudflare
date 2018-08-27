@@ -13,7 +13,8 @@ object BaseResponseDTO {
 
 case class ResponseInfoDTO (
   code: Int,
-  message: String
+  message: String,
+  error_chain: Option[List[ResponseInfoDTO]] = None,
 )
 
 case class ResultInfoDTO (
