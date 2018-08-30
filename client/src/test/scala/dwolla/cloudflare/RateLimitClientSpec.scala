@@ -258,7 +258,7 @@ class RateLimitClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(1001,ratelimit.api.validation_error:threshold is too low and must be at least 1,sample_rate is too low and must be at least 1 second,'' is not a valid action)
+            | - Error(Some(1001),ratelimit.api.validation_error:threshold is too low and must be at least 1,sample_rate is too low and must be at least 1 second,'' is not a valid action)
             |     """.stripMargin
       }
     }
@@ -322,7 +322,7 @@ class RateLimitClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(1001,ratelimit.api.validation_error:threshold is too low and must be at least 1)
+            | - Error(Some(1001),ratelimit.api.validation_error:threshold is too low and must be at least 1)
             |     """.stripMargin
       }
     }
@@ -354,8 +354,8 @@ class RateLimitClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(7003,Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/rate_limits/8b0bcff938734f359ee12aa788b7ea38, perhaps your object identifier is invalid?)
-            | - Error(7000,No route for that URI)
+            | - Error(Some(7003),Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/rate_limits/8b0bcff938734f359ee12aa788b7ea38, perhaps your object identifier is invalid?)
+            | - Error(Some(7000),No route for that URI)
             |     """.stripMargin
       }
     }

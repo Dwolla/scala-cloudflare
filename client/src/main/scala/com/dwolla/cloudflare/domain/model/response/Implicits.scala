@@ -10,7 +10,7 @@ object Implicits {
 
   implicit def toError(dto: ResponseInfoDTO): Error = {
     Error(
-      code = dto.code,
+      code = Option(dto.code),
       message = dto.message
     )
   }

@@ -323,7 +323,7 @@ class AccountsClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(1001,Invalid request: Value required for parameter 'email'.)
+            | - Error(Some(1001),Invalid request: Value required for parameter 'email'.)
             |     """.stripMargin
       }
     }
@@ -436,7 +436,7 @@ class AccountsClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(1001,Invalid request: Invalid roles)
+            | - Error(Some(1001),Invalid request: Invalid roles)
             |     """.stripMargin
       }
     }
@@ -474,8 +474,8 @@ class AccountsClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(7003,Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?)
-            | - Error(7000,No route for that URI)
+            | - Error(Some(7003),Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?)
+            | - Error(Some(7000),No route for that URI)
             |     """.stripMargin
       }
     }

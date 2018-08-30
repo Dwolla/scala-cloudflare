@@ -22,6 +22,9 @@ import org.http4s.util.CaseInsensitiveString
 class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http4sDsl[IO] {
   object OptionalPageQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("page")
   object DirectionPageQueryParamMatcher extends QueryParamDecoderMatcher[String]("direction")
+  object ListAccessControlRulesParameters {
+    object modeParam extends QueryParamDecoderMatcher[String]("mode")
+  }
   import com.dwolla.cloudflare.domain.model.Implicits._
 
   object ListZonesQueryParameters {
@@ -181,7 +184,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listRateLimits(pages: Map[Int, String], zoneId: String) = HttpService[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zone / "rate_limits"  :? OptionalPageQueryParamMatcher(pageQuery) ⇒
+    case GET -> Root / "client" / "v4" / "zones" / zone / "rate_limits" :? OptionalPageQueryParamMatcher(pageQuery) ⇒
       if (zone != zoneId) BadRequest()
       else {
         pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
@@ -222,8 +225,34 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       }
   }
 
+  def listAccessRules(pages: Map[Int, Json], accountId: String) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" :? OptionalPageQueryParamMatcher(pageQuery) +& ListAccessControlRulesParameters.modeParam("challenge") ⇒
+      if (account != accountId) BadRequest()
+      else {
+        pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
+          Ok(pageBody)
+        }
+      }
+  }
+
+  def createAccessRule(responseBody: Json, accountId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" ⇒
+      if (account != accountId) BadRequest()
+      else {
+        Response(status).withBody(responseBody)
+      }
+  }
+
+  def deleteAccessRule(responseBody: Json, accountId: String, ruleId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case DELETE -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" / rule ⇒
+      if (account != accountId || rule != ruleId) BadRequest()
+      else {
+        Response(status).withBody(responseBody)
+      }
+  }
+
   def listAccounts(pages: Map[Int, String]) = HttpService[IO] {
-    case GET -> Root / "client" / "v4" / "accounts"  :? OptionalPageQueryParamMatcher(pageQuery) +& DirectionPageQueryParamMatcher(directionQuery) ⇒
+    case GET -> Root / "client" / "v4" / "accounts" :? OptionalPageQueryParamMatcher(pageQuery) +& DirectionPageQueryParamMatcher(directionQuery) ⇒
       if (directionQuery != "asc") BadRequest()
       else {
         pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
@@ -241,7 +270,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listAccountRoles(pages: Map[Int, String], accountId: String) = HttpService[IO] {
-    case GET -> Root / "client" / "v4" / "accounts"  / account / "roles" :? OptionalPageQueryParamMatcher(pageQuery) ⇒
+    case GET -> Root / "client" / "v4" / "accounts" / account / "roles" :? OptionalPageQueryParamMatcher(pageQuery) ⇒
       if (account != accountId) BadRequest()
       else {
         pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒

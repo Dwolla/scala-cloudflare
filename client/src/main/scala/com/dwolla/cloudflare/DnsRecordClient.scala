@@ -78,7 +78,7 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
     else {
       val errors = errorsLens(json)
 
-      if (status == Status.BadRequest && errors.contains(Error(1032, "Invalid DNS record identifier")) && errors.length == 1)
+      if (status == Status.BadRequest && errors.contains(Error(Option(1032), "Invalid DNS record identifier")) && errors.length == 1)
         Sync[F].raiseError(DnsRecordIdDoesNotExistException(physicalResourceId))
       else
         Sync[F].raiseError(UnexpectedCloudflareErrorException(errors))
