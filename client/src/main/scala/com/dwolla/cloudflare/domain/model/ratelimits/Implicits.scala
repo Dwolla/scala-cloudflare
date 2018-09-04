@@ -17,11 +17,12 @@ private[cloudflare] object Implicits {
   }
 
   implicit def toModel(dto: RateLimitActionDTO): RateLimitAction = {
-    RateLimitAction(
-      mode = dto.mode,
-      timeout = dto.timeout,
-      response = dto.response.map(toModel)
-    )
+    dto match {
+      case ChallengeRateLimitActionDTO ⇒ ChallengeRateLimitAction
+      case JsChallengeRateLimitActionDTO ⇒ JsChallengeRateLimitAction
+      case BanRateLimitActionDTO(timeout, response) ⇒ BanRateLimitAction(timeout, response.map(toModel))
+      case SimulateRateLimitActionDTO(timeout, response) ⇒ SimulateRateLimitAction(timeout, response.map(toModel))
+    }
   }
 
   implicit def toModel(dto: RateLimitActionResponseDTO): RateLimitActionResponse = {
@@ -96,11 +97,12 @@ private[cloudflare] object Implicits {
   }
 
   implicit def toDto(model: RateLimitAction): RateLimitActionDTO = {
-    RateLimitActionDTO(
-      mode = model.mode,
-      timeout = model.timeout,
-      response = model.response.map(toDto)
-    )
+    model match {
+      case ChallengeRateLimitAction ⇒ ChallengeRateLimitActionDTO
+      case JsChallengeRateLimitAction ⇒ JsChallengeRateLimitActionDTO
+      case BanRateLimitAction(timeout, response) ⇒ BanRateLimitActionDTO(timeout, response.map(toDto))
+      case SimulateRateLimitAction(timeout, response) ⇒ SimulateRateLimitActionDTO(timeout, response.map(toDto))
+    }
   }
 
   implicit def toDto(model: RateLimitActionResponse): RateLimitActionResponseDTO = {
