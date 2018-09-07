@@ -3,16 +3,16 @@ package com.dwolla.cloudflare
 import cats._
 import cats.effect._
 import cats.implicits._
-import com.dwolla.cloudflare.domain.dto.ratelimits.RateLimitDTO
+import com.dwolla.cloudflare.domain.dto.ratelimits._
 import com.dwolla.cloudflare.domain.model
 import com.dwolla.cloudflare.domain.model.Error
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.ratelimits.Implicits._
 import com.dwolla.cloudflare.domain.model.ratelimits._
-import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.optics.JsonPath._
 import io.circe.syntax._
+import io.circe.{Decoder, DecodingFailure, HCursor, Json}
 import fs2._
 import org.http4s.Method._
 import org.http4s._
@@ -34,6 +34,22 @@ object RateLimitClient {
 }
 
 class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends RateLimitClient[F] with Http4sClientDsl[F] {
+  implicit val rateLimitActionDtoDecoder: Decoder[RateLimitActionDTO] = new Decoder[RateLimitActionDTO] {
+    override def apply(c: HCursor): Decoder.Result[RateLimitActionDTO] =
+      for {
+        mode ← c.downField("mode").as[String]
+        timeout ← c.downField("timeout").as[Option[Int]]
+        response ← c.downField("response").as[Option[RateLimitActionResponseDTO]]
+        dto ← (mode, timeout) match {
+          case ("challenge", None) ⇒ Right(ChallengeRateLimitActionDTO)
+          case ("js_challenge", None) ⇒ Right(JsChallengeRateLimitActionDTO)
+          case ("ban", Some(t)) ⇒ Right(BanRateLimitActionDTO(t, response))
+          case ("simulate", Some(t)) ⇒ Right(SimulateRateLimitActionDTO(t, response))
+          case _ ⇒ Left(DecodingFailure("Invalid mode for rate limit action", c.history))
+        }
+      } yield dto
+  }
+
   def list(zoneId: String): Stream[F, RateLimit] = {
     for {
       req ← Stream.eval(GET(BaseUrl / "zones" / zoneId / "rate_limits"))

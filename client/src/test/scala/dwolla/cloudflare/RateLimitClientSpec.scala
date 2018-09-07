@@ -4,8 +4,8 @@ import cats.effect.Sync
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.ratelimits._
-import org.http4s.Status
 import org.http4s.client.Client
+import org.http4s.{InvalidMessageBodyFailure, Status}
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 
@@ -38,8 +38,7 @@ class RateLimitClientSpec extends Specification {
             ),
             threshold = 300,
             period = 60,
-            action = RateLimitAction(
-              mode = "ban",
+            action = BanRateLimitAction(
               timeout = 60
             )
           ),
@@ -66,8 +65,7 @@ class RateLimitClientSpec extends Specification {
             ))),
             threshold = 50,
             period = 600,
-            action = RateLimitAction(
-              mode = "ban",
+            action = BanRateLimitAction(
               timeout = 60,
               response = Some(RateLimitActionResponse(
                 contentType = "application/json",
@@ -87,8 +85,7 @@ class RateLimitClientSpec extends Specification {
             ),
             threshold = 20,
             period = 6000,
-            action = RateLimitAction(
-              mode = "ban",
+            action = BanRateLimitAction(
               timeout = 120
             )
           )
@@ -116,8 +113,7 @@ class RateLimitClientSpec extends Specification {
             ),
             threshold = 300,
             period = 60,
-            action = RateLimitAction(
-              mode = "ban",
+            action = BanRateLimitAction(
               timeout = 60
             )
           )
@@ -150,12 +146,28 @@ class RateLimitClientSpec extends Specification {
           ),
           threshold = 300,
           period = 60,
-          action = RateLimitAction(
-            mode = "ban",
+          action = BanRateLimitAction(
             timeout = 60
           )
         )
       )
+    }
+
+    "throw InvalidRateLimitAction exception if missing timeout and mode not challenge or js_challenge" in new Setup {
+      val rateLimitId = "fake-rate-limit-1"
+
+      val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.invalidRateLimit, zoneId, rateLimitId))
+      val client = buildRateLimitClient(http4sClient, authorization)
+
+      val output = client.getById(zoneId, rateLimitId)
+        .compile
+        .toList
+        .attempt
+        .unsafeRunSync()
+
+      output must beLeft[Throwable].like {
+        case ex: InvalidMessageBodyFailure ⇒ ex.message must startWith("Invalid message body: Could not decode JSON")
+      }
     }
 
     "return None if not found" in new Setup {
@@ -188,8 +200,7 @@ class RateLimitClientSpec extends Specification {
         ),
         threshold = 300,
         period = 60,
-        action = RateLimitAction(
-          mode = "ban",
+        action = BanRateLimitAction(
           timeout = 60
         )
       )
@@ -214,8 +225,7 @@ class RateLimitClientSpec extends Specification {
           ),
           threshold = 300,
           period = 60,
-          action = RateLimitAction(
-            mode = "ban",
+          action = BanRateLimitAction(
             timeout = 60
           )
         ))
@@ -235,8 +245,7 @@ class RateLimitClientSpec extends Specification {
         ),
         threshold = 300,
         period = 60,
-        action = RateLimitAction(
-          mode = "ban",
+        action = BanRateLimitAction(
           timeout = 60
         )
       )
@@ -278,10 +287,7 @@ class RateLimitClientSpec extends Specification {
         ),
         threshold = 600,
         period = 30,
-        action = RateLimitAction(
-          mode = "challenge",
-          timeout = 20
-        )
+        action = ChallengeRateLimitAction
       )
 
       val http4sClient = fakeService.client(fakeService.updateRateLimit(SampleResponses.Successes.updatedRateLimit, zoneId, updatedRateLimit.id))
@@ -309,10 +315,7 @@ class RateLimitClientSpec extends Specification {
         ),
         threshold = 0,
         period = 30,
-        action = RateLimitAction(
-          mode = "challenge",
-          timeout = 20
-        )
+        action = ChallengeRateLimitAction
       )
 
       val failure = SampleResponses.Failures.rateLimitUpdateError
@@ -643,6 +646,34 @@ class RateLimitClientSpec extends Specification {
           |}
         """.stripMargin
 
+      val invalidRateLimit =
+        """{
+          |  "success": true,
+          |  "errors": [],
+          |  "messages": [],
+          |  "result": {
+          |    "id": "fake-rate-limit-1",
+          |    "disabled": false,
+          |    "description": "Rate Limit",
+          |    "match":
+          |    {
+          |      "request":
+          |      {
+          |        "methods": ["POST"],
+          |        "schemes": ["_ALL_"],
+          |        "url": "*.test.com/test/v2/*"
+          |      }
+          |    },
+          |    "threshold": 300,
+          |    "period": 60,
+          |    "action":
+          |    {
+          |      "mode": "super_ban"
+          |    }
+          |  }
+          |}
+        """.stripMargin
+
       val updatedRateLimit =
         """{
           |  "success": true,
@@ -665,8 +696,7 @@ class RateLimitClientSpec extends Specification {
           |    "period": 30,
           |    "action":
           |    {
-          |      "mode": "challenge",
-          |      "timeout": 20
+          |      "mode": "challenge"
           |    }
           |  }
           |}
