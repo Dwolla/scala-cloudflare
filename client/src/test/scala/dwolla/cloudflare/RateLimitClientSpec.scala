@@ -3,6 +3,7 @@ package dwolla.cloudflare
 import cats.effect.Sync
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
+import com.dwolla.cloudflare.domain.model.{RateLimitId, RateLimitIdTag, ZoneId, ZoneIdTag}
 import com.dwolla.cloudflare.domain.model.ratelimits._
 import org.http4s.client.Client
 import org.http4s.{InvalidMessageBodyFailure, Status}
@@ -11,7 +12,8 @@ import org.specs2.specification.Scope
 
 class RateLimitClientSpec extends Specification {
   trait Setup extends Scope {
-    val zoneId = "zone-id"
+    val zoneId: ZoneId = toZoneId("zone-id")
+    val rateLimitId: RateLimitId = toRateLimitId("rate-limit-id")
 
     val authorization = CloudflareAuthorization("email", "key")
     val fakeService = new FakeCloudflareService(authorization)
@@ -26,7 +28,7 @@ class RateLimitClientSpec extends Specification {
       output must be_==(
         List(
           RateLimit(
-            id = "fake-rate-limit-1",
+            id = rateLimitId,
             disabled = Some(false),
             description = Some("Rate Limit"),
             trafficMatch = RateLimitMatch(
@@ -43,7 +45,7 @@ class RateLimitClientSpec extends Specification {
             )
           ),
           RateLimit(
-            id = "fake-rate-limit-2",
+            id = toRateLimitId("rate-limit-id2"),
             trafficMatch = RateLimitMatch(
               request = RateLimitMatchRequest(
                 methods = Some(List("_ALL_")),
@@ -74,7 +76,7 @@ class RateLimitClientSpec extends Specification {
             )
           ),
           RateLimit(
-            id = "fake-rate-limit-3",
+            id = toRateLimitId("rate-limit-id3"),
             description = Some("Third Rate Limit"),
             trafficMatch = RateLimitMatch(
               request = RateLimitMatchRequest(
@@ -101,7 +103,7 @@ class RateLimitClientSpec extends Specification {
       output must be_==(
         List(
           RateLimit(
-            id = "fake-rate-limit-1",
+            id = rateLimitId,
             disabled = Some(false),
             description = Some("Rate Limit"),
             trafficMatch = RateLimitMatch(
@@ -124,8 +126,6 @@ class RateLimitClientSpec extends Specification {
 
   "getById" should {
     "get rate limit by id" in new Setup {
-      val rateLimitId = "fake-rate-limit-1"
-
       val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.rateLimit, zoneId, rateLimitId))
       val client = buildRateLimitClient(http4sClient, authorization)
 
@@ -154,8 +154,6 @@ class RateLimitClientSpec extends Specification {
     }
 
     "throw InvalidRateLimitAction exception if missing timeout and mode not challenge or js_challenge" in new Setup {
-      val rateLimitId = "fake-rate-limit-1"
-
       val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.invalidRateLimit, zoneId, rateLimitId))
       val client = buildRateLimitClient(http4sClient, authorization)
 
@@ -171,8 +169,6 @@ class RateLimitClientSpec extends Specification {
     }
 
     "return None if not found" in new Setup {
-      val rateLimitId = "missing-id"
-
       val failure = SampleResponses.Failures.rateLimitDoesNotExist
       val http4sClient = fakeService.client(fakeService.rateLimitById(failure.json, zoneId, rateLimitId, failure.status))
       val client = buildRateLimitClient(http4sClient, authorization)
@@ -186,8 +182,6 @@ class RateLimitClientSpec extends Specification {
 
   "create" should {
     "create new rate limit" in new Setup {
-      val rateLimitId = "fake-rate-limit-1"
-
       val createRateLimit = CreateRateLimit(
         disabled = Some(false),
         description = Some("Rate Limit"),
@@ -272,8 +266,6 @@ class RateLimitClientSpec extends Specification {
 
   "updateRateLimit" should {
     "update existing rate limit" in new Setup {
-      val rateLimitId = "fake-rate-limit-1"
-
       val updatedRateLimit = RateLimit(
         id = rateLimitId,
         disabled = Some(true),
@@ -300,8 +292,6 @@ class RateLimitClientSpec extends Specification {
     }
 
     "throw unexpected exception if error updating existing rate limit" in new Setup {
-      val rateLimitId = "fake-rate-limit-1"
-
       val updatedRateLimit = RateLimit(
         id = rateLimitId,
         disabled = Some(true),
@@ -340,8 +330,6 @@ class RateLimitClientSpec extends Specification {
 
   "deleteRateLimit" should {
     "delete rate limit from zone" in new Setup {
-      val rateLimitId = "fake-rate-limit-1"
-
       val http4sClient = fakeService.client(fakeService.deleteRateLimit(SampleResponses.Successes.removedRateLimit, zoneId, rateLimitId))
       val client = buildRateLimitClient(http4sClient, authorization)
 
@@ -352,8 +340,6 @@ class RateLimitClientSpec extends Specification {
     }
 
     "throw unexpected exception if error deleting rate limit" in new Setup {
-      val rateLimitId = "fake-rate-limit-1"
-
       val failure = SampleResponses.Failures.rateLimitDeleteError
       val http4sClient = fakeService.client(fakeService.deleteRateLimit(failure.json, zoneId, rateLimitId, failure.status))
       val client = buildRateLimitClient(http4sClient, authorization)
@@ -368,15 +354,13 @@ class RateLimitClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(7003,Could not route to /accounts/90940840480ba654a3a5ddcdc5d741f9/rate_limits/8b0bcff938734f359ee12aa788b7ea38, perhaps your object identifier is invalid?)
+            | - Error(7003,Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/rate_limits/8b0bcff938734f359ee12aa788b7ea38, perhaps your object identifier is invalid?)
             | - Error(7000,No route for that URI)
             |     """.stripMargin
       }
     }
 
     "throw not found exception if rate limit not in zone" in new Setup {
-      val rateLimitId = "fake-rate-limit-1"
-
       val failure = SampleResponses.Failures.rateLimitDoesNotExist
       val http4sClient = fakeService.client(fakeService.deleteRateLimit(failure.json, zoneId, rateLimitId, failure.status))
       val client = buildRateLimitClient(http4sClient, authorization)
@@ -394,7 +378,10 @@ class RateLimitClientSpec extends Specification {
     }
   }
 
-  def buildRateLimitClient[F[_]: Sync](http4sClient: Client[F], authorization: CloudflareAuthorization): RateLimitClient[F] = {
+  private def toZoneId(id: String): ZoneId = shapeless.tag[ZoneIdTag][String](id)
+  private def toRateLimitId(id: String): RateLimitId = shapeless.tag[RateLimitIdTag][String](id)
+
+  private def buildRateLimitClient[F[_]: Sync](http4sClient: Client[F], authorization: CloudflareAuthorization): RateLimitClient[F] = {
     val fakeHttp4sExecutor = new StreamingCloudflareApiExecutor(http4sClient, authorization)
     RateLimitClient(fakeHttp4sExecutor)
   }
@@ -405,7 +392,7 @@ class RateLimitClientSpec extends Specification {
         """{
           |  "result": [
           |    {
-          |      "id": "fake-rate-limit-1",
+          |      "id": "rate-limit-id",
           |      "disabled": false,
           |      "description": "Rate Limit",
           |      "match":
@@ -426,7 +413,7 @@ class RateLimitClientSpec extends Specification {
           |      }
           |    },
           |    {
-          |      "id": "fake-rate-limit-2",
+          |      "id": "rate-limit-id2",
           |      "match":
           |      {
           |        "request":
@@ -486,7 +473,7 @@ class RateLimitClientSpec extends Specification {
         """{
           |  "result": [
           |    {
-          |      "id": "fake-rate-limit-1",
+          |      "id": "rate-limit-id",
           |      "disabled": false,
           |      "description": "Rate Limit",
           |      "match":
@@ -524,7 +511,7 @@ class RateLimitClientSpec extends Specification {
         """{
           |  "result": [
           |    {
-          |      "id": "fake-rate-limit-2",
+          |      "id": "rate-limit-id2",
           |      "match":
           |      {
           |        "request":
@@ -584,7 +571,7 @@ class RateLimitClientSpec extends Specification {
         """{
           |  "result": [
           |    {
-          |      "id": "fake-rate-limit-3",
+          |      "id": "rate-limit-id3",
           |      "description": "Third Rate Limit",
           |      "match":
           |      {
@@ -623,7 +610,7 @@ class RateLimitClientSpec extends Specification {
           |  "errors": [],
           |  "messages": [],
           |  "result": {
-          |    "id": "fake-rate-limit-1",
+          |    "id": "rate-limit-id",
           |    "disabled": false,
           |    "description": "Rate Limit",
           |    "match":
@@ -652,7 +639,7 @@ class RateLimitClientSpec extends Specification {
           |  "errors": [],
           |  "messages": [],
           |  "result": {
-          |    "id": "fake-rate-limit-1",
+          |    "id": "rate-limit-id",
           |    "disabled": false,
           |    "description": "Rate Limit",
           |    "match":
@@ -680,7 +667,7 @@ class RateLimitClientSpec extends Specification {
           |  "errors": [],
           |  "messages": [],
           |  "result": {
-          |    "id": "fake-rate-limit-1",
+          |    "id": "rate-limit-id",
           |    "disabled": true,
           |    "description": "Updated Rate Limit",
           |    "match":
@@ -764,7 +751,7 @@ class RateLimitClientSpec extends Specification {
           |  "errors": [
           |    {
           |      "code": 7003,
-          |      "message": "Could not route to /accounts/90940840480ba654a3a5ddcdc5d741f9/rate_limits/8b0bcff938734f359ee12aa788b7ea38, perhaps your object identifier is invalid?"
+          |      "message": "Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/rate_limits/8b0bcff938734f359ee12aa788b7ea38, perhaps your object identifier is invalid?"
           |    },
           |    {
           |      "code": 7000,
