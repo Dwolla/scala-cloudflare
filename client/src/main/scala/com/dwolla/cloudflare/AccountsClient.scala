@@ -1,15 +1,14 @@
 package com.dwolla.cloudflare
 
-import cats._
 import cats.effect._
 import cats.implicits._
+import com.dwolla.cloudflare.AccountsClientImpl._
 import com.dwolla.cloudflare.domain.dto.accounts._
-import com.dwolla.cloudflare.domain.model
-import com.dwolla.cloudflare.domain.model.Error
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.accounts.Implicits._
 import com.dwolla.cloudflare.domain.model.accounts._
-import io.circe._
+import com.dwolla.cloudflare.domain.model.{Implicits ⇒ _, _}
+import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.optics.JsonPath._
 import io.circe.syntax._
@@ -25,113 +24,88 @@ trait AccountsClient[F[_]] {
   def list(): Stream[F, Account]
   def getById(accountId: String): Stream[F, Account]
   def getByName(name: String): Stream[F, Account]
-  def listRoles(accountId: String): Stream[F, AccountRole]
-  def getMember(accountId: String, accountMemberId: String): Stream[F, AccountMember]
-  def addMember(accountId: String, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember]
-  def updateMember(accountId: String, accountMember: AccountMember): Stream[F, AccountMember]
-  def removeMember(accountId: String, accountMemberId: String): Stream[F, String]
+  def listRoles(accountId: AccountId): Stream[F, AccountRole]
+  def getMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMember]
+  def addMember(accountId: AccountId, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember]
+  def updateMember(accountId: AccountId, accountMember: AccountMember): Stream[F, AccountMember]
+  def removeMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMemberId]
 }
 
 object AccountsClient {
   def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): AccountsClient[F] = new AccountsClientImpl[F](executor)
 }
 
+object AccountsClientImpl {
+  val notFoundCodes = List(1003)
+}
+
 class AccountsClientImpl[F[_]: Sync](executor: StreamingCloudflareApiExecutor[F]) extends AccountsClient[F] with Http4sClientDsl[F] {
-  def list(): Stream[F, Account] = {
+  override def list(): Stream[F, Account] = {
     for {
       req ← Stream.eval(GET(BaseUrl / "accounts" withQueryParam("direction", "asc")))
       record ← executor.fetch[AccountDTO](req)
     } yield record
   }
 
-  def getById(accountId: String): Stream[F, Account] =
+  override def getById(accountId: String): Stream[F, Account] =
     for {
       req ← Stream.eval(GET(BaseUrl / "accounts" / accountId))
-      res ← executor.fetch[AccountDTO](req)
+      res ← executor.fetch[AccountDTO](req).returningEmptyOnErrorCodes(notFoundCodes: _*)
     } yield res
 
-  def getByName(name: String): Stream[F, Account] = {
+  override def getByName(name: String): Stream[F, Account] = {
     list()
       .filter(a ⇒ a.name.toUpperCase == name.toUpperCase)
   }
 
-  def listRoles(accountId: String): Stream[F, AccountRole] = {
+  override def listRoles(accountId: AccountId): Stream[F, AccountRole] = {
     for {
       req ← Stream.eval(GET(BaseUrl / "accounts" / accountId / "roles"))
       record ← executor.fetch[AccountRoleDTO](req)
     } yield record
   }
 
-  def getMember(accountId: String, accountMemberId: String): Stream[F, AccountMember] =
+  override def getMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMember] =
     for {
       req ← Stream.eval(GET(buildAccountMemberUri(accountId, accountMemberId)))
-      res ← executor.fetch[AccountMemberDTO](req)
+      res ← executor.fetch[AccountMemberDTO](req).returningEmptyOnErrorCodes(notFoundCodes: _*)
     } yield res
 
-  def addMember(accountId: String, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember] = {
+  override def addMember(accountId: AccountId, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember] =
     for {
-      dto ← Stream.eval(Applicative[F].pure(NewAccountMemberDTO(emailAddress, roleIds, Some("pending"))))
-      req ← Stream.eval(POST(BaseUrl / "accounts" / accountId / "members", dto.asJson))
+      req ← Stream.eval(POST(BaseUrl / "accounts" / accountId / "members", NewAccountMemberDTO(emailAddress, roleIds, Some("pending")).asJson))
       resp ← createOrUpdate(req)
     } yield resp
-  }
 
-  def updateMember(accountId: String, accountMember: AccountMember): Stream[F, AccountMember] = {
+  override def updateMember(accountId: AccountId, accountMember: AccountMember): Stream[F, AccountMember] = {
     for {
       req ← Stream.eval(PUT(buildAccountMemberUri(accountId, accountMember.id), toDto(accountMember).asJson))
       resp ← createOrUpdate(req)
     } yield resp
   }
 
-  def removeMember(accountId: String, accountMemberId: String): Stream[F, String] = Stream.eval(removeMemberF(accountId, accountMemberId))
+  override def removeMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMemberId] =
+  /*_*/
+    for {
+      req ← Stream.eval(DELETE(buildAccountMemberUri(accountId, accountMemberId)))
+      json ← executor.fetch[Json](req).last.adaptError {
+        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) ⇒
+          AccountMemberDoesNotExistException(accountId, accountMemberId)
+      }
+    } yield tagAccountMemberId(json.flatMap(deletedRecordLens).getOrElse(accountMemberId))
+  /*_*/
 
-  private def buildAccountMemberUri(accountId: String, accountMemberId: String): Uri =
+  private def buildAccountMemberUri(accountId: AccountId, accountMemberId: String): Uri =
     BaseUrl / "accounts" / accountId / "members" / accountMemberId
 
-  private def createOrUpdate(request: Request[F]): Stream[F, AccountMember] = Stream.eval(createOrUpdateF(request))
-
-  private def createOrUpdateF(request: Request[F]): F[AccountMember] = {
-    executor.raw(request) { res ⇒
-      for {
-        json ← res.decodeJson[Json]
-        output ← handleCreateUpdateResponseJson(json, res.status)
-      } yield output
-    }
-  }
-
-  private def removeMemberF(accountId: String, accountMemberId: String): F[String] =
+  private def createOrUpdate(request: Request[F]): Stream[F, AccountMember] =
     for {
-      req ← DELETE(buildAccountMemberUri(accountId, accountMemberId))
-      id ← executor.raw(req) { res ⇒
-        for {
-          json ← res.decodeJson[Json]
-          output ← handleDeleteResponseJson(json, res.status, accountId, accountMemberId)
-        } yield output
-      }
-    } yield id
+      res ← executor.fetch[AccountMemberDTO](request)
+    } yield res
 
-  private def handleDeleteResponseJson(json: Json, status: Status, accountId: String, accountMemberId: String): F[String] =
-    if (status.isSuccess)
-      deletedRecordLens(json).fold(Applicative[F].pure(accountMemberId))(Applicative[F].pure)
-    else {
-      if (status == Status.NotFound)
-        Sync[F].raiseError(AccountMemberDoesNotExistException(accountId, accountMemberId))
-      else
-        Sync[F].raiseError(UnexpectedCloudflareErrorException(errorsLens(json)))
-    }
-
-  private def handleCreateUpdateResponseJson(json: Json, status: Status): F[AccountMember] =
-    if (status.isSuccess)
-      Applicative[F].pure(accountMemberLens(json))
-    else {
-      Sync[F].raiseError(UnexpectedCloudflareErrorException(errorsLens(json)))
-    }
-
-  private val deletedRecordLens: Json ⇒ Option[String] = root.result.id.string.getOption
-  private val accountMemberLens: Json ⇒ AccountMember = root.result.as[AccountMemberDTO].getOption(_).get
-  private val errorsLens: Json ⇒ List[Error] = root.errors.each.as[model.Error].getAll
+  private val deletedRecordLens: Json ⇒ Option[String] = root.id.string.getOption
 }
 
-case class AccountMemberDoesNotExistException(accountId: String, accountMemberId: String) extends RuntimeException(
+case class AccountMemberDoesNotExistException(accountId: AccountId, accountMemberId: String) extends RuntimeException(
   s"The account member $accountMemberId not found for account $accountId."
 )

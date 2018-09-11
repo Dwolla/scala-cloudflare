@@ -76,9 +76,9 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   def getDnsRecordByUri(fakeZoneId: String, fakeRecordId: String) = HttpService[IO] {
     case req@GET -> Root / "client" / "v4" / "zones" / zoneId / "dns_records" / recordId if zoneId == fakeZoneId && recordId == fakeRecordId ⇒
       val record: DnsRecord = IdentifiedDnsRecord(
-        physicalResourceId = req.uri.toString(),
-        zoneId = fakeZoneId,
-        resourceId = fakeRecordId,
+        physicalResourceId = shapeless.tag[PhysicalResourceIdTag][String](req.uri.toString()),
+        zoneId = shapeless.tag[ZoneIdTag][String](fakeZoneId),
+        resourceId = shapeless.tag[ResourceIdTag][String](fakeRecordId),
         name = "example.hydragents.xyz",
         content = "content.hydragents.xyz",
         recordType = "CNAME",
@@ -97,8 +97,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
         result = None,
         success = false,
         errors = Option(List(
-          ResponseInfoDTO(7003, s"Could not route to /zones/$zoneId/dns_records/$recordId, perhaps your object identifier is invalid?"),
-          ResponseInfoDTO(7000, "No route for that URI")
+          ResponseInfoDTO(Option(7003), s"Could not route to /zones/$zoneId/dns_records/$recordId, perhaps your object identifier is invalid?"),
+          ResponseInfoDTO(Option(7000), "No route for that URI")
         )),
         messages = None,
       ).asJson)
@@ -144,7 +144,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       BadRequest(ResponseDTO[DnsRecordDTO](
         result = None,
         success = false,
-        errors = Option(List(ResponseInfoDTO(code = 81057, message = "The record already exists."))),
+        errors = Option(List(ResponseInfoDTO(code = Option(81057), message = "The record already exists."))),
         messages = None,
       ).asJson)
   }

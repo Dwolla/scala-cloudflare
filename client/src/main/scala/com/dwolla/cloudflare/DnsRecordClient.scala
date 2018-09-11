@@ -9,7 +9,6 @@ import cats._
 import cats.effect._
 import cats.implicits._
 import com.dwolla.cloudflare.domain.dto.dns._
-import com.dwolla.cloudflare.domain.model
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.{Error, _}
 import fs2._
@@ -24,7 +23,7 @@ trait DnsRecordClient[F[_]] {
   def updateDnsRecord(record: IdentifiedDnsRecord): Stream[F, IdentifiedDnsRecord]
   def getExistingDnsRecord(physicalResourceId: String): Stream[F, IdentifiedDnsRecord]
   def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord]
-  def deleteDnsRecord(physicalResourceId: String): Stream[F, String]
+  def deleteDnsRecord(physicalResourceId: String): Stream[F, PhysicalResourceId]
   def getZoneId(domain: String): Stream[F, ZoneId]
 }
 
@@ -32,21 +31,25 @@ object DnsRecordClient {
   def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): DnsRecordClient[F] = new DnsRecordClientImpl[F](executor)
 }
 
+object DnsRecordClientImpl {
+  val notFoundCodes = List(1032)
+}
+
 class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends DnsRecordClient[F] with Http4sClientDsl[F] {
 
   import com.dwolla.cloudflare.domain.model.Implicits._
 
-  def createDnsRecord(record: UnidentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
+  override def createDnsRecord(record: UnidentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
     for {
       zoneId ← getZoneId(domainNameToZoneName(record.name))
-      request ← Stream.eval(POST(cloudflareBaseUri / "zones" / zoneId / "dns_records", record.toDto.asJson))
+      request ← Stream.eval(POST(BaseUrl / "zones" / zoneId / "dns_records", record.toDto.asJson))
       record ← executor.fetch[DnsRecordDTO](request)
     } yield (record, zoneId)
 
   private def toUri(physicalResourceId: String): F[Uri] =
     Uri.fromString(physicalResourceId).fold(Sync[F].raiseError, Applicative[F].pure)
 
-  def updateDnsRecord(record: IdentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
+  override def updateDnsRecord(record: IdentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
     for {
       uri ← Stream.eval(toUri(record.physicalResourceId))
       req ← Stream.eval(PUT(uri, record.unidentify.toDto.asJson))
@@ -59,52 +62,35 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
       res ← executor.fetch[DnsRecordDTO](req)
     } yield res
 
-  def getExistingDnsRecord(physicalResourceId: String): Stream[F, IdentifiedDnsRecord] =
+  override def getExistingDnsRecord(physicalResourceId: String): Stream[F, IdentifiedDnsRecord] =
     for {
       uri ← Stream.eval(toUri(physicalResourceId))
-      dto ← getExistingDnsRecordDto(uri)
+      dto ← getExistingDnsRecordDto(uri).returningEmptyOnErrorCodes(7000, 7003)
     } yield dto.identifyAs(uri.toString())
 
-  def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord] = {
+  override def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord] = {
     for {
       zoneId ← getZoneId(domainNameToZoneName(name))
-      record ← executor.fetch[DnsRecordDTO](Request[F](uri = cloudflareBaseUri / "zones" / zoneId / "dns_records" +?("name", name) +??("content", content) +??("type", recordType)))
+      record ← executor.fetch[DnsRecordDTO](Request[F](uri = BaseUrl / "zones" / zoneId / "dns_records" +?("name", name) +??("content", content) +??("type", recordType)))
     } yield (record, zoneId)
   }
 
-  private def handleDeleteResponseJson(json: Json, status: Status, physicalResourceId: String): F[String] =
-    if (status.isSuccess)
-      zoneIdLens(json).fold(Applicative[F].pure(physicalResourceId))(Applicative[F].pure)
-    else {
-      val errors = errorsLens(json)
-
-      if (status == Status.BadRequest && errors.contains(Error(Option(1032), "Invalid DNS record identifier")) && errors.length == 1)
-        Sync[F].raiseError(DnsRecordIdDoesNotExistException(physicalResourceId))
-      else
-        Sync[F].raiseError(UnexpectedCloudflareErrorException(errors))
-    }
-
-  private def deleteDnsRecordF(physicalResourceId: String): F[String] =
+  override def deleteDnsRecord(physicalResourceId: String): Stream[F, PhysicalResourceId] =
+  /*_*/
     for {
-      uri ← toUri(physicalResourceId)
-      req ← DELETE(uri)
-      id ← executor.raw(req) { res ⇒
-        for {
-          json ← res.decodeJson[Json]
-          output ← handleDeleteResponseJson(json, res.status, physicalResourceId)
-        } yield output
+      uri ← Stream.eval(toUri(physicalResourceId))
+      req ← Stream.eval(DELETE(uri))
+      json ← executor.fetch[Json](req).last.adaptError {
+        case ex: UnexpectedCloudflareErrorException if ex.errors.contains(Error(Option(1032), "Invalid DNS record identifier")) && ex.errors.length == 1 ⇒
+          DnsRecordIdDoesNotExistException(physicalResourceId)
       }
-    } yield id
+    } yield tagPhysicalResourceId(json.flatMap(zoneIdLens).getOrElse(physicalResourceId))
+  /*_*/
 
-  def deleteDnsRecord(physicalResourceId: String): Stream[F, String] = Stream.eval(deleteDnsRecordF(physicalResourceId))
+  private val zoneIdLens: Json ⇒ Option[String] = root.id.string.getOption
 
-  private val zoneIdLens: Json ⇒ Option[String] = root.result.id.string.getOption
-  private val errorsLens: Json ⇒ List[Error] = root.errors.each.as[model.Error].getAll
-
-  private val cloudflareBaseUri = Uri.uri("https://api.cloudflare.com") / "client" / "v4"
-
-  def getZoneId(domain: String): Stream[F, ZoneId] =
-    executor.fetch[ZoneDTO](Request[F](uri = cloudflareBaseUri / "zones" +? ("name", domain) +? ("status", "active")))
+  override def getZoneId(domain: String): Stream[F, ZoneId] =
+    executor.fetch[ZoneDTO](Request[F](uri = BaseUrl / "zones" +? ("name", domain) +? ("status", "active")))
       .map(_.id)
       .collect {
         case Some(id) ⇒ tagZoneId(id)

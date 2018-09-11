@@ -1,9 +1,10 @@
 package com.dwolla.cloudflare.domain.model.accounts
 
-case class User (
-  id: String,
-  firstName: Option[String],
-  lastName: Option[String],
-  emailAddress: String,
-  twoFactorEnabled: Boolean
-)
+import com.dwolla.cloudflare.domain.model._
+
+case class User(id: UserId,
+                firstName: Option[String],
+                lastName: Option[String],
+                emailAddress: String,
+                twoFactorEnabled: Boolean
+               )

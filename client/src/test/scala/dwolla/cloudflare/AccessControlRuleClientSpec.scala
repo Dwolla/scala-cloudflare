@@ -3,7 +3,7 @@ package dwolla.cloudflare
 import cats.effect.Sync
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
-import com.dwolla.cloudflare.domain.model.{AccountId, AccountIdTag}
+import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
 import io.circe.Json
 import org.http4s.Status
@@ -11,8 +11,9 @@ import org.http4s.client.Client
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import io.circe.literal._
+import org.specs2.concurrent.ExecutionEnv
 
-class AccessControlRuleClientSpec extends Specification {
+class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specification {
 
   trait Setup extends Scope {
     val accountId: AccountId = shapeless.tag[AccountIdTag][String]("account-id")
@@ -140,15 +141,14 @@ class AccessControlRuleClientSpec extends Specification {
 
   "deleteAccessRule" should {
     "delete access rule from account" in new Setup {
-      val ruleId = "fake-access-rule-1"
+      val ruleId = shapeless.tag[AccessControlRuleIdTag]("fake-access-rule-1")
 
       val http4sClient = fakeService.client(fakeService.deleteAccessRule(SampleResponses.Successes.removedAccessRule, accountId, ruleId))
       val client = buildAccessControlRuleClient(http4sClient, authorization)
 
-      val output = client.delete(accountId, ruleId)
-        .compile.toList.unsafeRunSync()
+      private val output = client.delete(accountId, ruleId)
 
-      output must contain(ruleId)
+      output.compile.last.unsafeToFuture() must beSome(ruleId).await
     }
   }
 

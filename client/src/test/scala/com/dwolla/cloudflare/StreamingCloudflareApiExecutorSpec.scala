@@ -70,9 +70,9 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
         None,
         success = false,
         errors = Some(List(
-          ResponseInfoDTO(6003, "Invalid request headers", Option(List(
-            ResponseInfoDTO(6102, "Invalid format for X-Auth-Email header"),
-            ResponseInfoDTO(6103, "Invalid format for X-Auth-Key header"),
+          ResponseInfoDTO(Option(6003), "Invalid request headers", Option(List(
+            ResponseInfoDTO(Option(6102), "Invalid format for X-Auth-Email header"),
+            ResponseInfoDTO(Option(6103), "Invalid format for X-Auth-Key header"),
           )))
         )),
         messages = None).asJson)
@@ -121,8 +121,8 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
 
       output.compile.toList.unsafeToFuture() should throwAn[AccessDenied].like {
         case ex@AccessDenied(msg) ⇒
-          msg should contain(ResponseInfoDTO(6102, "Invalid format for X-Auth-Email header"))
-          msg should contain(ResponseInfoDTO(6103, "Invalid format for X-Auth-Key header"))
+          msg should contain(ResponseInfoDTO(Option(6102), "Invalid format for X-Auth-Email header"))
+          msg should contain(ResponseInfoDTO(Option(6103), "Invalid format for X-Auth-Key header"))
           ex.getMessage must startWith(
             """The given credentials were invalid
               |

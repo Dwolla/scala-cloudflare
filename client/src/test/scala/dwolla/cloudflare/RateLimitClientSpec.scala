@@ -7,10 +7,12 @@ import com.dwolla.cloudflare.domain.model.{RateLimitId, RateLimitIdTag, ZoneId, 
 import com.dwolla.cloudflare.domain.model.ratelimits._
 import org.http4s.client.Client
 import org.http4s.{InvalidMessageBodyFailure, Status}
+import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
+import io.circe.literal._
 
-class RateLimitClientSpec extends Specification {
+class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification {
   trait Setup extends Scope {
     val zoneId: ZoneId = toZoneId("zone-id")
     val rateLimitId: RateLimitId = toRateLimitId("rate-limit-id")
@@ -333,10 +335,9 @@ class RateLimitClientSpec extends Specification {
       val http4sClient = fakeService.client(fakeService.deleteRateLimit(SampleResponses.Successes.removedRateLimit, zoneId, rateLimitId))
       val client = buildRateLimitClient(http4sClient, authorization)
 
-      val output = client.delete(zoneId, rateLimitId)
-        .compile.toList.unsafeRunSync()
+      private val output = client.delete(zoneId, rateLimitId)
 
-      output must be_==(List(rateLimitId))
+      output.compile.toList.unsafeToFuture() must be_==(List(rateLimitId)).await
     }
 
     "throw unexpected exception if error deleting rate limit" in new Setup {
@@ -689,15 +690,14 @@ class RateLimitClientSpec extends Specification {
           |}
         """.stripMargin
 
-      val removedRateLimit =
-        """
-          |{
-          |  "result": null,
-          |  "success": true,
-          |  "errors": null,
-          |  "messages": null
-          |}
-        """.stripMargin
+      val removedRateLimit = json"""
+        {
+          "result": null,
+          "success": true,
+          "errors": null,
+          "messages": null
+        }
+      """.noSpaces
     }
 
     object Failures {

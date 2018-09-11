@@ -1,7 +1,8 @@
 package com.dwolla.cloudflare.domain.model.accounts
 
-case class Account (
-  id: String,
-  name: String,
-  settings: AccountSettings
-)
+import com.dwolla.cloudflare.domain.model.AccountId
+
+case class Account(id: AccountId,
+                   name: String,
+                   settings: AccountSettings
+                  )

@@ -5,6 +5,7 @@ import cats.effect._
 import cats.implicits._
 import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.model.Exceptions._
+import com.dwolla.cloudflare.domain.model.response.Implicits
 import com.dwolla.fs2utils.Pagination
 import fs2.{Segment, Stream}
 import io.circe._
@@ -38,14 +39,16 @@ class StreamingCloudflareApiExecutor[F[_]: Sync](client: Client[F], authorizatio
       for {
         pageData ← raw(pagedRequest)(responseToJson[T])
         (segment, nextPage) ← pageData match {
-          case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == 81057) ⇒
+          case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == Option(81057)) ⇒
             Sync[F].raiseError(RecordAlreadyExists)
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(cloudflareAuthorizationFormatError) ⇒
             Sync[F].raiseError(AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten))
-          case single: ResponseDTO[T] ⇒
+          case single: ResponseDTO[T] if single.success ⇒
             Applicative[F].pure((Segment.seq(single.result.toSeq), None))
-          case paged: PagedResponseDTO[T] ⇒
+          case paged: PagedResponseDTO[T] if paged.success ⇒
             Applicative[F].pure((Segment.seq(paged.result), calculateNextPage(paged.result_info.page, paged.result_info.total_pages)))
+          case e ⇒
+            Sync[F].raiseError(UnexpectedCloudflareErrorException(e.errors.toList.flatten.map(Implicits.toError)))
         }
       } yield (segment, nextPage)
     }
@@ -69,6 +72,6 @@ class StreamingCloudflareApiExecutor[F[_]: Sync](client: Client[F], authorizatio
   private def calculateNextPage(currentPage: Int, totalPages: Int): Option[Int] =
     if (currentPage < totalPages) Option(currentPage + 1) else None
 
-  private val cloudflareAuthorizationFormatError: ResponseInfoDTO ⇒ Boolean = resp ⇒ resp.code == 6003 && resp.error_chain.exists(_.exists(x ⇒ Set(6102, 6103).contains(x.code)))
+  private val cloudflareAuthorizationFormatError: ResponseInfoDTO ⇒ Boolean = resp ⇒ resp.code == Option(6003) && resp.error_chain.exists(_.exists(x ⇒ Set(6102, 6103).map(Option(_)).contains(x.code)))
 
 }

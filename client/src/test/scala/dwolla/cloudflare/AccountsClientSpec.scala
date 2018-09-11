@@ -3,18 +3,26 @@ package dwolla.cloudflare
 import cats.effect._
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
+import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accounts._
 import org.http4s.Status
 import org.http4s.client.Client
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
+import shapeless.tag.@@
 
 import scala.language.higherKinds
 
 class AccountsClientSpec extends Specification {
+  def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
+
   trait Setup extends Scope {
     val authorization = CloudflareAuthorization("email", "key")
     val fakeService = new FakeCloudflareService(authorization)
+
+    val fakeAccountId1 = tagString[AccountIdTag]("fake-account-id1")
+    val fakeAccountId2 = tagString[AccountIdTag]("fake-account-id2")
+    val fakeAccountId3 = tagString[AccountIdTag]("fake-account-id3")
   }
 
   "list" should {
@@ -26,17 +34,17 @@ class AccountsClientSpec extends Specification {
       output must be_==(
         List(
           Account(
-            id = "fake-account-id1",
+            id = fakeAccountId1,
             name = "Fake Account Org",
             settings = AccountSettings(enforceTwoFactor = false)
           ),
           Account(
-            id = "fake-account-id2",
+            id = fakeAccountId2,
             name = "Fake Account Org 2",
             settings = AccountSettings(enforceTwoFactor = false)
           ),
           Account(
-            id = "fake-account-id3",
+            id = fakeAccountId3,
             name = "Fake Account Org 3",
             settings = AccountSettings(enforceTwoFactor = true)
           )
@@ -52,7 +60,7 @@ class AccountsClientSpec extends Specification {
       output must be_==(
         List(
           Account(
-            id = "fake-account-id1",
+            id = fakeAccountId1,
             name = "Fake Account Org",
             settings = AccountSettings(enforceTwoFactor = false)
           )
@@ -63,7 +71,7 @@ class AccountsClientSpec extends Specification {
 
   "getById" should {
     "get account by id" in new Setup {
-      val accountId = "fake-account-id1"
+      val accountId = fakeAccountId1
 
       val http4sClient = fakeService.client(fakeService.accountById(SampleResponses.Successes.getAccount, accountId))
       val client = buildAccountsClient(http4sClient, authorization)
@@ -81,7 +89,7 @@ class AccountsClientSpec extends Specification {
     }
 
     "return None if not found" in new Setup {
-      val accountId = "missing-id"
+      val accountId = tagString[AccountIdTag]("missing-id")
 
       val failure = SampleResponses.Failures.accountDoesNotExist
       val http4sClient = fakeService.client(fakeService.accountById(failure.json, accountId, failure.status))
@@ -106,7 +114,7 @@ class AccountsClientSpec extends Specification {
 
       output must beSome(
         Account(
-          id = "fake-account-id2",
+          id = fakeAccountId2,
           name = accountName,
           settings = AccountSettings(enforceTwoFactor = true)
         )
@@ -124,7 +132,7 @@ class AccountsClientSpec extends Specification {
 
       output must beSome(
         Account(
-          id = "fake-account-id3",
+          id = fakeAccountId3,
           name = accountName,
           settings = AccountSettings(enforceTwoFactor = true)
         )
@@ -144,7 +152,7 @@ class AccountsClientSpec extends Specification {
 
   "listRoles" should {
     "return all account roles across pages" in new Setup {
-      val accountId = "fake-account-id"
+      val accountId = tagString[AccountIdTag]("fake-account-id")
 
       val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 → SampleResponses.Successes.getRolesPage1, 2 → SampleResponses.Successes.getRolesPage2, 3 → SampleResponses.Successes.getRolesPage3), accountId))
       val client = buildAccountsClient(http4sClient, authorization)
@@ -181,7 +189,7 @@ class AccountsClientSpec extends Specification {
     }
 
     "return all account roles across pages doesn't fetch eagerly" in new Setup {
-      val accountId = "fake-account-id"
+      val accountId = tagString[AccountIdTag]("fake-account-id")
 
       val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 → SampleResponses.Successes.getRolesPage1), accountId))
       val client = buildAccountsClient(http4sClient, authorization)
@@ -202,8 +210,8 @@ class AccountsClientSpec extends Specification {
 
   "getMember" should {
     "get account member by id and account id" in new Setup {
-      val accountId = "fake-account-id1"
-      val accountMemberId = "fake-account-member-id"
+      val accountId = fakeAccountId1
+      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
       val http4sClient = fakeService.client(fakeService.getAccountMember(SampleResponses.Successes.accountMember, accountId, accountMemberId))
       val client = buildAccountsClient(http4sClient, authorization)
@@ -215,7 +223,7 @@ class AccountsClientSpec extends Specification {
         AccountMember(
           id = accountMemberId,
           user = User(
-            id = "fake-user-id",
+            id = tagString[UserIdTag]("fake-user-id"),
             firstName = None,
             lastName = None,
             emailAddress = "myemail@test.com",
@@ -244,8 +252,8 @@ class AccountsClientSpec extends Specification {
     }
 
     "return None if not found" in new Setup {
-      val accountId = "fake-account-id1"
-      val accountMemberId = "missing-account-member-id"
+      val accountId = fakeAccountId1
+      val accountMemberId = tagString[AccountMemberIdTag]("missing-account-member-id")
 
       val failure = SampleResponses.Failures.accountMemberDoesNotExist
       val http4sClient = fakeService.client(fakeService.getAccountMember(failure.json, accountId, accountMemberId, failure.status))
@@ -260,8 +268,8 @@ class AccountsClientSpec extends Specification {
 
   "addMember" should {
     "add new member" in new Setup {
-      val accountId = "fake-account-id1"
-      val accountMemberId = "fake-account-member-id"
+      val accountId = fakeAccountId1
+      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
       val email = "myemail@test.com"
       val roleIds = List("1111", "2222")
 
@@ -275,7 +283,7 @@ class AccountsClientSpec extends Specification {
         List(AccountMember(
             id = accountMemberId,
             user = User(
-              id = "fake-user-id",
+              id = tagString[UserIdTag]("fake-user-id"),
               firstName = None,
               lastName = None,
               emailAddress = email,
@@ -305,7 +313,7 @@ class AccountsClientSpec extends Specification {
     }
 
     "throw unexpected exception if error adding new member" in new Setup {
-      val accountId = "fake-account-id1"
+      val accountId = fakeAccountId1
       val email = "me@abc123test.com"
       val roleIds = List("1111", "2222")
 
@@ -332,13 +340,13 @@ class AccountsClientSpec extends Specification {
   "updateMember" should {
     "update existing member" in new Setup {
       val email = "myemail@test.com"
-      val accountId = "fake-account-id1"
-      val accountMemberId = "fake-account-member-id"
+      val accountId = fakeAccountId1
+      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
       val updatedAccountMember = AccountMember(
         id = accountMemberId,
         user = User(
-          id = "fake-user-id",
+          id = tagString[UserIdTag]("fake-user-id"),
           firstName = Some("Joe"),
           lastName = Some("Smith"),
           emailAddress = email,
@@ -382,13 +390,13 @@ class AccountsClientSpec extends Specification {
     }
 
     "throw unexpected exception if error updating existing member" in new Setup {
-      val accountId = "fake-account-id1"
-      val accountMemberId = "fake-account-member-id"
+      val accountId = fakeAccountId1
+      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
       val updatedAccountMember = AccountMember(
         id = accountMemberId,
         user = User(
-          id = "fake-user-id",
+          id = tagString[UserIdTag]("fake-user-id"),
           firstName = Some("Joe"),
           lastName = Some("Smith"),
           emailAddress = "myemail@test.com",
@@ -444,8 +452,8 @@ class AccountsClientSpec extends Specification {
 
   "removeMember" should {
     "remove member from account" in new Setup {
-      val accountId = "fake-account-id1"
-      val accountMemberId = "fake-account-member-id"
+      val accountId = fakeAccountId1
+      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
       val http4sClient = fakeService.client(fakeService.removeAccountMember(SampleResponses.Successes.removedAccountMember, accountId, accountMemberId))
       val client = buildAccountsClient(http4sClient, authorization)
@@ -457,8 +465,8 @@ class AccountsClientSpec extends Specification {
     }
 
     "throw unexpected exception if error removing member" in new Setup {
-      val accountId = "fake-account-id1"
-      val accountMemberId = "fake-account-member-id"
+      val accountId = fakeAccountId1
+      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
       val failure = SampleResponses.Failures.accountMemberRemovalError
       val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
@@ -481,8 +489,8 @@ class AccountsClientSpec extends Specification {
     }
 
     "throw not found exception if member not in account" in new Setup {
-      val accountId = "fake-account-id1"
-      val accountMemberId = "fake-account-member-id"
+      val accountId = fakeAccountId1
+      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
       val failure = SampleResponses.Failures.accountDoesNotExist
       val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))

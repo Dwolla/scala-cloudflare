@@ -1,11 +1,14 @@
-package com.dwolla.cloudflare.domain.model.accounts
+package com.dwolla.cloudflare
+package domain
+package model
+package accounts
 
 import com.dwolla.cloudflare.domain.dto.accounts._
 
 object Implicits {
   implicit def toModel(dto: AccountDTO): Account = {
     Account(
-      id = dto.id,
+      id = tagAccountId(dto.id),
       name = dto.name,
       settings = toModel(dto.settings)
     )
@@ -19,7 +22,7 @@ object Implicits {
 
   implicit def toModel(dto: AccountMemberDTO): AccountMember = {
     AccountMember(
-      id = dto.id,
+      id = tagAccountMemberId(dto.id),
       user = dto.user,
       status = dto.status,
       roles = dto.roles.map(toModel)
@@ -28,7 +31,7 @@ object Implicits {
 
   implicit def toModel(dto: UserDTO): User = {
     User(
-      id = dto.id,
+      id = tagUserId(dto.id),
       firstName = dto.first_name,
       lastName = dto.last_name,
       emailAddress = dto.email,
