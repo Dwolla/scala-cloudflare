@@ -5,7 +5,7 @@ import cats.effect._
 import cats.implicits._
 import com.dwolla.cloudflare.domain.dto.ratelimits._
 import com.dwolla.cloudflare.domain.model
-import com.dwolla.cloudflare.domain.model.Error
+import com.dwolla.cloudflare.domain.model.{Error, _}
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.ratelimits.Implicits._
 import com.dwolla.cloudflare.domain.model.ratelimits._
@@ -22,11 +22,11 @@ import org.http4s.client.dsl.Http4sClientDsl
 import scala.language.higherKinds
 
 trait RateLimitClient[F[_]] {
-  def list(zoneId: String): Stream[F, RateLimit]
-  def getById(zoneId: String, rateLimitId: String): Stream[F, RateLimit]
-  def create(zoneId: String, rateLimit: CreateRateLimit): Stream[F, RateLimit]
-  def update(zoneId: String, rateLimit: RateLimit): Stream[F, RateLimit]
-  def delete(zoneId: String, rateLimitId: String): Stream[F, String]
+  def list(zoneId: ZoneId): Stream[F, RateLimit]
+  def getById(zoneId: ZoneId, rateLimitId: RateLimitId): Stream[F, RateLimit]
+  def create(zoneId: ZoneId, rateLimit: CreateRateLimit): Stream[F, RateLimit]
+  def update(zoneId: ZoneId, rateLimit: RateLimit): Stream[F, RateLimit]
+  def delete(zoneId: ZoneId, rateLimitId: RateLimitId): Stream[F, RateLimitId]
 }
 
 object RateLimitClient {
@@ -50,36 +50,36 @@ class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
       } yield dto
   }
 
-  def list(zoneId: String): Stream[F, RateLimit] = {
+  def list(zoneId: ZoneId): Stream[F, RateLimit] = {
     for {
       req ← Stream.eval(GET(BaseUrl / "zones" / zoneId / "rate_limits"))
       record ← executor.fetch[RateLimitDTO](req)
     } yield record
   }
 
-  def getById(zoneId: String, rateLimitId: String): Stream[F, RateLimit] =
+  def getById(zoneId: ZoneId, rateLimitId: RateLimitId): Stream[F, RateLimit] =
     for {
       req ← Stream.eval(GET(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId))
       res ← executor.fetch[RateLimitDTO](req)
     } yield res
 
-  def create(zoneId: String, rateLimit: CreateRateLimit): Stream[F, RateLimit] = {
+  def create(zoneId: ZoneId, rateLimit: CreateRateLimit): Stream[F, RateLimit] = {
     for {
       req ← Stream.eval(POST(BaseUrl / "zones" / zoneId / "rate_limits", rateLimit.asJson))
       resp ← createOrUpdate(req)
     } yield resp
   }
 
-  def update(zoneId: String, rateLimit: RateLimit): Stream[F, RateLimit] = {
+  def update(zoneId: ZoneId, rateLimit: RateLimit): Stream[F, RateLimit] = {
     for {
       req ← Stream.eval(PUT(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimit.id, toDto(rateLimit).asJson))
       resp ← createOrUpdate(req)
     } yield resp
   }
 
-  def delete(zoneId: String, rateLimitId: String): Stream[F, String] = Stream.eval(deleteF(zoneId, rateLimitId))
+  def delete(zoneId: ZoneId, rateLimitId: RateLimitId): Stream[F, RateLimitId] = Stream.eval(deleteF(zoneId, rateLimitId))
 
-  private def deleteF(zoneId: String, rateLimitId: String): F[String] =
+  private def deleteF(zoneId: ZoneId, rateLimitId: RateLimitId): F[RateLimitId] =
     for {
       req ← DELETE(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId)
       id ← executor.raw(req) { res ⇒
@@ -90,7 +90,7 @@ class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
       }
     } yield id
 
-  private def handleDeleteResponseJson(json: Json, status: Status, zoneId: String, rateLimitId: String): F[String] =
+  private def handleDeleteResponseJson(json: Json, status: Status, zoneId: ZoneId, rateLimitId: RateLimitId): F[RateLimitId] =
     if (status.isSuccess)
       deletedRecordLens(json).fold(Applicative[F].pure(rateLimitId))(Applicative[F].pure)
     else {
@@ -118,11 +118,11 @@ class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
       Sync[F].raiseError(UnexpectedCloudflareErrorException(errorsLens(json)))
     }
 
-  private val deletedRecordLens: Json ⇒ Option[String] = root.result.id.string.getOption
+  private val deletedRecordLens: Json ⇒ Option[RateLimitId] = root.result.id.string.getOption(_).map(tagRateLimitId)
   private val rateLimitLens: Json ⇒ RateLimit = root.result.as[RateLimitDTO].getOption(_).get
   private val errorsLens: Json ⇒ List[Error] = root.errors.each.as[model.Error].getAll
 }
 
-case class RateLimitDoesNotExistException(zoneId: String, rateLimitId: String) extends RuntimeException(
+case class RateLimitDoesNotExistException(zoneId: ZoneId, rateLimitId: RateLimitId) extends RuntimeException(
   s"The rate limit $rateLimitId not found for zone $zoneId."
 )

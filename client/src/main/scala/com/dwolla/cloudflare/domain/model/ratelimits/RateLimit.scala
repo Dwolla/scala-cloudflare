@@ -1,10 +1,11 @@
 package com.dwolla.cloudflare.domain.model.ratelimits
 
 import com.dwolla.cloudflare.BaseUrl
+import com.dwolla.cloudflare.domain.model.{RateLimitId, ZoneId}
 import org.http4s.Uri
 
 case class RateLimit (
-  id: String,
+  id: RateLimitId,
   disabled: Option[Boolean] = None,
   description: Option[String] = None,
   trafficMatch: RateLimitMatch,
@@ -13,7 +14,7 @@ case class RateLimit (
   period: Int,
   action: RateLimitAction
 ) {
-  def uri(zoneId: String): Uri =
+  def uri(zoneId: ZoneId): Uri =
     BaseUrl / "zones" / zoneId / "rate_limits" / id
 }
 

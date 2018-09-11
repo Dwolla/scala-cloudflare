@@ -1,11 +1,12 @@
 package com.dwolla.cloudflare.domain.model.ratelimits
 
 import com.dwolla.cloudflare.domain.dto.ratelimits._
+import com.dwolla.cloudflare.domain.model.tagRateLimitId
 
 private[cloudflare] object Implicits {
   implicit def toModel(dto: RateLimitDTO): RateLimit = {
     RateLimit(
-      id = dto.id.get,
+      id = tagRateLimitId(dto.id.get),
       disabled = dto.disabled,
       description = dto.description,
       trafficMatch = dto.`match`,
