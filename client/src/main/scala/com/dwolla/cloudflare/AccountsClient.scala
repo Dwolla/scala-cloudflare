@@ -4,35 +4,35 @@ import cats.effect._
 import cats.implicits._
 import com.dwolla.cloudflare.AccountsClientImpl._
 import com.dwolla.cloudflare.domain.dto.accounts._
-import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.accounts.Implicits._
 import com.dwolla.cloudflare.domain.model.accounts._
 import com.dwolla.cloudflare.domain.model.{Implicits ⇒ _, _}
-import io.circe.Json
 import io.circe.generic.auto._
-import io.circe.optics.JsonPath._
-import io.circe.syntax._
 import fs2._
 import org.http4s.Method._
-import org.http4s._
-import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
 
 import scala.language.higherKinds
+import scala.util.matching.Regex
 
 trait AccountsClient[F[_]] {
   def list(): Stream[F, Account]
   def getById(accountId: String): Stream[F, Account]
   def getByName(name: String): Stream[F, Account]
   def listRoles(accountId: AccountId): Stream[F, AccountRole]
-  def getMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMember]
-  def addMember(accountId: AccountId, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember]
-  def updateMember(accountId: AccountId, accountMember: AccountMember): Stream[F, AccountMember]
-  def removeMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMemberId]
+
+  def getByUri(uri: String): Stream[F, Account] = parseUri(uri).fold(Stream.empty.covaryAll[F, Account])(getById)
+
+  def parseUri(uri: String): Option[AccountId] = uri match {
+    case AccountsClient.uriRegex(accountId) ⇒ Option(tagAccountId(accountId))
+    case _ ⇒ None
+  }
 }
 
 object AccountsClient {
   def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): AccountsClient[F] = new AccountsClientImpl[F](executor)
+
+  val uriRegex: Regex = """https://api.cloudflare.com/client/v4/accounts/(.+?)""".r
 }
 
 object AccountsClientImpl {
@@ -65,45 +65,6 @@ class AccountsClientImpl[F[_]: Sync](executor: StreamingCloudflareApiExecutor[F]
     } yield record
   }
 
-  override def getMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMember] =
-    for {
-      req ← Stream.eval(GET(buildAccountMemberUri(accountId, accountMemberId)))
-      res ← executor.fetch[AccountMemberDTO](req).returningEmptyOnErrorCodes(notFoundCodes: _*)
-    } yield res
-
-  override def addMember(accountId: AccountId, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember] =
-    for {
-      req ← Stream.eval(POST(BaseUrl / "accounts" / accountId / "members", NewAccountMemberDTO(emailAddress, roleIds, Some("pending")).asJson))
-      resp ← createOrUpdate(req)
-    } yield resp
-
-  override def updateMember(accountId: AccountId, accountMember: AccountMember): Stream[F, AccountMember] = {
-    for {
-      req ← Stream.eval(PUT(buildAccountMemberUri(accountId, accountMember.id), toDto(accountMember).asJson))
-      resp ← createOrUpdate(req)
-    } yield resp
-  }
-
-  override def removeMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMemberId] =
-  /*_*/
-    for {
-      req ← Stream.eval(DELETE(buildAccountMemberUri(accountId, accountMemberId)))
-      json ← executor.fetch[Json](req).last.adaptError {
-        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) ⇒
-          AccountMemberDoesNotExistException(accountId, accountMemberId)
-      }
-    } yield tagAccountMemberId(json.flatMap(deletedRecordLens).getOrElse(accountMemberId))
-  /*_*/
-
-  private def buildAccountMemberUri(accountId: AccountId, accountMemberId: String): Uri =
-    BaseUrl / "accounts" / accountId / "members" / accountMemberId
-
-  private def createOrUpdate(request: Request[F]): Stream[F, AccountMember] =
-    for {
-      res ← executor.fetch[AccountMemberDTO](request)
-    } yield res
-
-  private val deletedRecordLens: Json ⇒ Option[String] = root.id.string.getOption
 }
 
 case class AccountMemberDoesNotExistException(accountId: AccountId, accountMemberId: String) extends RuntimeException(

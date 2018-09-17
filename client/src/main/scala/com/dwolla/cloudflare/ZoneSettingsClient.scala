@@ -50,13 +50,13 @@ class ZoneSettingsClientImpl[F[_] : Effect](executor: StreamingCloudflareApiExec
   implicit private val nelSemigroup: Semigroup[NonEmptyList[Throwable]] =
     SemigroupK[NonEmptyList].algebra[Throwable]
 
-  private val dnsRecordClient = DnsRecordClient(executor)
+  private val zoneClient = new ZoneClientImpl(executor)
 
   val settings: Set[CloudflareSettingFunction] = allSettings
 
   override def updateSettings(zone: Zone): Stream[F, ValidatedNel[Throwable, Unit]] = {
     for {
-      zoneId ← dnsRecordClient.getZoneId(zone.name)
+      zoneId ← zoneClient.getZoneId(zone.name)
       res ← applySettings(zoneId, zone).map(_.attempt).join(maxConcurrency)
     } yield res.toValidatedNel
   }.foldMonoid

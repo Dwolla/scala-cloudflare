@@ -1,11 +1,12 @@
 package com.dwolla.cloudflare.domain.model.accesscontrolrules
 
 import com.dwolla.cloudflare.domain.dto.accesscontrolrules._
+import com.dwolla.cloudflare.domain.model._
 
 private[cloudflare] object Implicits {
   implicit def toModel(dto: AccessControlRuleDTO): Rule = {
     Rule(
-      id = dto.id,
+      id = tagAccessControlRuleId(dto.id),
       notes = dto.notes,
       allowedModes = dto.allowed_modes,
       mode = dto.mode,

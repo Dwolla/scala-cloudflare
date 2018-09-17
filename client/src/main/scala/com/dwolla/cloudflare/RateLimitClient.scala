@@ -31,7 +31,7 @@ trait RateLimitClient[F[_]] {
   }
 
   def parseUri(uri: String): Option[(ZoneId, RateLimitId)] = uri match {
-    case RateLimitClient.rateLimitUriRegex(zoneId, rateLimitId) ⇒ Option((tagZoneId(zoneId), tagRateLimitId(rateLimitId)))
+    case RateLimitClient.uriRegex(zoneId, rateLimitId) ⇒ Option((tagZoneId(zoneId), tagRateLimitId(rateLimitId)))
     case _ ⇒ None
   }
 }
@@ -39,7 +39,7 @@ trait RateLimitClient[F[_]] {
 object RateLimitClient {
   def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): RateLimitClient[F] = new RateLimitClientImpl[F](executor)
 
-  val rateLimitUriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/rate_limits/(.+)""".r
+  val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/rate_limits/(.+)""".r
 }
 
 object RateLimitClientImpl {

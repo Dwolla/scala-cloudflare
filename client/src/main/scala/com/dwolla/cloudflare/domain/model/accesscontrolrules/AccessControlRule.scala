@@ -1,6 +1,8 @@
 package com.dwolla.cloudflare.domain.model.accesscontrolrules
 
-case class Rule(id: String,
+import com.dwolla.cloudflare.domain.model.AccessControlRuleId
+
+case class Rule(id: AccessControlRuleId,
                 notes: Option[String],
                 allowedModes: List[String],
                 mode: Option[String],

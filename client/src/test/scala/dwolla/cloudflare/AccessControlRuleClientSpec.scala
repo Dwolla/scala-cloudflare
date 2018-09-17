@@ -1,6 +1,6 @@
 package dwolla.cloudflare
 
-import cats.effect.Sync
+import cats.effect._
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model._
@@ -17,6 +17,9 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
 
   trait Setup extends Scope {
     val accountId: AccountId = shapeless.tag[AccountIdTag][String]("account-id")
+    val accessRuleId1: AccessControlRuleId = shapeless.tag[AccessControlRuleIdTag][String]("fake-access-rule-1")
+    val accessRuleId2: AccessControlRuleId = shapeless.tag[AccessControlRuleIdTag][String]("fake-access-rule-2")
+    val accessRuleId3: AccessControlRuleId = shapeless.tag[AccessControlRuleIdTag][String]("fake-access-rule-3")
 
     val authorization = CloudflareAuthorization("email", "key")
     val fakeService = new FakeCloudflareService(authorization)
@@ -34,7 +37,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
         .unsafeRunSync()
       output must contain(
         Rule(
-          id = "fake-access-rule-1",
+          id = accessRuleId1,
           notes = Some("Some notes"),
           allowedModes = List("whitelist", "block", "challenge", "js_challenge"),
           mode = Some("challenge"),
@@ -46,7 +49,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
       )
       output must contain(
         Rule(
-          id = "fake-access-rule-2",
+          id = accessRuleId2,
           notes = Some("Some notes"),
           allowedModes = List("whitelist", "block", "challenge", "js_challenge"),
           mode = Some("challenge"),
@@ -58,7 +61,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
       )
       output must contain(
         Rule(
-          id = "fake-access-rule-3",
+          id = accessRuleId3,
           notes = Some("Some notes"),
           allowedModes = List("whitelist", "block", "challenge", "js_challenge"),
           mode = Some("challenge"),
@@ -77,7 +80,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
       val output: List[Rule] = client.list(accountId, Option("challenge")).take(1).compile.toList.unsafeRunSync()
       output must contain(
         Rule(
-          id = "fake-access-rule-1",
+          id = accessRuleId1,
           notes = Some("Some notes"),
           allowedModes = List("whitelist", "block", "challenge", "js_challenge"),
           mode = Some("challenge"),
@@ -92,7 +95,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
 
   "create" should {
     "create new access rule" in new Setup {
-      val rateLimitId = "fake-access-rule-1"
+      val rateLimitId = accessRuleId1
 
       val createRateLimit = CreateRule(Option("challenge"), RuleConfiguration("ip", "1.2.3.4"), Option("Some notes"))
 
@@ -104,7 +107,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
 
       output must contain(
         Rule(
-          id = "fake-access-rule-1",
+          id = accessRuleId1,
           notes = Some("Some notes"),
           allowedModes = List("whitelist", "block", "challenge", "js_challenge"),
           mode = Some("challenge"),
@@ -141,14 +144,28 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
 
   "deleteAccessRule" should {
     "delete access rule from account" in new Setup {
-      val ruleId = shapeless.tag[AccessControlRuleIdTag]("fake-access-rule-1")
-
-      val http4sClient = fakeService.client(fakeService.deleteAccessRule(SampleResponses.Successes.removedAccessRule, accountId, ruleId))
+      val http4sClient = fakeService.client(fakeService.deleteAccessRule(SampleResponses.Successes.removedAccessRule, accountId, accessRuleId1))
       val client = buildAccessControlRuleClient(http4sClient, authorization)
 
-      private val output = client.delete(accountId, ruleId)
+      private val output = client.delete(accountId, accessRuleId1)
 
-      output.compile.last.unsafeToFuture() must beSome(ruleId).await
+      output.compile.last.unsafeToFuture() must beSome(accessRuleId1).await
+    }
+  }
+
+  "parse uri" should {
+    val nullClient = new AccessControlRuleClient[IO] {
+      override def list(accountId: AccountId, mode: Option[String]) = ???
+      override def create(accountId: AccountId, rule: CreateRule) = ???
+      override def delete(accountId: AccountId, ruleId: String) = ???
+    }
+
+    "parse a valid uri into its constituent parts" in new Setup {
+      nullClient.parseUri("https://api.cloudflare.com/client/v4/accounts/account-id/firewall/access_rules/fake-access-rule-1") must beSome((accountId, accessRuleId1))
+    }
+
+    "return None for invalid URIs" in new Setup {
+      nullClient.parseUri("https://hydragents.xyz") must beNone
     }
   }
 

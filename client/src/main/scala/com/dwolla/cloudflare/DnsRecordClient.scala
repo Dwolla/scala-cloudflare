@@ -17,18 +17,31 @@ import org.http4s._
 import org.http4s.client.dsl.Http4sClientDsl
 
 import scala.language.higherKinds
+import scala.util.matching.Regex
 
 trait DnsRecordClient[F[_]] {
+  def getById(zoneId: ZoneId, resourceId: ResourceId): Stream[F, IdentifiedDnsRecord]
   def createDnsRecord(record: UnidentifiedDnsRecord): Stream[F, IdentifiedDnsRecord]
   def updateDnsRecord(record: IdentifiedDnsRecord): Stream[F, IdentifiedDnsRecord]
-  def getExistingDnsRecord(physicalResourceId: String): Stream[F, IdentifiedDnsRecord]
   def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord]
   def deleteDnsRecord(physicalResourceId: String): Stream[F, PhysicalResourceId]
-  def getZoneId(domain: String): Stream[F, ZoneId]
+
+  def getByUri(uri: String): Stream[F, IdentifiedDnsRecord] = parseUri(uri).fold(Stream.empty.covaryAll[F, IdentifiedDnsRecord]) {
+    case (zoneId, resourceId) ⇒ getById(zoneId, resourceId)
+  }
+
+  def parseUri(uri: String): Option[(ZoneId, ResourceId)] = uri match {
+    case DnsRecordClient.uriRegex(zoneId, resourceId) ⇒
+      Option((tagZoneId(zoneId), tagResourceId(resourceId)))
+    case _ ⇒
+      None
+  }
 }
 
 object DnsRecordClient {
   def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): DnsRecordClient[F] = new DnsRecordClientImpl[F](executor)
+
+  val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/dns_records/(.+)""".r
 }
 
 object DnsRecordClientImpl {
@@ -36,12 +49,13 @@ object DnsRecordClientImpl {
 }
 
 class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends DnsRecordClient[F] with Http4sClientDsl[F] {
-
   import com.dwolla.cloudflare.domain.model.Implicits._
+
+  private val zoneClient = ZoneClient(executor)
 
   override def createDnsRecord(record: UnidentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
     for {
-      zoneId ← getZoneId(domainNameToZoneName(record.name))
+      zoneId ← zoneClient.getZoneId(domainNameToZoneName(record.name))
       request ← Stream.eval(POST(BaseUrl / "zones" / zoneId / "dns_records", record.toDto.asJson))
       record ← executor.fetch[DnsRecordDTO](request)
     } yield (record, zoneId)
@@ -51,10 +65,13 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
 
   override def updateDnsRecord(record: IdentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
     for {
-      uri ← Stream.eval(toUri(record.physicalResourceId))
+      uri ← Stream.emit(toUri(record.zoneId, record.resourceId)).covary[F]
       req ← Stream.eval(PUT(uri, record.unidentify.toDto.asJson))
       updatedRecord ← executor.fetch[DnsRecordDTO](req)
     } yield (updatedRecord, record.zoneId)
+
+  private def toUri(zoneId: ZoneId, resourceId: ResourceId): Uri =
+    BaseUrl / "zones" / zoneId / "dns_records" / resourceId
 
   private def getExistingDnsRecordDto(uri: Uri): Stream[F, DnsRecordDTO] =
     for {
@@ -62,18 +79,17 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
       res ← executor.fetch[DnsRecordDTO](req)
     } yield res
 
-  override def getExistingDnsRecord(physicalResourceId: String): Stream[F, IdentifiedDnsRecord] =
+  override def getById(zoneId: ZoneId, resourceId: ResourceId): Stream[F, IdentifiedDnsRecord] =
     for {
-      uri ← Stream.eval(toUri(physicalResourceId))
+      uri ← Stream.emit(toUri(zoneId, resourceId)).covary[F]
       dto ← getExistingDnsRecordDto(uri).returningEmptyOnErrorCodes(7000, 7003)
     } yield dto.identifyAs(uri.toString())
 
-  override def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord] = {
+  override def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord] =
     for {
-      zoneId ← getZoneId(domainNameToZoneName(name))
+      zoneId ← zoneClient.getZoneId(domainNameToZoneName(name))
       record ← executor.fetch[DnsRecordDTO](Request[F](uri = BaseUrl / "zones" / zoneId / "dns_records" +?("name", name) +??("content", content) +??("type", recordType)))
     } yield (record, zoneId)
-  }
 
   override def deleteDnsRecord(physicalResourceId: String): Stream[F, PhysicalResourceId] =
   /*_*/
@@ -88,13 +104,6 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
   /*_*/
 
   private val zoneIdLens: Json ⇒ Option[String] = root.id.string.getOption
-
-  override def getZoneId(domain: String): Stream[F, ZoneId] =
-    executor.fetch[ZoneDTO](Request[F](uri = BaseUrl / "zones" +? ("name", domain) +? ("status", "active")))
-      .map(_.id)
-      .collect {
-        case Some(id) ⇒ tagZoneId(id)
-      }
 
   private def domainNameToZoneName(name: String): String = name.split('.').takeRight(2).mkString(".")
 }

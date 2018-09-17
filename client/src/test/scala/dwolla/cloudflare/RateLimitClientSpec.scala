@@ -126,15 +126,14 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification {
     }
   }
 
-  "getById" should {
+  "getByUri" should {
     "get rate limit by id" in new Setup {
       val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.rateLimit, zoneId, rateLimitId))
       val client = buildRateLimitClient(http4sClient, authorization)
 
-      val output: Option[RateLimit] = client.getById(zoneId, rateLimitId)
-        .compile.toList.map(_.headOption).unsafeRunSync()
+      private val output = client.getByUri("https://api.cloudflare.com/client/v4/zones/zone-id/rate_limits/rate-limit-id")
 
-      output must beSome(
+      output.compile.last.unsafeToFuture() must beSome(
         RateLimit(
           id = rateLimitId,
           disabled = Some(false),
@@ -152,7 +151,45 @@ class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification {
             timeout = 60
           )
         )
-      )
+      ).await
+    }
+
+    "return an empty stream if the uri is invalid" in new Setup {
+      val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.rateLimit, zoneId, rateLimitId))
+      val client = buildRateLimitClient(http4sClient, authorization)
+
+      private val output = client.getByUri("https://hydragents.xyz")
+
+      output.compile.toList.unsafeToFuture() must beEmpty[List[RateLimit]].await
+    }
+  }
+
+  "getById" should {
+    "get rate limit by id" in new Setup {
+      val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.rateLimit, zoneId, rateLimitId))
+      val client = buildRateLimitClient(http4sClient, authorization)
+
+      private val output = client.getById(zoneId, rateLimitId)
+
+      output.compile.last.unsafeToFuture() must beSome(
+        RateLimit(
+          id = rateLimitId,
+          disabled = Some(false),
+          description = Some("Rate Limit"),
+          trafficMatch = RateLimitMatch(
+            request = RateLimitMatchRequest(
+              methods = Some(List("POST")),
+              schemes = Some(List("_ALL_")),
+              url = "*.test.com/test/v2/*"
+            )
+          ),
+          threshold = 300,
+          period = 60,
+          action = BanRateLimitAction(
+            timeout = 60
+          )
+        )
+      ).await
     }
 
     "throw InvalidRateLimitAction exception if missing timeout and mode not challenge or js_challenge" in new Setup {
