@@ -7,10 +7,12 @@ import com.dwolla.cloudflare.domain.model.{RateLimitId, RateLimitIdTag, ZoneId, 
 import com.dwolla.cloudflare.domain.model.ratelimits._
 import org.http4s.client.Client
 import org.http4s.{InvalidMessageBodyFailure, Status}
+import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
+import io.circe.literal._
 
-class RateLimitClientSpec extends Specification {
+class RateLimitClientSpec(implicit ee: ExecutionEnv) extends Specification {
   trait Setup extends Scope {
     val zoneId: ZoneId = toZoneId("zone-id")
     val rateLimitId: RateLimitId = toRateLimitId("rate-limit-id")
@@ -124,15 +126,14 @@ class RateLimitClientSpec extends Specification {
     }
   }
 
-  "getById" should {
+  "getByUri" should {
     "get rate limit by id" in new Setup {
       val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.rateLimit, zoneId, rateLimitId))
       val client = buildRateLimitClient(http4sClient, authorization)
 
-      val output: Option[RateLimit] = client.getById(zoneId, rateLimitId)
-        .compile.toList.map(_.headOption).unsafeRunSync()
+      private val output = client.getByUri("https://api.cloudflare.com/client/v4/zones/zone-id/rate_limits/rate-limit-id")
 
-      output must beSome(
+      output.compile.last.unsafeToFuture() must beSome(
         RateLimit(
           id = rateLimitId,
           disabled = Some(false),
@@ -150,7 +151,45 @@ class RateLimitClientSpec extends Specification {
             timeout = 60
           )
         )
-      )
+      ).await
+    }
+
+    "return an empty stream if the uri is invalid" in new Setup {
+      val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.rateLimit, zoneId, rateLimitId))
+      val client = buildRateLimitClient(http4sClient, authorization)
+
+      private val output = client.getByUri("https://hydragents.xyz")
+
+      output.compile.toList.unsafeToFuture() must beEmpty[List[RateLimit]].await
+    }
+  }
+
+  "getById" should {
+    "get rate limit by id" in new Setup {
+      val http4sClient = fakeService.client(fakeService.rateLimitById(SampleResponses.Successes.rateLimit, zoneId, rateLimitId))
+      val client = buildRateLimitClient(http4sClient, authorization)
+
+      private val output = client.getById(zoneId, rateLimitId)
+
+      output.compile.last.unsafeToFuture() must beSome(
+        RateLimit(
+          id = rateLimitId,
+          disabled = Some(false),
+          description = Some("Rate Limit"),
+          trafficMatch = RateLimitMatch(
+            request = RateLimitMatchRequest(
+              methods = Some(List("POST")),
+              schemes = Some(List("_ALL_")),
+              url = "*.test.com/test/v2/*"
+            )
+          ),
+          threshold = 300,
+          period = 60,
+          action = BanRateLimitAction(
+            timeout = 60
+          )
+        )
+      ).await
     }
 
     "throw InvalidRateLimitAction exception if missing timeout and mode not challenge or js_challenge" in new Setup {
@@ -258,7 +297,7 @@ class RateLimitClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(1001,ratelimit.api.validation_error:threshold is too low and must be at least 1,sample_rate is too low and must be at least 1 second,'' is not a valid action)
+            | - Error(Some(1001),ratelimit.api.validation_error:threshold is too low and must be at least 1,sample_rate is too low and must be at least 1 second,'' is not a valid action)
             |     """.stripMargin
       }
     }
@@ -322,7 +361,7 @@ class RateLimitClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(1001,ratelimit.api.validation_error:threshold is too low and must be at least 1)
+            | - Error(Some(1001),ratelimit.api.validation_error:threshold is too low and must be at least 1)
             |     """.stripMargin
       }
     }
@@ -333,10 +372,9 @@ class RateLimitClientSpec extends Specification {
       val http4sClient = fakeService.client(fakeService.deleteRateLimit(SampleResponses.Successes.removedRateLimit, zoneId, rateLimitId))
       val client = buildRateLimitClient(http4sClient, authorization)
 
-      val output = client.delete(zoneId, rateLimitId)
-        .compile.toList.unsafeRunSync()
+      private val output = client.delete(zoneId, rateLimitId)
 
-      output must be_==(List(rateLimitId))
+      output.compile.toList.unsafeToFuture() must be_==(List(rateLimitId)).await
     }
 
     "throw unexpected exception if error deleting rate limit" in new Setup {
@@ -354,8 +392,8 @@ class RateLimitClientSpec extends Specification {
         case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
-            | - Error(7003,Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/rate_limits/8b0bcff938734f359ee12aa788b7ea38, perhaps your object identifier is invalid?)
-            | - Error(7000,No route for that URI)
+            | - Error(Some(7003),Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/rate_limits/8b0bcff938734f359ee12aa788b7ea38, perhaps your object identifier is invalid?)
+            | - Error(Some(7000),No route for that URI)
             |     """.stripMargin
       }
     }
@@ -689,15 +727,14 @@ class RateLimitClientSpec extends Specification {
           |}
         """.stripMargin
 
-      val removedRateLimit =
-        """
-          |{
-          |  "result": null,
-          |  "success": true,
-          |  "errors": null,
-          |  "messages": null
-          |}
-        """.stripMargin
+      val removedRateLimit = json"""
+        {
+          "result": null,
+          "success": true,
+          "errors": null,
+          "messages": null
+        }
+      """.noSpaces
     }
 
     object Failures {

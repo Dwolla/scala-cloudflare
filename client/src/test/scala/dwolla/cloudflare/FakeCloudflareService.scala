@@ -22,6 +22,9 @@ import org.http4s.util.CaseInsensitiveString
 class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http4sDsl[IO] {
   object OptionalPageQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("page")
   object DirectionPageQueryParamMatcher extends QueryParamDecoderMatcher[String]("direction")
+  object ListAccessControlRulesParameters {
+    object modeParam extends QueryParamDecoderMatcher[String]("mode")
+  }
   import com.dwolla.cloudflare.domain.model.Implicits._
 
   object ListZonesQueryParameters {
@@ -73,9 +76,9 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   def getDnsRecordByUri(fakeZoneId: String, fakeRecordId: String) = HttpService[IO] {
     case req@GET -> Root / "client" / "v4" / "zones" / zoneId / "dns_records" / recordId if zoneId == fakeZoneId && recordId == fakeRecordId ⇒
       val record: DnsRecord = IdentifiedDnsRecord(
-        physicalResourceId = req.uri.toString(),
-        zoneId = fakeZoneId,
-        resourceId = fakeRecordId,
+        physicalResourceId = shapeless.tag[PhysicalResourceIdTag][String](req.uri.toString()),
+        zoneId = shapeless.tag[ZoneIdTag][String](fakeZoneId),
+        resourceId = shapeless.tag[ResourceIdTag][String](fakeRecordId),
         name = "example.hydragents.xyz",
         content = "content.hydragents.xyz",
         recordType = "CNAME",
@@ -94,8 +97,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
         result = None,
         success = false,
         errors = Option(List(
-          ResponseInfoDTO(7003, s"Could not route to /zones/$zoneId/dns_records/$recordId, perhaps your object identifier is invalid?"),
-          ResponseInfoDTO(7000, "No route for that URI")
+          ResponseInfoDTO(Option(7003), s"Could not route to /zones/$zoneId/dns_records/$recordId, perhaps your object identifier is invalid?"),
+          ResponseInfoDTO(Option(7000), "No route for that URI")
         )),
         messages = None,
       ).asJson)
@@ -141,7 +144,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       BadRequest(ResponseDTO[DnsRecordDTO](
         result = None,
         success = false,
-        errors = Option(List(ResponseInfoDTO(code = 81057, message = "The record already exists."))),
+        errors = Option(List(ResponseInfoDTO(code = Option(81057), message = "The record already exists."))),
         messages = None,
       ).asJson)
   }
@@ -181,7 +184,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listRateLimits(pages: Map[Int, String], zoneId: String) = HttpService[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zone / "rate_limits"  :? OptionalPageQueryParamMatcher(pageQuery) ⇒
+    case GET -> Root / "client" / "v4" / "zones" / zone / "rate_limits" :? OptionalPageQueryParamMatcher(pageQuery) ⇒
       if (zone != zoneId) BadRequest()
       else {
         pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
@@ -222,8 +225,34 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       }
   }
 
+  def listAccessRules(pages: Map[Int, Json], accountId: String) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" :? OptionalPageQueryParamMatcher(pageQuery) +& ListAccessControlRulesParameters.modeParam("challenge") ⇒
+      if (account != accountId) BadRequest()
+      else {
+        pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
+          Ok(pageBody)
+        }
+      }
+  }
+
+  def createAccessRule(responseBody: Json, accountId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" ⇒
+      if (account != accountId) BadRequest()
+      else {
+        Response(status).withBody(responseBody)
+      }
+  }
+
+  def deleteAccessRule(responseBody: Json, accountId: String, ruleId: String, status: Status = Status.Ok) = HttpService[IO] {
+    case DELETE -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" / rule ⇒
+      if (account != accountId || rule != ruleId) BadRequest()
+      else {
+        Response(status).withBody(responseBody)
+      }
+  }
+
   def listAccounts(pages: Map[Int, String]) = HttpService[IO] {
-    case GET -> Root / "client" / "v4" / "accounts"  :? OptionalPageQueryParamMatcher(pageQuery) +& DirectionPageQueryParamMatcher(directionQuery) ⇒
+    case GET -> Root / "client" / "v4" / "accounts" :? OptionalPageQueryParamMatcher(pageQuery) +& DirectionPageQueryParamMatcher(directionQuery) ⇒
       if (directionQuery != "asc") BadRequest()
       else {
         pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
@@ -241,7 +270,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listAccountRoles(pages: Map[Int, String], accountId: String) = HttpService[IO] {
-    case GET -> Root / "client" / "v4" / "accounts"  / account / "roles" :? OptionalPageQueryParamMatcher(pageQuery) ⇒
+    case GET -> Root / "client" / "v4" / "accounts" / account / "roles" :? OptionalPageQueryParamMatcher(pageQuery) ⇒
       if (account != accountId) BadRequest()
       else {
         pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒

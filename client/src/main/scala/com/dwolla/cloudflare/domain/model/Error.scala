@@ -1,3 +1,3 @@
 package com.dwolla.cloudflare.domain.model
 
-private[cloudflare] case class Error(code: Int, message: String)
+private[cloudflare] case class Error(code: Option[Int], message: String)

@@ -1,4 +1,6 @@
-package com.dwolla.cloudflare.domain.model
+package com.dwolla.cloudflare
+package domain
+package model
 
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 
@@ -25,25 +27,14 @@ case class UnidentifiedDnsRecord(name: String,
   import IdentifiedDnsRecord._
 
   def identifyAs(physicalResourceId: String): IdentifiedDnsRecord = physicalResourceId match {
-    case dnsRecordIdUrlRegex(zoneId, recordId) ⇒
-      IdentifiedDnsRecord(
-        physicalResourceId = s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records/$recordId",
-        zoneId = zoneId,
-        resourceId = recordId,
-        name = this.name,
-        content = this.content,
-        recordType = this.recordType,
-        ttl = this.ttl,
-        proxied = this.proxied,
-        priority = this.priority,
-      )
+    case dnsRecordIdUrlRegex(zoneId, recordId) ⇒ identifyAs(zoneId, recordId)
     case _ ⇒ throw new RuntimeException("Passed string does not match URL pattern for Cloudflare DNS record")
   }
 
   def identifyAs(zoneId: String, recordId: String): IdentifiedDnsRecord = IdentifiedDnsRecord(
-    physicalResourceId = s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records/$recordId",
-    zoneId = zoneId,
-    resourceId = recordId,
+    physicalResourceId = tagPhysicalResourceId(s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records/$recordId"),
+    zoneId = tagZoneId(zoneId),
+    resourceId = tagResourceId(recordId),
     name = this.name,
     content = this.content,
     recordType = this.recordType,
@@ -54,9 +45,9 @@ case class UnidentifiedDnsRecord(name: String,
 
 }
 
-case class IdentifiedDnsRecord(physicalResourceId: String,
-                               zoneId: String,
-                               resourceId: String,
+case class IdentifiedDnsRecord(physicalResourceId: PhysicalResourceId,
+                               zoneId: ZoneId,
+                               resourceId: ResourceId,
                                name: String,
                                content: String,
                                recordType: String,
