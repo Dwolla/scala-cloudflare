@@ -225,8 +225,18 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       }
   }
 
-  def listAccessRules(pages: Map[Int, Json], accountId: String) = HttpService[IO] {
+  def listChallengeAccessRules(pages: Map[Int, Json], accountId: String) = HttpService[IO] {
     case GET -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" :? OptionalPageQueryParamMatcher(pageQuery) +& ListAccessControlRulesParameters.modeParam("challenge") ⇒
+      if (account != accountId) BadRequest()
+      else {
+        pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
+          Ok(pageBody)
+        }
+      }
+  }
+
+  def listWhitelistAccessRules(pages: Map[Int, Json], accountId: String) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" :? OptionalPageQueryParamMatcher(pageQuery) +& ListAccessControlRulesParameters.modeParam("whitelist") ⇒
       if (account != accountId) BadRequest()
       else {
         pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
