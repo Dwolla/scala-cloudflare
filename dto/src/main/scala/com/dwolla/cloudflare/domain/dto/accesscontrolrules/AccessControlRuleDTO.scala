@@ -13,5 +13,5 @@ case class AccessControlRuleConfigurationDTO(target: String,
                                              value: String)
 
 case class AccessControlRuleScopeDTO(id: String,
-                                     name: String,
+                                     name: Option[String],
                                      `type`: String)

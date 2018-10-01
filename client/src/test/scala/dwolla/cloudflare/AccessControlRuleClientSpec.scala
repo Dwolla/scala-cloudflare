@@ -27,7 +27,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
 
   "list" should {
     "list challenge rules" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listAccessRules(Map(1 → SampleResponses.Successes.listAccessRulesPage1, 2 → SampleResponses.Successes.listAccessRulesPage2, 3 → SampleResponses.Successes.listAccessRulesPage3), accountId))
+      val http4sClient = fakeService.client(fakeService.listChallengeAccessRules(Map(1 → SampleResponses.Successes.listChallengeAccessRulesPage1, 2 → SampleResponses.Successes.listChallengeAccessRulesPage2, 3 → SampleResponses.Successes.listChallengeAccessRulesPage3), accountId))
       val client = buildAccessControlRuleClient(http4sClient, authorization)
 
       val output: List[Rule] = client
@@ -44,7 +44,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
           configuration = RuleConfiguration("ip", "1.2.3.4"),
           createdOn = Some("2014-01-01T05:20:00.12345Z"),
           modifiedOn = Some("2014-01-01T05:20:00.12345Z"),
-          scope = RuleScope("fake-rule-scope", "Some Account", "account")
+          scope = RuleScope("fake-rule-scope", Option("Some Account"), "account")
         )
       )
       output must contain(
@@ -56,7 +56,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
           configuration = RuleConfiguration("ip", "2.3.4.5"),
           createdOn = Some("2014-01-01T05:20:00.12345Z"),
           modifiedOn = Some("2014-01-01T05:20:00.12345Z"),
-          scope = RuleScope("fake-rule-scope", "Some Account", "account")
+          scope = RuleScope("fake-rule-scope", Option("Some Account"), "account")
         )
       )
       output must contain(
@@ -68,13 +68,35 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
           configuration = RuleConfiguration("ip", "3.4.5.6"),
           createdOn = Some("2014-01-01T05:20:00.12345Z"),
           modifiedOn = Some("2014-01-01T05:20:00.12345Z"),
-          scope = RuleScope("fake-rule-scope", "Some Account", "account")
+          scope = RuleScope("fake-rule-scope", None, "account")
+        )
+      )
+    }
+    "list whitelist rules" in new Setup {
+      val http4sClient = fakeService.client(fakeService.listWhitelistAccessRules(Map(1 → SampleResponses.Successes.listWhitelistAccessRules), accountId))
+      val client = buildAccessControlRuleClient(http4sClient, authorization)
+
+      val output: List[Rule] = client
+        .list(accountId, Option("whitelist"))
+        .compile
+        .toList
+        .unsafeRunSync()
+      output must contain(
+        Rule(
+          id = accessRuleId1,
+          notes = Some("Some notes"),
+          allowedModes = List("whitelist", "block", "challenge", "js_challenge"),
+          mode = Some("whitelist"),
+          configuration = RuleConfiguration("ip", "1.2.3.4"),
+          createdOn = Some("2014-01-01T05:20:00.12345Z"),
+          modifiedOn = Some("2014-01-01T05:20:00.12345Z"),
+          scope = RuleScope("fake-rule-scope", Option("Some Account"), "account")
         )
       )
     }
 
     "list access rules across pages doesn't fetch eagerly" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listAccessRules(Map(1 → SampleResponses.Successes.listAccessRulesPage1), accountId))
+      val http4sClient = fakeService.client(fakeService.listChallengeAccessRules(Map(1 → SampleResponses.Successes.listChallengeAccessRulesPage1), accountId))
       val client = buildAccessControlRuleClient(http4sClient, authorization)
 
       val output: List[Rule] = client.list(accountId, Option("challenge")).take(1).compile.toList.unsafeRunSync()
@@ -87,7 +109,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
           configuration = RuleConfiguration("ip", "1.2.3.4"),
           createdOn = Some("2014-01-01T05:20:00.12345Z"),
           modifiedOn = Some("2014-01-01T05:20:00.12345Z"),
-          scope = RuleScope("fake-rule-scope", "Some Account", "account")
+          scope = RuleScope("fake-rule-scope", Option("Some Account"), "account")
         )
       )
     }
@@ -114,7 +136,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
           configuration = RuleConfiguration("ip", "198.51.100.4"),
           createdOn = Some("2014-01-01T05:20:00.12345Z"),
           modifiedOn = Some("2014-01-01T05:20:00.12345Z"),
-          scope = RuleScope("fake-rule-scope", "Some Account", "account")
+          scope = RuleScope("fake-rule-scope", Option("Some Account"), "account")
         )
       )
     }
@@ -178,7 +200,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
 
     object Successes {
 
-      val listAccessRulesPage1 =
+      val listChallengeAccessRulesPage1 =
         json"""{
              "result": [
                {
@@ -216,7 +238,45 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
              "messages": []
            }"""
 
-      val listAccessRulesPage2 =
+      val listWhitelistAccessRules =
+        json"""{
+             "result": [
+               {
+                 "id": "fake-access-rule-1",
+                 "notes": "Some notes",
+                 "allowed_modes": [
+                   "whitelist",
+                   "block",
+                   "challenge",
+                   "js_challenge"
+                 ],
+                 "mode": "whitelist",
+                 "configuration": {
+                   "target": "ip",
+                   "value": "1.2.3.4"
+                 },
+                 "created_on": "2014-01-01T05:20:00.12345Z",
+                 "modified_on": "2014-01-01T05:20:00.12345Z",
+                 "scope": {
+                   "id": "fake-rule-scope",
+                   "name": "Some Account",
+                   "type": "account"
+                 }
+               }
+             ],
+             "result_info": {
+               "page": 1,
+               "per_page": 1,
+               "total_pages": 1,
+               "count": 1,
+               "total_count": 1
+             },
+             "success": true,
+             "errors": [],
+             "messages": []
+           }"""
+
+      val listChallengeAccessRulesPage2 =
         json"""{
              "result": [
                {
@@ -254,7 +314,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
              "messages": []
            }"""
 
-      val listAccessRulesPage3 =
+      val listChallengeAccessRulesPage3 =
         json"""{
              "result": [
                {
@@ -275,7 +335,6 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
                  "modified_on": "2014-01-01T05:20:00.12345Z",
                  "scope": {
                    "id": "fake-rule-scope",
-                   "name": "Some Account",
                    "type": "account"
                  }
                }
