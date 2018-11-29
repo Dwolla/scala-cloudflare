@@ -22,7 +22,8 @@ object StreamingCloudflareApiExecutor {
   implicit def baseResponseDtoDecoder[T: Decoder]: Decoder[BaseResponseDTO[T]] = Decoder[ResponseDTO[T]].widen.or(Decoder[PagedResponseDTO[T]].widen)
 }
 
-class StreamingCloudflareApiExecutor[F[_]: Sync](client: Client[F], authorization: CloudflareAuthorization) {
+class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorization: CloudflareAuthorization) {
+
   import StreamingCloudflareApiExecutor._
 
   def raw[T](request: Request[F])(f: Response[F] => F[T]): F[T] = {
@@ -45,8 +46,10 @@ class StreamingCloudflareApiExecutor[F[_]: Sync](client: Client[F], authorizatio
             Sync[F].raiseError(AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten))
           case single: ResponseDTO[T] if single.success ⇒
             Applicative[F].pure((Segment.seq(single.result.toSeq), None))
-          case paged: PagedResponseDTO[T] if paged.success ⇒
-            Applicative[F].pure((Segment.seq(paged.result), calculateNextPage(paged.result_info.page, paged.result_info.total_pages)))
+          case PagedResponseDTO(result, true, _, _, Some(result_info)) ⇒
+            Applicative[F].pure((Segment.seq(result), calculateNextPage(result_info.page, result_info.total_pages)))
+          case PagedResponseDTO(result, true, _, _, None) ⇒
+            Applicative[F].pure((Segment.seq(result), None))
           case e ⇒
             Sync[F].raiseError(UnexpectedCloudflareErrorException(e.errors.toList.flatten.map(Implicits.toError)))
         }

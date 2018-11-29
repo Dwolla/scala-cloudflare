@@ -27,18 +27,29 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
     success = true,
     errors = None,
     messages = None,
-    result_info = ResultInfoDTO(
+    result_info = Some(ResultInfoDTO(
       page = page,
       per_page = 1,
       count = 1,
       total_count = 3,
       total_pages = 3,
-    ),
+    )),
   )
 
   val singleResult = HttpService[IO] {
     case GET -> Root ⇒
       Ok(ResponseDTO("single-result", success = true, errors = None, messages = None).asJson)
+  }
+
+  val singlePage = HttpService[IO] {
+    case GET -> Root ⇒
+      Ok(PagedResponseDTO[String](
+        result = List("single-page"),
+        success = true,
+        errors = None,
+        messages = None,
+        result_info = None
+      ).asJson)
   }
 
   val multiplePages = HttpService[IO] {
@@ -52,13 +63,13 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
         success = false,
         errors = None,
         messages = None,
-        result_info = ResultInfoDTO(
+        result_info = Some(ResultInfoDTO(
           page = 1,
           per_page = 1,
           count = 1,
           total_count = 3,
           total_pages = 3,
-        ),
+        )),
       ).asJson)
   }
 
@@ -90,6 +101,15 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
       } yield res
 
       output.compile.toList.unsafeToFuture() must be_==(List("page-1", "page-2", "page-3")).await
+    }
+
+    "return a single page if the response is paginated without result_info" in new Setup {
+      private val output = for {
+        req ← Stream.eval(GET(Uri.uri("https://api.cloudflare.com/")))
+        res ← client(singlePage).fetch[String](req)
+      } yield res
+
+      output.compile.toList.unsafeToFuture() must be_==(List("single-page")).await
     }
 
     "return a single result if the response is not paginated" in new Setup {
