@@ -51,7 +51,7 @@ lazy val client = (project in file("client"))
   .settings(
     name := "cloudflare-api-client",
     libraryDependencies ++= {
-    val http4sVersion = "0.18.15"
+    val http4sVersion = "0.18.21"
     Seq(
       "org.http4s" %% "http4s-dsl",
       "org.http4s" %% "http4s-circe",
