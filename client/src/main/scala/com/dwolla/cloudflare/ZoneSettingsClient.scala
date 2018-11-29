@@ -21,7 +21,7 @@ import org.http4s.client.dsl.Http4sClientDsl
 import scala.concurrent.ExecutionContext
 
 trait ZoneSettingsClient[F[_]] {
-  def updateSettings(domain: Zone): Stream[F, ValidatedNel[Throwable, Unit]]
+  def updateSettings(zone: Zone): Stream[F, ValidatedNel[Throwable, Unit]]
 }
 
 object ZoneSettingsClient {

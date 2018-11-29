@@ -50,7 +50,7 @@ case class PagedResponseDTO[T] (
   success: Boolean,
   errors: Option[Seq[ResponseInfoDTO]],
   messages: Option[Seq[ResponseInfoDTO]],
-  result_info: ResultInfoDTO
+  result_info: Option[ResultInfoDTO],
 ) extends BaseResponseDTO[T]
 
 case class DeleteResult(id: String)

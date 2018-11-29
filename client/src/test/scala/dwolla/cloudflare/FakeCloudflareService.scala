@@ -20,11 +20,13 @@ import org.http4s.server.middleware.VirtualHost.exact
 import org.http4s.util.CaseInsensitiveString
 
 class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http4sDsl[IO] {
+
   object OptionalPageQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("page")
   object DirectionPageQueryParamMatcher extends QueryParamDecoderMatcher[String]("direction")
   object ListAccessControlRulesParameters {
     object modeParam extends QueryParamDecoderMatcher[String]("mode")
   }
+
   import com.dwolla.cloudflare.domain.model.Implicits._
 
   object ListZonesQueryParameters {
@@ -105,11 +107,11 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listRecordsForZone(zoneId: String,
-                         recordName: String,
-                         responseBody: String,
-                         contentFilter: Option[String] = None,
-                         recordTypeFilter: Option[String] = None,
-                        ) = {
+    recordName: String,
+    responseBody: String,
+    contentFilter: Option[String] = None,
+    recordTypeFilter: Option[String] = None,
+  ) = {
     import ListRecordsForZoneQueryParameters._
     HttpService[IO] {
       case GET -> Root / "client" / "v4" / "zones" / zone / "dns_records" :? recordNameParam(name) +& contentParam(c) +& recordTypeParam(t)
@@ -167,8 +169,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deleteRecordInZone(zoneId: String,
-                         recordId: String,
-                        ) = HttpService[IO] {
+    recordId: String,
+  ) = HttpService[IO] {
     case DELETE -> Root / "client" / "v4" / "zones" / zone / "dns_records" / record if zone == zoneId && record == recordId ⇒
       Ok(ResponseDTO[DeleteResult](
         result = DeleteResult(id = recordId),
@@ -361,6 +363,21 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
             |}
           """.stripMargin)
       } yield res
+  }
+
+  def listLogpushJobs(zoneId: String, responseBody: Json) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / id / "logpush" / "jobs" if id == zoneId ⇒
+      Ok(responseBody)
+  }
+
+  def createLogpushOwnership(zoneId: String, responseBody: Json) = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / id / "logpush" / "ownership" if id == zoneId ⇒
+      Ok(responseBody)
+  }
+
+  def createLogpushJob(zoneId: String, responseBody: Json) = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / id / "logpush" / "jobs" if id == zoneId ⇒
+      Ok(responseBody)
   }
 
   private def okWithJson(responseBody: String) = {
