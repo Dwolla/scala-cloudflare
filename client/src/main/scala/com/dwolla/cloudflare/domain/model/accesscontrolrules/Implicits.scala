@@ -1,5 +1,6 @@
 package com.dwolla.cloudflare.domain.model.accesscontrolrules
 
+import com.dwolla.cloudflare.domain.dto.{DeleteResult, ResponseDTO}
 import com.dwolla.cloudflare.domain.dto.accesscontrolrules._
 import com.dwolla.cloudflare.domain.model._
 
@@ -29,6 +30,15 @@ private[cloudflare] object Implicits {
       id = dto.id,
       name = dto.name,
       `type` = dto.`type`
+    )
+  }
+
+  implicit def toModel(dto: ResponseDTO[DeleteResult]) : DeletedRule = {
+    DeletedRule(
+      success = dto.success,
+      errors = dto.errors,
+      messages = dto.messages,
+      id = if (dto.result.isDefined) Option(tagAccessControlRuleId(dto.result.get.id)) else None
     )
   }
 }

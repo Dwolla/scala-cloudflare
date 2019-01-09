@@ -1,14 +1,12 @@
 package com.dwolla.cloudflare
 
 import cats.effect._
-import cats.implicits._
+import com.dwolla.cloudflare.domain.dto.{DeleteResult, ResponseDTO}
 import com.dwolla.cloudflare.domain.dto.accesscontrolrules.AccessControlRuleDTO
 import com.dwolla.cloudflare.domain.model.accesscontrolrules.Implicits._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
-import com.dwolla.cloudflare.domain.model.{Implicits ⇒ _, _}
-import io.circe.Json
+import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
 import io.circe.generic.auto._
-import io.circe.optics.JsonPath._
 import io.circe.syntax._
 import fs2._
 import org.http4s.Method._
@@ -22,7 +20,7 @@ import scala.util.matching.Regex
 trait AccessControlRuleClient[F[_]] {
   def list(accountId: AccountId, mode: Option[String]): Stream[F, Rule]
   def create(accountId: AccountId, rule: CreateRule): Stream[F, Rule]
-  def delete(accountId: AccountId, ruleId: String): Stream[F, AccessControlRuleId]
+  def delete(accountId: AccountId, ruleId: String): Stream[F, DeletedRule]
 
   def parseUri(uri: String): Option[(AccountId, AccessControlRuleId)] = uri match {
     case AccessControlRuleClient.uriRegex(zoneId, rateLimitId) ⇒ Option((tagAccountId(zoneId), tagAccessControlRuleId(rateLimitId)))
@@ -59,13 +57,11 @@ class AccessControlRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiE
       resp ← executor.fetch[AccessControlRuleDTO](req).map(Implicits.toModel)
     } yield resp
 
-  override def delete(accountId: AccountId, ruleId: String): Stream[F, AccessControlRuleId] =
+  override def delete(accountId: AccountId, ruleId: String): Stream[F, DeletedRule] =
     for {
       req ← Stream.eval(DELETE(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules" / ruleId))
-      json ← executor.fetch[Json](req).last
-    } yield tagAccessControlRuleId(json.flatMap(deletedRecordLens).getOrElse(ruleId))
-
-  private val deletedRecordLens: Json ⇒ Option[String] = root.id.string.getOption
+      resp: DeletedRule ← Stream.eval(executor.simpleRaw[ResponseDTO[DeleteResult]](req)).map(Implicits.toModel)
+    } yield resp
 }
 
 case class RuleIdDoesNotExistException(accounId: AccountId, ruleId: String) extends RuntimeException(

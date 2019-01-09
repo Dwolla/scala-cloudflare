@@ -30,6 +30,10 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
     client.fetch(setupRequest(request))(f)
   }
 
+  def simpleRaw[T](request: Request[F])
+                  (implicit decoder: Decoder[T]): F[T] =
+    for (data <- raw(request)(responseToJson[T])) yield data
+
   def fetch[T](req: Request[F])
               (implicit decoder: Decoder[T]): Stream[F, T] =
     Pagination.offsetUnfoldSegmentEval[F, Int, T] { maybePageNumber: Option[Int] ⇒
@@ -38,7 +42,7 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
       }
 
       for {
-        pageData ← raw(pagedRequest)(responseToJson[T])
+        pageData ← raw(pagedRequest)(responseToJson[BaseResponseDTO[T]])
         (segment, nextPage) ← pageData match {
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == Option(81057)) ⇒
             Sync[F].raiseError(RecordAlreadyExists)
@@ -65,7 +69,7 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
       .withHeaders(Headers(authEmailHeader, authKeyHeader, contentTypeHeader))
   }
 
-  private def responseToJson[T: Decoder](resp: Response[F]): F[BaseResponseDTO[T]] =
+  private def responseToJson[T: Decoder](resp: Response[F]): F[T] =
     resp match {
       case Status.Successful(_) | Status.NotFound(_) | Status.BadRequest(_) ⇒ resp.decodeJson
       case Status.Forbidden(_) ⇒ Sync[F].raiseError(AccessDenied())

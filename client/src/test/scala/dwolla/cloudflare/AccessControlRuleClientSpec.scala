@@ -2,6 +2,7 @@ package dwolla.cloudflare
 
 import cats.effect._
 import com.dwolla.cloudflare._
+import com.dwolla.cloudflare.domain.dto.ResponseInfoDTO
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
@@ -169,9 +170,53 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
       val http4sClient = fakeService.client(fakeService.deleteAccessRule(SampleResponses.Successes.removedAccessRule, accountId, accessRuleId1))
       val client = buildAccessControlRuleClient(http4sClient, authorization)
 
-      private val output = client.delete(accountId, accessRuleId1)
+      val output = client.delete(accountId, accessRuleId1)
+        .compile.toList.unsafeRunSync()
 
-      output.compile.last.unsafeToFuture() must beSome(accessRuleId1).await
+      val expected = DeletedRule(
+        success = true,
+        errors = Some(List()),
+        messages = Some(List()),
+        id = Some(accessRuleId1),
+      )
+      output must contain(
+        expected
+      )
+    }
+
+    "delete access rule from account fails" in new Setup {
+      val http4sClient = fakeService.client(fakeService.deleteAccessRule(SampleResponses.Successes.removeAccessRuleFailed, accountId, accessRuleId1))
+      val client = buildAccessControlRuleClient(http4sClient, authorization)
+
+      val output = client.delete(accountId, accessRuleId1)
+        .compile.toList.unsafeRunSync()
+
+      val expected = DeletedRule(
+        success = false,
+        errors =
+          Some(
+            List(
+              ResponseInfoDTO(
+                Some(1004),
+                "some-error-message",
+                Some(
+                  List(
+                    ResponseInfoDTO(
+                      Some(1234),
+                      "some-error-chain-message",
+                      None
+                    )
+                  )
+                )
+              )
+            )
+          ),
+        messages = Some(List()),
+        id = None,
+      )
+      output must contain(
+        expected
+      )
     }
   }
 
@@ -383,10 +428,32 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
       val removedAccessRule =
         json"""{
             "success": true,
-            "errors": null,
-            "messages": null,
-            "result": null
+            "errors": [],
+            "messages": [],
+            "result": {
+              "id": "fake-access-rule-1"
+            }
           }"""
+
+      val removeAccessRuleFailed =
+        json"""{
+               "success": false,
+               "errors": [
+                   {
+                       "code": 1004,
+                       "message": "some-error-message",
+                       "error_chain": [
+                           {
+                               "code": 1234,
+                               "message": "some-error-chain-message"
+                           }
+                       ]
+                   }
+               ],
+               "messages": [],
+               "result": null
+           }
+        """
     }
 
     object Failures {
