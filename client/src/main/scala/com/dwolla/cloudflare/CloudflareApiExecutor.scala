@@ -51,7 +51,10 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
           case PagedResponseDTO(result, true, _, _, None) ⇒
             Applicative[F].pure((Segment.seq(result), None))
           case e ⇒
-            Sync[F].raiseError(UnexpectedCloudflareErrorException(e.errors.toList.flatten.map(Implicits.toError)))
+            val errors = e.errors.toList.flatten.map(Implicits.toError)
+            val messages = e.messages.toList.flatten.map(r => com.dwolla.cloudflare.domain.model.Message(r.code, r.message, None))
+
+            Sync[F].raiseError(UnexpectedCloudflareErrorException(errors, messages))
         }
       } yield (segment, nextPage)
     }

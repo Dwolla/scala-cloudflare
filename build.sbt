@@ -47,7 +47,7 @@ lazy val dto = (project in file("dto"))
   .settings(name := "cloudflare-api-dto")
 
 lazy val client = (project in file("client"))
-  .settings(buildSettings ++ bintraySettings ++ releaseSettings: _*)
+  .settings(buildSettings ++ bintraySettings ++ releaseSettings ++ documentationSettings: _*)
   .settings(
     name := "cloudflare-api-client",
     libraryDependencies ++= {
@@ -63,6 +63,7 @@ lazy val client = (project in file("client"))
         "io.circe" %% "circe-literal",
         "io.circe" %% "circe-parser",
         "io.circe" %% "circe-optics",
+        "io.circe" %% "circe-java8",
       ).map(_ % "0.9.3") ++
       Seq(
         fs2,
@@ -73,8 +74,12 @@ lazy val client = (project in file("client"))
       ) ++
       Seq(
         specs2Core,
+        specs2Scalacheck,
+        "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.0-1",
         dwollaTestUtils,
         "org.http4s" %% "http4s-blaze-server" % http4sVersion,
+        catsLaws,
+        catsEffectLaws,
       ).map(_ % Test)
   },
     dependencyOverrides ++= Seq(
@@ -94,4 +99,21 @@ lazy val noPublishSettings = Seq(
   publishLocal := {},
   publishArtifact := false,
   Keys.`package` := file(""),
+)
+
+val documentationSettings = Seq(
+  autoAPIMappings := true,
+  apiMappings ++= {
+    // Lookup the path to jar (it's probably somewhere under ~/.ivy/cache) from computed classpath
+    val classpath = (fullClasspath in Compile).value
+    def findJar(name: String): File = {
+      val regex = ("/" + name + "[^/]*.jar$").r
+      classpath.find { jar => regex.findFirstIn(jar.data.toString).nonEmpty }.get.data // fail hard if not found
+    }
+
+    // Define external documentation paths
+    Map(
+      findJar("circe-generic-extra") -> url("http://circe.github.io/circe/api/io/circe/index.html"),
+    )
+  }
 )

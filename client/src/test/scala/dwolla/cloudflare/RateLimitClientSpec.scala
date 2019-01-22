@@ -3,7 +3,7 @@ package dwolla.cloudflare
 import cats.effect.Sync
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
-import com.dwolla.cloudflare.domain.model.{RateLimitId, RateLimitIdTag, ZoneId, ZoneIdTag}
+import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.ratelimits._
 import org.http4s.client.Client
 import org.http4s.{InvalidMessageBodyFailure, Status}
