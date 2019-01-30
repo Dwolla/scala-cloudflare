@@ -1,5 +1,7 @@
 package dwolla.cloudflare
 
+import java.time.Instant
+
 import cats.data._
 import cats.effect._
 import com.dwolla.cloudflare._
@@ -7,10 +9,13 @@ import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 import com.dwolla.cloudflare.domain.model.ZoneSettings.CloudflareSettingValue
 import com.dwolla.cloudflare.domain.model._
-import io.circe.Json
+import com.dwolla.cloudflare.domain.model.pagerules._
+import com.dwolla.cloudflare.domain.model.pagerules.PageRule._
+import io.circe._
 import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
+import io.circe.literal._
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.client.Client
@@ -378,6 +383,206 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   def createLogpushJob(zoneId: String, responseBody: Json) = HttpService[IO] {
     case POST -> Root / "client" / "v4" / "zones" / id / "logpush" / "jobs" if id == zoneId ⇒
       Ok(responseBody)
+  }
+
+  def listPageRules(zoneId: ZoneId) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / id / "pagerules" if id == zoneId =>
+      Ok(
+        json"""{
+                 "result": [
+                   {
+                     "id": "50fdc2d542e0f6c6246963277d1dc140",
+                     "targets": [
+                       {
+                         "target": "url",
+                         "constraint": {
+                           "operator": "matches",
+                           "value": "http://hydragents.xyz/"
+                         }
+                       }
+                     ],
+                     "actions": [
+                       {
+                         "id": "forwarding_url",
+                         "value": {
+                           "url": "http://hydragents.xyz/home",
+                           "status_code": 301
+                         }
+                       }
+                     ],
+                     "priority": 2,
+                     "status": "disabled",
+                     "created_on": "2019-01-18T21:33:59.000000Z",
+                     "modified_on": "2019-01-23T01:03:53.000000Z"
+                   },
+                   {
+                     "id": "b7cc3152e872cf6e02384706fbabcc7f",
+                     "targets": [
+                       {
+                         "target": "url",
+                         "constraint": {
+                           "operator": "matches",
+                           "value": "http://*.hydragents.xyz/*"
+                         }
+                       }
+                     ],
+                     "actions": [
+                       {
+                         "id": "always_use_https"
+                       }
+                     ],
+                     "priority": 1,
+                     "status": "disabled",
+                     "created_on": "2017-03-27T17:28:36.000000Z",
+                     "modified_on": "2017-03-27T18:33:11.000000Z"
+                   }
+                 ],
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }"""
+      )
+  }
+
+  def getPageRuleById(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "pagerules" / pid if zid == zoneId && pid == pageRuleId =>
+      Ok(
+        json"""{
+                 "result": {
+                   "id": "50fdc2d542e0f6c6246963277d1dc140",
+                   "targets": [
+                     {
+                       "target": "url",
+                       "constraint": {
+                         "operator": "matches",
+                         "value": "http://hydragents.xyz/"
+                       }
+                     }
+                   ],
+                   "actions": [
+                     {
+                       "id": "forwarding_url",
+                       "value": {
+                         "url": "http://hydragents.xyz/home",
+                         "status_code": 301
+                       }
+                     }
+                   ],
+                   "priority": 2,
+                   "status": "disabled",
+                   "created_on": "2019-01-18T21:33:59.000000Z",
+                   "modified_on": "2019-01-23T01:03:53.000000Z"
+                 },
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }"""
+      )
+  }
+
+  def createPageRule(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpService[IO] {
+    case req@POST -> Root / "client" / "v4" / "zones" / zid / "pagerules" if zid == zoneId =>
+      for {
+        input ← req.decodeJson[PageRule]
+        created = input.copy(
+          id = Option(pageRuleId),
+          created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
+          modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
+        )
+        resp <- Ok(ResponseDTO(
+          result = created,
+          success = true,
+          errors = None,
+          messages = None,
+        ).asJson)
+      } yield resp
+  }
+
+  val createPageRuleFails = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / _ / "pagerules" =>
+      Ok(
+        json"""{
+                 "success": false,
+                 "errors": [
+                   {
+                     "code": 1004,
+                     "message": "Page Rule validation failed: See messages for details."
+                   }
+                 ],
+                 "messages": [
+                   {
+                     "code": 1,
+                     "message": ".distinctTargetUrl: Your zone already has an existing page rule with that URL. If you are modifying only page rule settings use the Edit Page Rule option instead",
+                     "type": null
+                   }
+                 ],
+                 "result": null
+               }
+               """)
+  }
+
+  def updatePageRule(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpService[IO] {
+    case req@PUT -> Root / "client" / "v4" / "zones" / zid / "pagerules" / pid if zid == zoneId && pid == pageRuleId =>
+      for {
+        input ← req.decodeJson[PageRule]
+        resp <- if (input.id.isEmpty)
+          Ok(ResponseDTO(
+            result = input.copy(id = Option(pageRuleId), modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse)),
+            success = true,
+            errors = None,
+            messages = None,
+          ).asJson)
+        else
+          BadRequest("input ID should be empty")
+      } yield resp
+  }
+
+  def deletePageRule(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpService[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zid / "pagerules" / pid if zid == zoneId && pid == pageRuleId =>
+      Ok(
+        json"""{
+                 "result": {
+                   "id": ${pageRuleId: String}
+                 },
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }""")
+  }
+
+  def deletePageRuleThatDoesNotExist(zoneId: ZoneId, validId: Boolean) = HttpService[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zid / "pagerules" / _ if zid == zoneId =>
+      if (validId)
+        Ok(
+          json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 1002,
+                       "message": "Invalid Page Rule identifier"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+      else
+        Ok(
+          json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 7003,
+                       "message": "Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/pagerules/asdf, perhaps your object identifier is invalid?"
+                     },
+                     {
+                       "code": 7000,
+                       "message": "No route for that URI"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+
   }
 
   private def okWithJson(responseBody: String) = {
