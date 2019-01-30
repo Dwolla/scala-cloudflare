@@ -5,10 +5,8 @@ import io.circe.generic.extras.Configuration
 import org.specs2.mutable.Specification
 import io.circe.literal._
 import io.circe.syntax._
-import org.scalacheck.{Arbitrary, ScalacheckShapeless}
+import org.scalacheck._
 import org.specs2.ScalaCheck
-import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8Ext._
-import com.dwolla.scalacheck.shapeless._
 import io.circe.CursorOp.DownField
 import io.circe.DecodingFailure
 import org.http4s.Uri
@@ -19,15 +17,7 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
 
   def transformName[T](t: T): String = Configuration.snakeCaseTransformation(String.valueOf(t))
 
-  implicit val arbitraryParsableUri: Arbitrary[Uri] = Arbitrary(ArbitraryInstances.arbitraryUri.arbitrary.suchThat(uri => Uri.fromString(uri.renderString).isRight))
-
   "PageRule" should {
-    "round trip through codec" >> { prop { pageRule: PageRule =>
-      val json = pageRule.asJson
-
-      json.as[PageRule] must beRight(pageRule)
-    }}.pendingUntilFixed("URIs don't always round-trip; see https://github.com/http4s/http4s/issues/1651")
-
     "encode" >> {
       val output = PageRule(
         id = Option("page-rule-id").map(tagPageRuleId),
