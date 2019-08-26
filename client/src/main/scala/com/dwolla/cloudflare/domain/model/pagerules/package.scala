@@ -32,8 +32,8 @@ package pagerules {
                       created_on: Option[Instant] = None,
                      )
   object PageRule {
-    implicit val encoder = exportEncoder[PageRule]
-    implicit val decoder = exportDecoder[PageRule]
+    implicit val pageRuleEncoder = exportEncoder[PageRule]
+    implicit val pageRuleDecoder = exportDecoder[PageRule]
   }
 
   case class PageRuleTarget(target: String, constraint: PageRuleConstraint)

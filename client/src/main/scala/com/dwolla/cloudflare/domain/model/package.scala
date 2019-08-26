@@ -6,7 +6,6 @@ package object model {
 
   type ZoneId = String @@ ZoneIdTag
   type ResourceId = String @@ ResourceIdTag
-  type RateLimitId = String @@ RateLimitIdTag
   type AccountId = String @@ AccountIdTag
   type AccountMemberId = String @@ AccountMemberIdTag
   type UserId = String @@ UserIdTag
@@ -18,7 +17,6 @@ package object model {
 
   private[cloudflare] val tagZoneId: String ⇒ ZoneId = shapeless.tag[ZoneIdTag][String]
   private[cloudflare] val tagResourceId: String ⇒ ResourceId = shapeless.tag[ResourceIdTag][String]
-  private[cloudflare] val tagRateLimitId: String ⇒ RateLimitId = shapeless.tag[RateLimitIdTag][String]
   private[cloudflare] val tagAccountId: String ⇒ AccountId = shapeless.tag[AccountIdTag][String]
   private[cloudflare] val tagAccountMemberId: String ⇒ AccountMemberId = shapeless.tag[AccountMemberIdTag][String]
   private[cloudflare] val tagUserId: String ⇒ UserId = shapeless.tag[UserIdTag][String]
@@ -33,7 +31,6 @@ package object model {
 package model {
   trait ZoneIdTag
   trait ResourceIdTag
-  trait RateLimitIdTag
   trait AccountIdTag
   trait AccountMemberIdTag
   trait UserIdTag
