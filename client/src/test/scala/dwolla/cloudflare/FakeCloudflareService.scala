@@ -9,13 +9,17 @@ import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 import com.dwolla.cloudflare.domain.model.ZoneSettings.CloudflareSettingValue
 import com.dwolla.cloudflare.domain.model._
+import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleEncoder
+import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleDecoder
 import com.dwolla.cloudflare.domain.model.pagerules._
-import com.dwolla.cloudflare.domain.model.pagerules.PageRule._
+import com.dwolla.cloudflare.domain.model.ratelimits.RateLimit.rateLimitEncoder
+import com.dwolla.cloudflare.domain.model.ratelimits.RateLimit.rateLimitDecoder
+import com.dwolla.cloudflare.domain.model.ratelimits._
 import io.circe._
 import io.circe.generic.auto._
+import io.circe.literal._
 import io.circe.parser._
 import io.circe.syntax._
-import io.circe.literal._
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.client.Client
@@ -190,46 +194,220 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       BadRequest(parseJson(responseBody))
   }
 
-  def listRateLimits(pages: Map[Int, String], zoneId: String) = HttpService[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zone / "rate_limits" :? OptionalPageQueryParamMatcher(pageQuery) ⇒
-      if (zone != zoneId) BadRequest()
-      else {
-        pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody ⇒
-          okWithJson(pageBody)
-        }
-      }
+  def listRateLimits(zoneId: ZoneId) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / id / "rate_limits" if id == zoneId =>
+      Ok(
+        json"""{
+                 "result": [
+                    {
+                      "id": "ec794f8d14e2407084de98f4a39e6387",
+                      "disabled": true,
+                      "description": "hydragents.xyz/sign-up",
+                      "match": {
+                        "request": {
+                          "methods": [
+                            "POST"
+                          ],
+                          "schemes": [
+                            "_ALL_"
+                          ],
+                          "url": "hydragents.xyz/sign-up"
+                        },
+                        "response": {
+                          "origin_traffic": true,
+                          "headers": [
+                            {
+                              "name": "Cf-Cache-Status",
+                              "op": "ne",
+                              "value": "HIT"
+                            }
+                          ]
+                        }
+                      },
+                      "login_protect": false,
+                      "threshold": 5,
+                      "period": 60,
+                      "action": {
+                        "mode": "challenge",
+                        "timeout": 0
+                      }
+                    },
+                    {
+                      "id": "5e806af5c96b4e338a452b156fe8bcdb",
+                      "disabled": true,
+                      "description": "hydragents.xyz/sign-up",
+                      "match": {
+                        "request": {
+                          "methods": [
+                            "POST"
+                          ],
+                          "schemes": [
+                            "_ALL_"
+                          ],
+                          "url": "hydragents.xyz/sign-up"
+                        }
+                      },
+                      "login_protect": false,
+                      "threshold": 20,
+                      "period": 600,
+                      "action": {
+                        "mode": "challenge",
+                        "timeout": 0
+                      }
+                    }
+                  ],
+                  "success": true,
+                  "errors": [],
+                  "messages": [],
+                  "result_info": {
+                    "page": 1,
+                    "per_page": 20,
+                    "count": 2,
+                    "total_count": 2,
+                    "total_pages": 1
+                  }
+                }"""
+      )
   }
 
-  def rateLimitById(responseBody: String, zoneId: String, rateLimitId: String, status: Status = Status.Ok) = HttpService[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zone / "rate_limits" / rateLimit ⇒
-      if (zoneId != zone || rateLimitId != rateLimit) BadRequest("Invalid account id")
-      else {
-        Response(status).withBody(parseJson(responseBody))
-      }
+  def getRateLimitById(zoneId: ZoneId, rateLimitId: RateLimitId) = HttpService[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "rate_limits" / rid if zid == zoneId && rid == rateLimitId =>
+      Ok(
+        json"""{
+                "result": {
+                  "id": "ec794f8d14e2407084de98f4a39e6387",
+                  "disabled": true,
+                  "description": "hydragents.xyz/sign-up",
+                  "match": {
+                    "request": {
+                      "methods": [
+                        "POST"
+                      ],
+                      "schemes": [
+                        "_ALL_"
+                      ],
+                      "url": "hydragents.xyz/sign-up"
+                    },
+                    "response": {
+                      "origin_traffic": true,
+                      "headers": [
+                        {
+                          "name": "Cf-Cache-Status",
+                          "op": "ne",
+                          "value": "HIT"
+                        }
+                      ]
+                    }
+                  },
+                  "login_protect": false,
+                  "threshold": 5,
+                  "period": 60,
+                  "action": {
+                    "mode": "challenge",
+                    "timeout": 0
+                  }
+                },
+                "success": true,
+                "errors": [],
+                "messages": []
+               }"""
+      )
   }
 
-  def createRateLimit(responseBody: String, zoneId: String, status: Status = Status.Ok) = HttpService[IO] {
-    case POST -> Root / "client" / "v4" / "zones" / zone / "rate_limits" ⇒
-      if (zone != zoneId) BadRequest()
-      else {
-        Response(status).withBody(parseJson(responseBody))
-      }
+  def createRateLimit(zoneId: ZoneId, rateLimitId: RateLimitId) = HttpService[IO] {
+    case req@POST -> Root / "client" / "v4" / "zones" / zid / "rate_limits" if zid == zoneId =>
+      for {
+        input ← req.decodeJson[RateLimit]
+        created = input.copy(
+          id = Option(rateLimitId),
+        )
+        resp <- Ok(ResponseDTO(
+          result = created,
+          success = true,
+          errors = None,
+          messages = None,
+        ).asJson)
+      } yield resp
   }
 
-  def updateRateLimit(responseBody: String, zoneId: String, rateLimitId: String, status: Status = Status.Ok) = HttpService[IO] {
-    case PUT -> Root / "client" / "v4" / "zones" / zone / "rate_limits" / rateLimit ⇒
-      if (zone != zoneId || rateLimit != rateLimitId) BadRequest()
-      else {
-        Response(status).withBody(parseJson(responseBody))
-      }
+  val createRateLimitFails = HttpService[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / _ / "rate_limits" =>
+      Ok(
+        json"""{
+                 "success": false,
+                 "errors": [
+                   {
+                     "message": "ratelimit.api.validation_error:ratelimit.api.mitigation_timeout_must_be_greater_than_period"
+                   }
+                 ],
+                 "messages": [],
+                 "result": null
+               }
+               """)
   }
 
-  def deleteRateLimit(responseBody: String, zoneId: String, rateLimitId: String, status: Status = Status.Ok) = HttpService[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zone / "rate_limits" / rateLimit ⇒
-      if (zone != zoneId || rateLimit != rateLimitId) BadRequest()
-      else {
-        Response(status).withBody(parseJson(responseBody))
-      }
+  def updateRateLimit(zoneId: ZoneId, rateLimitId: RateLimitId) = HttpService[IO] {
+    case req@PUT -> Root / "client" / "v4" / "zones" / zid / "rate_limits" / rid if zid == zoneId && rid == rateLimitId =>
+      for {
+        input ← req.decodeJson[RateLimit]
+        resp <- if (input.id.isEmpty)
+          Ok(ResponseDTO(
+            result = input.copy(id = Option(rateLimitId)),
+            success = true,
+            errors = None,
+            messages = None,
+          ).asJson)
+        else
+          BadRequest("input ID should be empty")
+      } yield resp
+  }
+
+  def deleteRateLimit(zoneId: ZoneId, rateLimitId: RateLimitId) = HttpService[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zid / "rate_limits" / rid if zid == zoneId && rid == rateLimitId =>
+      Ok(
+        json"""{
+                 "result": {
+                   "id": ${rateLimitId: String}
+                 },
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }""")
+  }
+
+  def deleteRateLimitThatDoesNotExist(zoneId: ZoneId, validId: Boolean) = HttpService[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zid / "rate_limits" / _ if zid == zoneId =>
+      if (validId)
+        Ok(
+          json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 1000,
+                       "message": "not_found"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+      else
+        Ok(
+          json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 7003,
+                       "message": "Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/rate_limits/asdf, perhaps your object identifier is invalid?"
+                     },
+                     {
+                       "code": 7000,
+                       "message": "No route for that URI"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+
   }
 
   def listChallengeAccessRules(pages: Map[Int, Json], accountId: String) = HttpService[IO] {
