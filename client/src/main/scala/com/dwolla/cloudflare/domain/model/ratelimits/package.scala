@@ -1,5 +1,6 @@
 package com.dwolla.cloudflare.domain.model
 
+import cats.implicits._
 import com.dwolla.circe._
 import io.circe.{Decoder, Encoder}
 import shapeless.tag.@@
@@ -10,6 +11,11 @@ package object ratelimits {
 
   private[cloudflare] val tagRateLimitId: String ⇒ RateLimitId = shapeless.tag[RateLimitIdTag][String]
 
+  implicit val booleanDecoder: Decoder[Boolean] = Decoder.decodeBoolean or Decoder.decodeString.emap {
+    case s if s.toLowerCase() == "true" => true.asRight
+    case s if s.toLowerCase() == "false" => false.asRight
+    case _ => "Boolean".asLeft
+  }
 }
 
 package ratelimits {

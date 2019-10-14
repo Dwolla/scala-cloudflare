@@ -417,5 +417,66 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
         action = Challenge
       ))
     }
+
+    "decode booleans sent as strings" >> {
+      val output =
+        json"""{
+                 "id": "rate-limit-id",
+                 "disabled": "false",
+                 "description": "my description",
+                 "match": {
+                   "request": {
+                     "methods": null,
+                     "schemes": ["HTTP"],
+                     "url": "http://l@:1"
+                   },
+                   "response": {
+                     "origin_traffic": "true",
+                    "headers": [
+                      {
+                         "name": "Cf-Cache-Status",
+                         "op": "ne",
+                         "value": "HIT"
+                       }
+                     ]
+                   }
+                 },
+                 "bypass": [
+                   {
+                     "name": "url",
+                     "value": "http://l@:1"
+                   }
+                 ],
+                 "threshold": 0,
+                 "period": 0,
+                 "action": {
+                   "mode": "challenge"
+                 }
+               }""".as[RateLimit]
+
+      output must beRight(RateLimit(
+        id = Option("rate-limit-id").map(tagRateLimitId),
+        disabled = Option(false),
+        description = Option("my description"),
+        `match` = RateLimitMatch(
+          RateLimitMatchRequest(
+            methods = List.empty,
+            schemes = List(Scheme.Http),
+            url = "http://l@:1"
+          ),
+          Option(RateLimitMatchResponse(
+            origin_traffic = Option(true),
+            headers = List(RateLimitMatchResponseHeader(
+              name = "Cf-Cache-Status",
+              op = Op.NotEqual,
+              value = "HIT"
+            ))
+          ))),
+        bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
+        threshold = 0,
+        period = Duration.ofSeconds(0),
+        action = Challenge
+      ))
+    }
   }
 }
