@@ -24,12 +24,12 @@ trait PageRuleClient[F[_]] {
   def delete(zoneId: ZoneId, pageRuleId: String): Stream[F, PageRuleId]
 
   def getByUri(uri: String): Stream[F, PageRule] = parseUri(uri).fold(Stream.empty.covaryAll[F, PageRule]) {
-    case (zoneId, pageRuleId) ⇒ getById(zoneId, pageRuleId)
+    case (zoneId, pageRuleId) => getById(zoneId, pageRuleId)
   }
 
   def parseUri(uri: String): Option[(ZoneId, PageRuleId)] = uri match {
-    case PageRuleClient.uriRegex(zoneId, pageRuleId) ⇒ Option((tagZoneId(zoneId), tagPageRuleId(pageRuleId)))
-    case _ ⇒ None
+    case PageRuleClient.uriRegex(zoneId, pageRuleId) => Option((tagZoneId(zoneId), tagPageRuleId(pageRuleId)))
+    case _ => None
   }
 
   def buildUri(zoneId: ZoneId, pageRuleId: PageRuleId): String =
@@ -46,8 +46,8 @@ object PageRuleClient {
 class PageRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends PageRuleClient[F] with Http4sClientDsl[F] {
   private def fetch(reqF: F[Request[F]]): Stream[F, PageRule] =
     for {
-      req ← Stream.eval(reqF)
-      res ← executor.fetch[PageRule](req)
+      req <- Stream.eval(reqF)
+      res <- executor.fetch[PageRule](req)
     } yield res
 
   override def list(zoneId: ZoneId): Stream[F, PageRule] =
@@ -69,13 +69,13 @@ class PageRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F
   override def delete(zoneId: ZoneId, pageRuleId: String): Stream[F, PageRuleId] =
     for {
       req <- Stream.eval(DELETE(BaseUrl / "zones" / zoneId / "pagerules" / pageRuleId))
-      json ← executor.fetch[Json](req).last.recover {
-        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) ⇒
+      json <- executor.fetch[Json](req).last.recover {
+        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           None
       }
     } yield tagPageRuleId(json.flatMap(deletedRecordLens).getOrElse(pageRuleId))
 
-  private val deletedRecordLens: Json ⇒ Option[String] = root.id.string.getOption
+  private val deletedRecordLens: Json => Option[String] = root.id.string.getOption
   private val notFoundCodes = List(1002, 7000, 7003)
 }
 

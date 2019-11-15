@@ -23,7 +23,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
   trait Setup extends Scope with Http4sDsl[IO] {
     def client(csfs: CloudflareSettingFunction*) =
       for {
-        fakeExecutor ← Reader((fakeService: HttpService[IO]) ⇒ new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
+        fakeExecutor <- Reader((fakeService: HttpService[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
       } yield new ZoneSettingsClientImpl(fakeExecutor, 1) {
         override val settings = csfs.toSet
       }
@@ -39,8 +39,8 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
       private val output = zoneSettingsClient.updateSettings(zone)
 
       output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
-        case Validated.Valid(u) ⇒ u must_==(())
-        case Validated.Invalid(e) ⇒ throw e.head
+        case Validated.Valid(u) => u must_==(())
+        case Validated.Invalid(e) => throw e.head
       }.await
     }
 
@@ -51,7 +51,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
       private val output = zoneSettingsClient.updateSettings(zone)
 
       output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
-        case Validated.Valid(u) ⇒ u must_==(())
+        case Validated.Valid(u) => u must_==(())
       }.await
     }
 
@@ -62,7 +62,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
       private val output = zoneSettingsClient.updateSettings(zone)
 
       output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
-        case Validated.Valid(u) ⇒ u must_==(())
+        case Validated.Valid(u) => u must_==(())
       }.await
     }
 
@@ -81,7 +81,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
       private val output = zoneSettingsClient.updateSettings(zone)
 
       output.compile.last.unsafeToFuture() should beSome[ValidatedNel[Throwable, Unit]].like {
-        case Validated.Invalid(nel) ⇒ nel.toList should have size greaterThanOrEqualTo(2)
+        case Validated.Invalid(nel) => nel.toList should have size greaterThanOrEqualTo(2)
       }.await
     }
 

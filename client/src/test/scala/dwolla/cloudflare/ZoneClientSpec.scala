@@ -17,7 +17,7 @@ class ZoneClientSpec(implicit ee: ExecutionEnv) extends Specification {
 
   trait Setup extends Scope {
     val client = for {
-      fakeExecutor ← Reader((fakeService: HttpService[IO]) ⇒ new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
+      fakeExecutor <- Reader((fakeService: HttpService[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
     } yield new ZoneClientImpl(fakeExecutor)
   }
 

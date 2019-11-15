@@ -22,6 +22,6 @@ class ZoneClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) e
     executor.fetch[ZoneDTO](Request[F](uri = BaseUrl / "zones" +? ("name", domain) +? ("status", "active")))
       .map(_.id)
       .collect {
-        case Some(id) ⇒ tagZoneId(id)
+        case Some(id) => tagZoneId(id)
       }
 }

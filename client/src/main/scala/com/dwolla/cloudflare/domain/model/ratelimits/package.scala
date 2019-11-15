@@ -9,7 +9,7 @@ package object ratelimits {
 
   type RateLimitId = String @@ RateLimitIdTag
 
-  private[cloudflare] val tagRateLimitId: String ⇒ RateLimitId = shapeless.tag[RateLimitIdTag][String]
+  private[cloudflare] val tagRateLimitId: String => RateLimitId = shapeless.tag[RateLimitIdTag][String]
 
   implicit val booleanDecoder: Decoder[Boolean] = Decoder.decodeBoolean or Decoder.decodeString.emap {
     case s if s.toLowerCase() == "true" => true.asRight

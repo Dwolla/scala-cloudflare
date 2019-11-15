@@ -35,12 +35,12 @@ object CloudflareSettingFunctions {
     * Given a Zone and a Zone ID, return a Some((Uri, Json)) if the
     * setting should be updated, or a None if it should not.
     */
-  type CloudflareSettingFunction = Zone ⇒ ZoneId ⇒ Option[(Uri, Json)]
+  type CloudflareSettingFunction = Zone => ZoneId => Option[(Uri, Json)]
 
-  val setTlsLevel: CloudflareSettingFunction = zone ⇒ zoneId ⇒ Option((BaseUrl / "zones" / zoneId / "settings" / "ssl", zone.tlsLevel.asJson))
+  val setTlsLevel: CloudflareSettingFunction = zone => zoneId => Option((BaseUrl / "zones" / zoneId / "settings" / "ssl", zone.tlsLevel.asJson))
 
   val setSecurityLevel: CloudflareSettingFunction =
-    zone ⇒ zoneId ⇒ zone.securityLevel.map(sl ⇒ (BaseUrl / "zones" / zoneId / "settings" / "security_level", sl.asJson))
+    zone => zoneId => zone.securityLevel.map(sl => (BaseUrl / "zones" / zoneId / "settings" / "security_level", sl.asJson))
 
   val allSettings: Set[CloudflareSettingFunction] = Set(setTlsLevel, setSecurityLevel)
 }
@@ -56,19 +56,19 @@ class ZoneSettingsClientImpl[F[_] : Effect](executor: StreamingCloudflareApiExec
 
   override def updateSettings(zone: Zone): Stream[F, ValidatedNel[Throwable, Unit]] = {
     for {
-      zoneId ← zoneClient.getZoneId(zone.name)
-      res ← applySettings(zoneId, zone).map(_.attempt).join(maxConcurrency)
+      zoneId <- zoneClient.getZoneId(zone.name)
+      res <- applySettings(zoneId, zone).map(_.attempt).join(maxConcurrency)
     } yield res.toValidatedNel
   }.foldMonoid
 
   private def applySettings(zoneId: ZoneId, zone: Zone): Stream[F, Stream[F, Unit]] =
     Stream.emits(settings.toList).map(_(zone)(zoneId)).collect {
-      case Some((uri, zoneSetting)) ⇒ patchValue(uri, zoneSetting)
+      case Some((uri, zoneSetting)) => patchValue(uri, zoneSetting)
     }
 
   private def patchValue[T](uri: Uri, cloudflareSettingValue: Json) =
     for {
-      req ← Stream.eval(PATCH(uri, cloudflareSettingValue))
-      _ ← executor.fetch[ZoneSettingsDTO](req)
+      req <- Stream.eval(PATCH(uri, cloudflareSettingValue))
+      _ <- executor.fetch[ZoneSettingsDTO](req)
     } yield ()
 }

@@ -53,15 +53,15 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
               id = "1111",
               name = "Fake Role 1",
               description = "this is the first fake role",
-              permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+              permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
             ),
             AccountRole(
               id = "2222",
               name = "Fake Role 2",
               description = "second fake role",
               permissions = Map[String, AccountRolePermissions](
-                "zone" → AccountRolePermissions(read = true, edit = false),
-                "logs" → AccountRolePermissions(read = true, edit = false)
+                "zone" -> AccountRolePermissions(read = true, edit = false),
+                "logs" -> AccountRolePermissions(read = true, edit = false)
               )
             )
           )
@@ -111,15 +111,15 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
               id = "1111",
               name = "Fake Role 1",
               description = "this is the first fake role",
-              permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+              permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
             ),
             AccountRole(
               id = "2222",
               name = "Fake Role 2",
               description = "second fake role",
               permissions = Map[String, AccountRolePermissions](
-                "zone" → AccountRolePermissions(read = true, edit = false),
-                "logs" → AccountRolePermissions(read = true, edit = false)
+                "zone" -> AccountRolePermissions(read = true, edit = false),
+                "logs" -> AccountRolePermissions(read = true, edit = false)
               )
             )
           )
@@ -139,7 +139,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
       private val output = client.addMember(accountId, email, roleIds)
 
       output.compile.last.attempt.unsafeToFuture() must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
+        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(Some(1001),Invalid request: Value required for parameter 'email'.)
@@ -169,15 +169,15 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
             id = "1111",
             name = "Fake Role 1",
             description = "this is the first fake role",
-            permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+            permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
           ),
           AccountRole(
             id = "2222",
             name = "Fake Role 2",
             description = "second fake role",
             permissions = Map[String, AccountRolePermissions](
-              "zone" → AccountRolePermissions(read = true, edit = false),
-              "logs" → AccountRolePermissions(read = true, edit = false)
+              "zone" -> AccountRolePermissions(read = true, edit = false),
+              "logs" -> AccountRolePermissions(read = true, edit = false)
             )
           ),
           AccountRole(
@@ -185,7 +185,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
             name = "Fake Role 3",
             description = "third fake role",
             permissions = Map[String, AccountRolePermissions](
-              "crypto" → AccountRolePermissions(read = true, edit = false)
+              "crypto" -> AccountRolePermissions(read = true, edit = false)
             )
           )
         )
@@ -218,15 +218,15 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
             id = "1111",
             name = "Fake Role 1",
             description = "this is the first fake role",
-            permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+            permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
           ),
           AccountRole(
             id = "2222",
             name = "Fake Role 2",
             description = "second fake role",
             permissions = Map[String, AccountRolePermissions](
-              "zone" → AccountRolePermissions(read = true, edit = false),
-              "logs" → AccountRolePermissions(read = true, edit = false)
+              "zone" -> AccountRolePermissions(read = true, edit = false),
+              "logs" -> AccountRolePermissions(read = true, edit = false)
             )
           ),
           AccountRole(
@@ -234,7 +234,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
             name = "Fake Role 3",
             description = "third fake role",
             permissions = Map[String, AccountRolePermissions](
-              "crypto" → AccountRolePermissions(read = true, edit = false)
+              "crypto" -> AccountRolePermissions(read = true, edit = false)
             )
           )
         )
@@ -247,7 +247,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
       private val output = client.updateMember(accountId, updatedAccountMember)
 
       output.compile.last.attempt.unsafeToFuture() must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
+        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(Some(1001),Invalid request: Invalid roles)
@@ -280,7 +280,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
       private val output = client.removeMember(accountId, accountMemberId)
 
       output.compile.last.attempt.unsafeToFuture() must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
+        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(Some(7003),Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?)
@@ -300,7 +300,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
       private val output = client.removeMember(accountId, accountMemberId)
 
       output.compile.last.attempt.unsafeToFuture() must beLeft[Throwable].like {
-        case ex: AccountMemberDoesNotExistException ⇒ ex.getMessage must_==
+        case ex: AccountMemberDoesNotExistException => ex.getMessage must_==
           "The account member fake-account-member-id not found for account fake-account-id1."
       }.await
     }

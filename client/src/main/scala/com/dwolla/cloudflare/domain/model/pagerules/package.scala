@@ -12,7 +12,7 @@ package object pagerules {
 
   type PageRuleId = String @@ PageRuleIdTag
 
-  private[cloudflare] val tagPageRuleId: String ⇒ PageRuleId = shapeless.tag[PageRuleIdTag][String]
+  private[cloudflare] val tagPageRuleId: String => PageRuleId = shapeless.tag[PageRuleIdTag][String]
 
 }
 

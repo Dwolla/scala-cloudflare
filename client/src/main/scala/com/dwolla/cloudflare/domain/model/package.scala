@@ -15,13 +15,13 @@ package object model {
   type LogpushDestination = String @@ LogpushDestinationTag
   type LogpullOptions = String @@ LogpullOptionsTag
 
-  private[cloudflare] val tagZoneId: String ⇒ ZoneId = shapeless.tag[ZoneIdTag][String]
-  private[cloudflare] val tagResourceId: String ⇒ ResourceId = shapeless.tag[ResourceIdTag][String]
-  private[cloudflare] val tagAccountId: String ⇒ AccountId = shapeless.tag[AccountIdTag][String]
-  private[cloudflare] val tagAccountMemberId: String ⇒ AccountMemberId = shapeless.tag[AccountMemberIdTag][String]
-  private[cloudflare] val tagUserId: String ⇒ UserId = shapeless.tag[UserIdTag][String]
-  private[cloudflare] val tagAccessControlRuleId: String ⇒ AccessControlRuleId = shapeless.tag[AccessControlRuleIdTag][String]
-  private[cloudflare] val tagPhysicalResourceId: String ⇒ PhysicalResourceId = shapeless.tag[PhysicalResourceIdTag][String]
+  private[cloudflare] val tagZoneId: String => ZoneId = shapeless.tag[ZoneIdTag][String]
+  private[cloudflare] val tagResourceId: String => ResourceId = shapeless.tag[ResourceIdTag][String]
+  private[cloudflare] val tagAccountId: String => AccountId = shapeless.tag[AccountIdTag][String]
+  private[cloudflare] val tagAccountMemberId: String => AccountMemberId = shapeless.tag[AccountMemberIdTag][String]
+  private[cloudflare] val tagUserId: String => UserId = shapeless.tag[UserIdTag][String]
+  private[cloudflare] val tagAccessControlRuleId: String => AccessControlRuleId = shapeless.tag[AccessControlRuleIdTag][String]
+  private[cloudflare] val tagPhysicalResourceId: String => PhysicalResourceId = shapeless.tag[PhysicalResourceIdTag][String]
   private[cloudflare] val tagLogpushId: Int => LogpushId = shapeless.tag[LogpushIdTag][Int]
   private[cloudflare] val tagLogpushDestination: String => LogpushDestination = shapeless.tag[LogpushDestinationTag][String]
   private[cloudflare] val tagLogpullOptions: String => LogpullOptions = shapeless.tag[LogpullOptionsTag][String]

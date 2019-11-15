@@ -44,7 +44,7 @@ object Implicits {
       id = dto.id,
       name = dto.name,
       description = dto.description,
-      permissions = dto.permissions.map(kv ⇒ (kv._1, toModel(kv._2)))
+      permissions = dto.permissions.map(kv => (kv._1, toModel(kv._2)))
     )
   }
 
@@ -79,7 +79,7 @@ object Implicits {
       id = model.id,
       name = model.name,
       description = model.description,
-      permissions = model.permissions.map(kv ⇒ (kv._1, toDto(kv._2)))
+      permissions = model.permissions.map(kv => (kv._1, toDto(kv._2)))
     )
   }
 

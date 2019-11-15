@@ -5,7 +5,7 @@ import cats.implicits._
 import com.dwolla.cloudflare.domain.dto.accesscontrolrules.AccessControlRuleDTO
 import com.dwolla.cloudflare.domain.model.accesscontrolrules.Implicits._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
-import com.dwolla.cloudflare.domain.model.{Implicits ⇒ _, _}
+import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.optics.JsonPath._
@@ -25,8 +25,8 @@ trait AccessControlRuleClient[F[_]] {
   def delete(accountId: AccountId, ruleId: String): Stream[F, AccessControlRuleId]
 
   def parseUri(uri: String): Option[(AccountId, AccessControlRuleId)] = uri match {
-    case AccessControlRuleClient.uriRegex(zoneId, rateLimitId) ⇒ Option((tagAccountId(zoneId), tagAccessControlRuleId(rateLimitId)))
-    case _ ⇒ None
+    case AccessControlRuleClient.uriRegex(zoneId, rateLimitId) => Option((tagAccountId(zoneId), tagAccessControlRuleId(rateLimitId)))
+    case _ => None
   }
 
 }
@@ -40,8 +40,8 @@ object AccessControlRuleClient {
 class AccessControlRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends AccessControlRuleClient[F] with Http4sClientDsl[F] {
   override def list(accountId: AccountId, mode: Option[String]): Stream[F, Rule] =
     for {
-      req ← Stream.eval(GET(mode.toSeq.foldLeft(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules")((uri: Uri, param: String) ⇒ uri.withQueryParam("mode", param))))
-      record ← executor.fetch[AccessControlRuleDTO](req)
+      req <- Stream.eval(GET(mode.toSeq.foldLeft(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules")((uri: Uri, param: String) => uri.withQueryParam("mode", param))))
+      record <- executor.fetch[AccessControlRuleDTO](req)
     } yield Rule(
       tagAccessControlRuleId(record.id),
       record.notes,
@@ -55,17 +55,17 @@ class AccessControlRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiE
 
   override def create(accountId: AccountId, rule: CreateRule): Stream[F, Rule] =
     for {
-      req ← Stream.eval(POST(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules", rule.asJson))
-      resp ← executor.fetch[AccessControlRuleDTO](req).map(Implicits.toModel)
+      req <- Stream.eval(POST(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules", rule.asJson))
+      resp <- executor.fetch[AccessControlRuleDTO](req).map(Implicits.toModel)
     } yield resp
 
   override def delete(accountId: AccountId, ruleId: String): Stream[F, AccessControlRuleId] =
     for {
-      req ← Stream.eval(DELETE(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules" / ruleId))
-      json ← executor.fetch[Json](req).last
+      req <- Stream.eval(DELETE(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules" / ruleId))
+      json <- executor.fetch[Json](req).last
     } yield tagAccessControlRuleId(json.flatMap(deletedRecordLens).getOrElse(ruleId))
 
-  private val deletedRecordLens: Json ⇒ Option[String] = root.id.string.getOption
+  private val deletedRecordLens: Json => Option[String] = root.id.string.getOption
 }
 
 case class RuleIdDoesNotExistException(accounId: AccountId, ruleId: String) extends RuntimeException(

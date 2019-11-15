@@ -6,7 +6,7 @@ import com.dwolla.cloudflare.AccountsClientImpl._
 import com.dwolla.cloudflare.domain.dto.accounts._
 import com.dwolla.cloudflare.domain.model.accounts.Implicits._
 import com.dwolla.cloudflare.domain.model.accounts._
-import com.dwolla.cloudflare.domain.model.{Implicits ⇒ _, _}
+import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
 import io.circe.generic.auto._
 import fs2._
 import org.http4s.Method._
@@ -24,8 +24,8 @@ trait AccountsClient[F[_]] {
   def getByUri(uri: String): Stream[F, Account] = parseUri(uri).fold(Stream.empty.covaryAll[F, Account])(getById)
 
   def parseUri(uri: String): Option[AccountId] = uri match {
-    case AccountsClient.uriRegex(accountId) ⇒ Option(tagAccountId(accountId))
-    case _ ⇒ None
+    case AccountsClient.uriRegex(accountId) => Option(tagAccountId(accountId))
+    case _ => None
   }
 }
 
@@ -42,26 +42,26 @@ object AccountsClientImpl {
 class AccountsClientImpl[F[_]: Sync](executor: StreamingCloudflareApiExecutor[F]) extends AccountsClient[F] with Http4sClientDsl[F] {
   override def list(): Stream[F, Account] = {
     for {
-      req ← Stream.eval(GET(BaseUrl / "accounts" withQueryParam("direction", "asc")))
-      record ← executor.fetch[AccountDTO](req)
+      req <- Stream.eval(GET(BaseUrl / "accounts" withQueryParam("direction", "asc")))
+      record <- executor.fetch[AccountDTO](req)
     } yield record
   }
 
   override def getById(accountId: String): Stream[F, Account] =
     for {
-      req ← Stream.eval(GET(BaseUrl / "accounts" / accountId))
-      res ← executor.fetch[AccountDTO](req).returningEmptyOnErrorCodes(notFoundCodes: _*)
+      req <- Stream.eval(GET(BaseUrl / "accounts" / accountId))
+      res <- executor.fetch[AccountDTO](req).returningEmptyOnErrorCodes(notFoundCodes: _*)
     } yield res
 
   override def getByName(name: String): Stream[F, Account] = {
     list()
-      .filter(a ⇒ a.name.toUpperCase == name.toUpperCase)
+      .filter(a => a.name.toUpperCase == name.toUpperCase)
   }
 
   override def listRoles(accountId: AccountId): Stream[F, AccountRole] = {
     for {
-      req ← Stream.eval(GET(BaseUrl / "accounts" / accountId / "roles"))
-      record ← executor.fetch[AccountRoleDTO](req)
+      req <- Stream.eval(GET(BaseUrl / "accounts" / accountId / "roles"))
+      record <- executor.fetch[AccountRoleDTO](req)
     } yield record
   }
 

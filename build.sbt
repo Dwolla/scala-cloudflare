@@ -39,7 +39,7 @@ lazy val bintraySettings = Seq(
   publishMavenStyle := true,
   bintrayRepository := "maven",
   bintrayOrganization := Option("dwolla"),
-  pomIncludeRepository := { _ ⇒ false },
+  pomIncludeRepository := { _ => false },
 )
 
 lazy val dto = (project in file("dto"))

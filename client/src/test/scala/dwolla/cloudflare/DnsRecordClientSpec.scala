@@ -21,7 +21,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
   
   trait Setup extends Scope {
     val client = for {
-      fakeExecutor ← Reader((fakeService: HttpService[IO]) ⇒ new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
+      fakeExecutor <- Reader((fakeService: HttpService[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
     } yield new DnsRecordClientImpl(fakeExecutor)
   }
 
@@ -212,7 +212,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
           .compile.toList.attempt.unsafeToFuture()
 
       output must beLeft[Throwable].like {
-        case ex: DnsRecordIdDoesNotExistException ⇒
+        case ex: DnsRecordIdDoesNotExistException =>
           ex.getMessage must startWith("The given DNS record ID does not exist")
           ex.resourceId must_== "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id"
       }.await
