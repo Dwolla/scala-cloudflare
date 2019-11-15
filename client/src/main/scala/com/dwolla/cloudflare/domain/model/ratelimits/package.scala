@@ -32,6 +32,7 @@ package ratelimits {
                        disabled: Option[Boolean] = None,
                        description: Option[String] = None,
                        `match`: RateLimitMatch,
+                       correlate: Option[RateLimitCorrelation] = None,
                        bypass: List[RateLimitBypass] = List.empty,
                        threshold: Int,
                        period: Duration,
@@ -42,6 +43,8 @@ package ratelimits {
   case class RateLimitMatchRequest(methods: List[Method] = List.empty,
                                    schemes: List[Scheme] = List.empty,
                                    url: String)
+
+  case class RateLimitCorrelation(by: String)
 
   sealed trait Method
   object Method {
@@ -62,7 +65,9 @@ package ratelimits {
   }
 
   case class RateLimitMatchResponse(origin_traffic: Option[Boolean] = None,
-                                    headers: List[RateLimitMatchResponseHeader])
+                                    headers: List[RateLimitMatchResponseHeader],
+                                    status: List[Int] = List.empty,
+                                   )
 
   case class RateLimitMatchResponseHeader(name: String,
                                           op: Op,
