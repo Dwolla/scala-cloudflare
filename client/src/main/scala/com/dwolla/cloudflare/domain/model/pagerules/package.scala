@@ -7,6 +7,10 @@ import shapeless.tag.@@
 import org.http4s.Uri
 import org.http4s.circe._
 import com.dwolla.circe._
+import io.circe._
+import io.circe.export.Exported
+import io.circe.generic.auto._
+import io.circe.java8.time._
 
 package object pagerules {
 
@@ -17,10 +21,6 @@ package object pagerules {
 }
 
 package pagerules {
-  import io.circe.DecodingFailure
-  import io.circe.generic.auto._
-  import io.circe.java8.time._
-
   trait PageRuleIdTag
 
   case class PageRule(id: Option[PageRuleId] = None,
@@ -32,8 +32,8 @@ package pagerules {
                       created_on: Option[Instant] = None,
                      )
   object PageRule {
-    implicit val pageRuleEncoder = exportEncoder[PageRule]
-    implicit val pageRuleDecoder = exportDecoder[PageRule]
+    implicit val pageRuleEncoder: Exported[ObjectEncoder[PageRule]] = exportEncoder[PageRule]
+    implicit val pageRuleDecoder: Exported[Decoder[PageRule]] = exportDecoder[PageRule]
   }
 
   case class PageRuleTarget(target: String, constraint: PageRuleConstraint)

@@ -7,7 +7,6 @@ import com.dwolla.cloudflare.domain.dto.accounts._
 import com.dwolla.cloudflare.domain.model.accounts.Implicits._
 import com.dwolla.cloudflare.domain.model.accounts._
 import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
-import io.circe.generic.auto._
 import fs2._
 import org.http4s.Method._
 import org.http4s.client.dsl.Http4sClientDsl

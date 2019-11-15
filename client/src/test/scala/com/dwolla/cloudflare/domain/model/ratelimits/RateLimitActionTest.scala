@@ -28,8 +28,7 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
               name = "Cf-Cache-Status",
               op = Op.NotEqual,
               value = "HIT"
-            ))
-          ))),
+            ))))),
         bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
         threshold = 0,
         period = Duration.ofSeconds(0),
@@ -55,9 +54,11 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                          "op": "ne",
                          "value": "HIT"
                        }
-                     ]
+                     ],
+                     "status": []
                    }
                  },
+                 "correlate": null,
                  "bypass": [
                    {
                      "name": "url",
@@ -89,8 +90,7 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
               name = "Cf-Cache-Status",
               op = Op.NotEqual,
               value = "HIT"
-            ))
-          ))),
+            ))))),
         bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
         threshold = 0,
         period = Duration.ofSeconds(0),
@@ -116,7 +116,8 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                          "op": "ne",
                          "value": "HIT"
                        }
-                     ]
+                     ],
+                     "status": []
                    }
                  },
                  "bypass": [
@@ -125,6 +126,7 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                      "value": "http://l@:1"
                    }
                  ],
+                 "correlate": null,
                  "threshold": 0,
                  "period": 0,
                  "action": {
@@ -185,8 +187,7 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
               name = "Cf-Cache-Status",
               op = Op.NotEqual,
               value = "HIT"
-            ))
-          ))),
+            ))))),
         bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
         threshold = 0,
         period = Duration.ofSeconds(0),
@@ -413,8 +414,7 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
               name = "Cf-Cache-Status",
               op = Op.NotEqual,
               value = "HIT"
-            ))
-          ))),
+            ))))),
         bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
         threshold = 0,
         period = Duration.ofSeconds(0),
@@ -473,8 +473,7 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
               name = "Cf-Cache-Status",
               op = Op.NotEqual,
               value = "HIT"
-            ))
-          ))),
+            ))))),
         bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
         threshold = 0,
         period = Duration.ofSeconds(0),
@@ -534,8 +533,7 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
               name = "Cf-Cache-Status",
               op = Op.NotEqual,
               value = "HIT"
-            ))
-          ))),
+            ))))),
         bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
         threshold = 0,
         period = Duration.ofSeconds(0),

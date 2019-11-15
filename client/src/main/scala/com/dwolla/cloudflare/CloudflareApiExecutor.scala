@@ -9,7 +9,6 @@ import com.dwolla.cloudflare.domain.model.response.Implicits
 import com.dwolla.fs2utils.Pagination
 import fs2.{Segment, Stream}
 import io.circe._
-import io.circe.generic.auto._
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.client._

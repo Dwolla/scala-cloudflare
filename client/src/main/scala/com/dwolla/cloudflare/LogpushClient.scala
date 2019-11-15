@@ -6,7 +6,6 @@ import cats.effect._
 import com.dwolla.cloudflare.domain.dto.logpush.{CreateJobDTO, CreateOwnershipDTO, LogpushJobDTO, LogpushOwnershipDTO}
 import com.dwolla.cloudflare.domain.model.logpush._
 import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
-import io.circe.generic.auto._
 import io.circe.syntax._
 import fs2._
 import org.http4s.Method._

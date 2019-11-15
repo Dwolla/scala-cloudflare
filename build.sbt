@@ -44,7 +44,10 @@ lazy val bintraySettings = Seq(
 
 lazy val dto = (project in file("dto"))
   .settings(buildSettings ++ bintraySettings ++ releaseSettings: _*)
-  .settings(name := "cloudflare-api-dto")
+  .settings(
+    name := "cloudflare-api-dto",
+    libraryDependencies ++= circeAll,
+  )
 
 lazy val client = (project in file("client"))
   .settings(buildSettings ++ bintraySettings ++ releaseSettings ++ documentationSettings: _*)
@@ -57,14 +60,7 @@ lazy val client = (project in file("client"))
       "org.http4s" %% "http4s-circe",
       "org.http4s" %% "http4s-client",
     ).map(_ % http4sVersion) ++
-      Seq(
-        "io.circe" %% "circe-generic",
-        "io.circe" %% "circe-generic-extras",
-        "io.circe" %% "circe-literal",
-        "io.circe" %% "circe-parser",
-        "io.circe" %% "circe-optics",
-        "io.circe" %% "circe-java8",
-      ).map(_ % "0.9.3") ++
+        circeAll ++
       Seq(
         fs2,
         dwollaFs2Utils,

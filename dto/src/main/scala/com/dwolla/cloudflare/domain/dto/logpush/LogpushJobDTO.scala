@@ -1,5 +1,8 @@
 package com.dwolla.cloudflare.domain.dto.logpush
 
+import io.circe.{Encoder, Decoder}
+import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+
 case class LogpushJobDTO(
   id: Int,
   enabled: Boolean,
@@ -11,6 +14,11 @@ case class LogpushJobDTO(
   error_message: Option[String]
 )
 
+object LogpushJobDTO {
+  implicit val logpushJobDTOEncoder: Encoder[LogpushJobDTO] = deriveEncoder
+  implicit val logpushJobDTODecoder: Decoder[LogpushJobDTO] = deriveDecoder
+}
+
 case class CreateJobDTO(
   destination_conf: String,
   ownership_challenge: String,
@@ -18,3 +26,8 @@ case class CreateJobDTO(
   enabled: Option[Boolean],
   logpull_options: Option[String]
 )
+
+object CreateJobDTO {
+  implicit val createJobDTOEncoder: Encoder[CreateJobDTO] = deriveEncoder
+  implicit val createJobDTODecoder: Decoder[CreateJobDTO] = deriveDecoder
+}

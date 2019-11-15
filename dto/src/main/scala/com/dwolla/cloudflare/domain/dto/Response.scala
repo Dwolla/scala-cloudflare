@@ -1,5 +1,8 @@
 package com.dwolla.cloudflare.domain.dto
 
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto._
+
 trait BaseResponseDTO[T] {
   def success: Boolean
   def errors: Option[Seq[ResponseInfoDTO]]
@@ -17,6 +20,11 @@ case class ResponseInfoDTO (
   error_chain: Option[List[ResponseInfoDTO]] = None,
 )
 
+object ResponseInfoDTO {
+  implicit val responseInfoDTOEncoder: Encoder[ResponseInfoDTO] = deriveEncoder
+  implicit val responseInfoDTODecoder: Decoder[ResponseInfoDTO] = deriveDecoder
+}
+
 case class ResultInfoDTO (
   page: Int,
   per_page: Int,
@@ -24,6 +32,11 @@ case class ResultInfoDTO (
   total_count: Int,
   total_pages: Int
 )
+
+object ResultInfoDTO {
+  implicit val resultInfoDTOEncoder: Encoder[ResultInfoDTO] = deriveEncoder
+  implicit val resultInfoDTODecoder: Decoder[ResultInfoDTO] = deriveDecoder
+}
 
 case class ResponseDTO[T] (
   result: Option[T],
@@ -43,6 +56,9 @@ object ResponseDTO {
     errors = errors,
     messages = messages
   )
+
+  implicit def responseDTOEncoder[T: Encoder]: Encoder[ResponseDTO[T]] = deriveEncoder
+  implicit def responseDTODecoder[T: Decoder]: Decoder[ResponseDTO[T]] = deriveDecoder
 }
 
 case class PagedResponseDTO[T] (
@@ -53,4 +69,14 @@ case class PagedResponseDTO[T] (
   result_info: Option[ResultInfoDTO],
 ) extends BaseResponseDTO[T]
 
+object PagedResponseDTO {
+  implicit def pagedResponseDTOEncoder[T: Encoder]: Encoder[PagedResponseDTO[T]] = deriveEncoder
+  implicit def pagedResponseDTODecoder[T: Decoder]: Decoder[PagedResponseDTO[T]] = deriveDecoder
+}
+
 case class DeleteResult(id: String)
+
+object DeleteResult {
+  implicit val deleteResultEncoder: Encoder[DeleteResult] = deriveEncoder
+  implicit val deleteResultDecoder: Decoder[DeleteResult] = deriveDecoder
+}

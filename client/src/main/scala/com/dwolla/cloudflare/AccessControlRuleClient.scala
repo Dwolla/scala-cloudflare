@@ -7,7 +7,6 @@ import com.dwolla.cloudflare.domain.model.accesscontrolrules.Implicits._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
 import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
 import io.circe.Json
-import io.circe.generic.auto._
 import io.circe.optics.JsonPath._
 import io.circe.syntax._
 import fs2._

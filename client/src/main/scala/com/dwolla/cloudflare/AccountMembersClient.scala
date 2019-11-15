@@ -9,7 +9,6 @@ import com.dwolla.cloudflare.domain.model.accounts.Implicits.{toDto, _}
 import com.dwolla.cloudflare.domain.model.accounts._
 import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
 import io.circe.Json
-import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.optics.JsonPath._
 import fs2._

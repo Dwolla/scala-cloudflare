@@ -4,7 +4,6 @@ import cats.effect._
 import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.model.Exceptions._
 import dwolla.cloudflare.FakeCloudflareService
-import io.circe.generic.auto._
 import io.circe.syntax._
 import fs2._
 import org.http4s._

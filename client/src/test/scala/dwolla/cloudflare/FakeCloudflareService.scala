@@ -16,7 +16,6 @@ import com.dwolla.cloudflare.domain.model.ratelimits.RateLimit.rateLimitEncoder
 import com.dwolla.cloudflare.domain.model.ratelimits.RateLimit.rateLimitDecoder
 import com.dwolla.cloudflare.domain.model.ratelimits._
 import io.circe._
-import io.circe.generic.auto._
 import io.circe.literal._
 import io.circe.parser._
 import io.circe.syntax._

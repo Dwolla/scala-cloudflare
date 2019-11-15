@@ -11,4 +11,14 @@ object Dependencies {
   val fs2 = "co.fs2" %% "fs2-core" % "0.10.6"
   val dwollaFs2Utils = "com.dwolla" %% "fs2-utils" % "1.2.0"
   val shapeless = "com.chuusai" %% "shapeless" % "2.3.3"
+
+  val circeAll: Seq[ModuleID] = Seq(
+    "io.circe" %% "circe-generic",
+    "io.circe" %% "circe-literal",
+    "io.circe" %% "circe-parser",
+    "io.circe" %% "circe-java8",
+  ).map(_ % "0.9.3") ++ Seq(
+    "io.circe" %% "circe-generic-extras" % "0.9.3",
+    "io.circe" %% "circe-optics" % "0.9.3",
+  )
 }
