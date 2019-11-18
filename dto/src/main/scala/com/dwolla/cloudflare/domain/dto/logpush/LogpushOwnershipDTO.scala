@@ -1,7 +1,7 @@
 package com.dwolla.cloudflare.domain.dto.logpush
 
-import io.circe.{Encoder, Decoder}
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+import io.circe.Codec
+import io.circe.generic.semiauto.deriveCodec
 
 case class LogpushOwnershipDTO(
   filename: String,
@@ -10,13 +10,11 @@ case class LogpushOwnershipDTO(
 )
 
 object LogpushOwnershipDTO {
-  implicit val logpushOwnershipDTOEncoder: Encoder[LogpushOwnershipDTO] = deriveEncoder
-  implicit val logpushOwnershipDTODecoder: Decoder[LogpushOwnershipDTO] = deriveDecoder
+  implicit val logpushOwnershipDTOCodec: Codec[LogpushOwnershipDTO] = deriveCodec
 }
 
 case class CreateOwnershipDTO(destination_conf: String)
 
 object CreateOwnershipDTO {
-  implicit val createOwnershipDTOEncoder: Encoder[CreateOwnershipDTO] = deriveEncoder
-  implicit val createOwnershipDTODecoder: Decoder[CreateOwnershipDTO] = deriveDecoder
+  implicit val createOwnershipDTOCodec: Codec[CreateOwnershipDTO] = deriveCodec
 }

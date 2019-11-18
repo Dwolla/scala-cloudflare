@@ -10,10 +10,11 @@ import org.specs2.ScalaCheck
 import io.circe.CursorOp.DownField
 import io.circe.DecodingFailure
 import org.http4s.Uri
-import org.http4s.testing.ArbitraryInstances
+import org.http4s.syntax.all._
+import org.http4s.laws.discipline.arbitrary._
 import org.http4s.circe._
 
-class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckShapeless with ArbitraryInstances {
+class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckShapeless {
 
   def transformName[T](t: T): String = Configuration.snakeCaseTransformation(String.valueOf(t))
 
@@ -23,7 +24,7 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
         id = Option("page-rule-id").map(tagPageRuleId),
         targets = List.empty,
         actions = List(
-          ForwardingUrl(Uri.uri("http://l@:1"), PermanentRedirect),
+          ForwardingUrl(uri"http://l@:1", PermanentRedirect),
           DisableSecurity,
           CacheLevel(Standard),
         ),
@@ -54,7 +55,7 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
         id = None,
         targets = List.empty,
         actions = List(
-          ForwardingUrl(Uri.uri("http://l@:1"), PermanentRedirect),
+          ForwardingUrl(uri"http://l@:1", PermanentRedirect),
           DisableSecurity,
           CacheLevel(Standard),
         ),
@@ -112,12 +113,12 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
 
   "PageRuleAction" should {
     "decode disable_security" >> {
-      val output =
+      val output: Either[DecodingFailure, PageRuleAction] =
         json"""{
                  "id": "disable_security"
                }""".as[PageRuleAction]
 
-      output must beRight(DisableSecurity)
+      output must beRight(DisableSecurity: PageRuleAction)
     }
 
     "encode DisableSecurity" >> {
@@ -259,7 +260,7 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                  }
                }""".as[PageRuleAction]
 
-      output must beRight(ForwardingUrl(Uri.uri("https://hydragents.xyz"), input))
+      output must beRight(ForwardingUrl(uri"https://hydragents.xyz", input))
     }}
 
     "encode forwarding url" >> { prop { input: (Uri, ForwardingStatusCode) =>

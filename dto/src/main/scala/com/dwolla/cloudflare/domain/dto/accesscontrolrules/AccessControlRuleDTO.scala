@@ -1,6 +1,6 @@
 package com.dwolla.cloudflare.domain.dto.accesscontrolrules
 
-import io.circe.{Encoder, Decoder}
+import io.circe.Codec
 import io.circe.generic.semiauto._
 
 case class AccessControlRuleDTO(id: String,
@@ -13,16 +13,14 @@ case class AccessControlRuleDTO(id: String,
                                 scope: AccessControlRuleScopeDTO)
 
 object AccessControlRuleDTO {
-  implicit val accessControlRuleDTOEncoder: Encoder[AccessControlRuleDTO] = deriveEncoder
-  implicit val accessControlRuleDTODecoder: Decoder[AccessControlRuleDTO] = deriveDecoder
+  implicit val accessControlRuleDTOCodec: Codec[AccessControlRuleDTO] = deriveCodec
 }
 
 case class AccessControlRuleConfigurationDTO(target: String,
                                              value: String)
 
 object AccessControlRuleConfigurationDTO {
-  implicit val accessControlRuleConfigurationDTOEncoder: Encoder[AccessControlRuleConfigurationDTO] = deriveEncoder
-  implicit val accessControlRuleConfigurationDTODecoder: Decoder[AccessControlRuleConfigurationDTO] = deriveDecoder
+  implicit val accessControlRuleConfigurationDTOCodec: Codec[AccessControlRuleConfigurationDTO] = deriveCodec
 }
 
 case class AccessControlRuleScopeDTO(id: String,
@@ -30,6 +28,5 @@ case class AccessControlRuleScopeDTO(id: String,
                                      `type`: String)
 
 object AccessControlRuleScopeDTO {
-  implicit val accessControlRuleScopeDTOEncoder: Encoder[AccessControlRuleScopeDTO] = deriveEncoder
-  implicit val accessControlRuleScopeDTODecoder: Decoder[AccessControlRuleScopeDTO] = deriveDecoder
+  implicit val accessControlRuleScopeDTOCodec: Codec[AccessControlRuleScopeDTO] = deriveCodec
 }

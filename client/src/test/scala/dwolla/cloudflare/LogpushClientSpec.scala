@@ -13,8 +13,6 @@ import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import shapeless.tag.@@
 
-import scala.language.higherKinds
-
 class LogpushClientSpec extends Specification {
   def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
 

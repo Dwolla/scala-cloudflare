@@ -17,7 +17,6 @@ import org.http4s._
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
 
-import scala.language.higherKinds
 import scala.util.matching.Regex
 
 trait AccountMembersClient[F[_]] {
@@ -51,13 +50,13 @@ class AccountMembersClientImpl[F[_]: Sync](executor: StreamingCloudflareApiExecu
 
   override def addMember(accountId: AccountId, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember] =
     for {
-      req <- Stream.eval(POST(BaseUrl / "accounts" / accountId / "members", NewAccountMemberDTO(emailAddress, roleIds, Some("pending")).asJson))
+      req <- Stream.eval(POST(NewAccountMemberDTO(emailAddress, roleIds, Some("pending")).asJson, BaseUrl / "accounts" / accountId / "members"))
       resp <- createOrUpdate(req)
     } yield resp
 
   override def updateMember(accountId: AccountId, accountMember: AccountMember): Stream[F, AccountMember] = {
     for {
-      req <- Stream.eval(PUT(buildAccountMemberUri(accountId, accountMember.id), toDto(accountMember).asJson))
+      req <- Stream.eval(PUT(toDto(accountMember).asJson, buildAccountMemberUri(accountId, accountMember.id)))
       resp <- createOrUpdate(req)
     } yield resp
   }

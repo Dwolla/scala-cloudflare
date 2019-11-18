@@ -1,7 +1,7 @@
 package com.dwolla.cloudflare.domain.dto.logpush
 
-import io.circe.{Encoder, Decoder}
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+import io.circe.Codec
+import io.circe.generic.semiauto.deriveCodec
 
 case class LogpushJobDTO(
   id: Int,
@@ -15,8 +15,7 @@ case class LogpushJobDTO(
 )
 
 object LogpushJobDTO {
-  implicit val logpushJobDTOEncoder: Encoder[LogpushJobDTO] = deriveEncoder
-  implicit val logpushJobDTODecoder: Decoder[LogpushJobDTO] = deriveDecoder
+  implicit val logpushJobDTOCodec: Codec[LogpushJobDTO] = deriveCodec
 }
 
 case class CreateJobDTO(
@@ -28,6 +27,5 @@ case class CreateJobDTO(
 )
 
 object CreateJobDTO {
-  implicit val createJobDTOEncoder: Encoder[CreateJobDTO] = deriveEncoder
-  implicit val createJobDTODecoder: Decoder[CreateJobDTO] = deriveDecoder
+  implicit val createJobDTOCodec: Codec[CreateJobDTO] = deriveCodec
 }

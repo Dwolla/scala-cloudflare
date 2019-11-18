@@ -7,6 +7,7 @@ import dwolla.cloudflare.FakeCloudflareService
 import io.circe.syntax._
 import fs2._
 import org.http4s._
+import org.http4s.syntax.all._
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.specs2.concurrent.ExecutionEnv
@@ -35,12 +36,12 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
     )),
   )
 
-  val singleResult = HttpService[IO] {
+  val singleResult = HttpRoutes.of[IO] {
     case GET -> Root =>
       Ok(ResponseDTO("single-result", success = true, errors = None, messages = None).asJson)
   }
 
-  val singlePage = HttpService[IO] {
+  val singlePage = HttpRoutes.of[IO] {
     case GET -> Root =>
       Ok(PagedResponseDTO[String](
         result = List("single-page"),
@@ -51,7 +52,7 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
       ).asJson)
   }
 
-  val multiplePages = HttpService[IO] {
+  val multiplePages = HttpRoutes.of[IO] {
     case GET -> Root :? PageQueryParamMatcher(page) if page.contains(1) || page.isEmpty =>
       Ok(responseForPage(1).asJson)
     case GET -> Root :? PageQueryParamMatcher(Some(page)) if page < 4 =>
@@ -72,7 +73,7 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
       ).asJson)
   }
 
-  val authorizationFailure = HttpService[IO] {
+  val authorizationFailure = HttpRoutes.of[IO] {
     case GET -> Root / "forbidden" =>
       Forbidden()
     case GET -> Root / "invalid-headers" =>
@@ -89,13 +90,13 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
   }
 
   trait Setup extends Scope {
-    def client(service: HttpService[IO]) = new StreamingCloudflareApiExecutor[IO](fakeCloudflareService.client(service), authorization)
+    def client(service: HttpRoutes[IO]) = new StreamingCloudflareApiExecutor[IO](fakeCloudflareService.client(service), authorization)
   }
 
   "fetch" should {
     "retrieve all the pages specified, once, and no more" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(Uri.uri("https://api.cloudflare.com/")))
+        req <- Stream.eval(GET(uri"https://api.cloudflare.com/"))
         res <- client(multiplePages).fetch[String](req)
       } yield res
 
@@ -104,7 +105,7 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
 
     "return a single page if the response is paginated without result_info" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(Uri.uri("https://api.cloudflare.com/")))
+        req <- Stream.eval(GET(uri"https://api.cloudflare.com/"))
         res <- client(singlePage).fetch[String](req)
       } yield res
 
@@ -113,7 +114,7 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
 
     "return a single result if the response is not paginated" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(Uri.uri("https://api.cloudflare.com/")))
+        req <- Stream.eval(GET(uri"https://api.cloudflare.com/"))
         res <- client(singleResult).fetch[String](req)
       } yield res
 
@@ -122,7 +123,7 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
 
     "raise an exception if authorization fails with a 403 response" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(Uri.uri("https://api.cloudflare.com/forbidden")))
+        req <- Stream.eval(GET(uri"https://api.cloudflare.com/forbidden"))
         res <- client(authorizationFailure).fetch[String](req)
       } yield res
 
@@ -134,7 +135,7 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
 
     "raise an exception if the authorization fails due to invalid headers" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(Uri.uri("https://api.cloudflare.com/invalid-headers")))
+        req <- Stream.eval(GET(uri"https://api.cloudflare.com/invalid-headers"))
         res <- client(authorizationFailure).fetch[String](req)
       } yield res
 

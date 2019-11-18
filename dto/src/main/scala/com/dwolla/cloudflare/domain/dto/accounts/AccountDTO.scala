@@ -1,7 +1,7 @@
 package com.dwolla.cloudflare.domain.dto.accounts
 
-import io.circe.{Encoder, Decoder}
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+import io.circe.Codec
+import io.circe.generic.semiauto.deriveCodec
 
 case class AccountDTO (
   id: String,
@@ -10,6 +10,5 @@ case class AccountDTO (
 )
 
 object AccountDTO {
-  implicit val accountDTOEncoder: Encoder[AccountDTO] = deriveEncoder
-  implicit val accountDTODecoder: Decoder[AccountDTO] = deriveDecoder
+  implicit val accountDTOCodec: Codec[AccountDTO] = deriveCodec
 }

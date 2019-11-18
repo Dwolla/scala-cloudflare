@@ -6,6 +6,9 @@ lazy val buildSettings = Seq(
   description := "Scala library for the Cloudflare v4 API",
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   startYear := Option(2016),
+  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+  resolvers += Resolver.bintrayRepo("dwolla", "maven"),
 )
 
 lazy val releaseSettings = {
@@ -54,35 +57,41 @@ lazy val client = (project in file("client"))
   .settings(
     name := "cloudflare-api-client",
     libraryDependencies ++= {
-    val http4sVersion = "0.18.21"
-    Seq(
-      "org.http4s" %% "http4s-dsl",
-      "org.http4s" %% "http4s-circe",
-      "org.http4s" %% "http4s-client",
-    ).map(_ % http4sVersion) ++
+      val http4sVersion = "0.21.0-M5"
+      Seq(
+        "org.http4s" %% "http4s-dsl",
+        "org.http4s" %% "http4s-circe",
+        "org.http4s" %% "http4s-client",
+      ).map(_ % http4sVersion) ++
         circeAll ++
-      Seq(
-        fs2,
-        dwollaFs2Utils,
-        catsCore,
-        catsEffect,
-        shapeless,
-      ) ++
-      Seq(
-        specs2Core,
-        specs2Scalacheck,
-        "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.0-1",
-        dwollaTestUtils,
-        "org.http4s" %% "http4s-blaze-server" % http4sVersion,
-        catsLaws,
-        catsEffectLaws,
-      ).map(_ % Test)
-  },
-    dependencyOverrides ++= Seq(
-      catsCore,
-      catsEffect,
-      fs2
-    ),
+        Seq(
+          fs2,
+          dwollaFs2Utils,
+          catsCore,
+          catsEffect,
+          shapeless,
+        ) ++
+        Seq(
+          specs2Core,
+          specs2Scalacheck,
+          specs2Cats,
+          "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.3",
+          dwollaTestUtils,
+          "org.http4s" %% "http4s-blaze-server" % http4sVersion,
+          "org.http4s" %% "http4s-testing" % http4sVersion,
+          catsLaws,
+          catsEffectLaws,
+        ).map(_ % Test)
+    },
+    scalacOptions in Test -= {
+      // Getting some spurious unreachable code warnings in 2.13 (see https://github.com/scala/bug/issues/11457)
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 13)) =>
+          "-Xfatal-warnings"
+        case _ =>
+          "I DON'T EXIST I'M WORKING AROUND NOT BEING ABLE TO CALL scalaVersion.value FROM ~="
+      }
+    },
   )
   .dependsOn(dto)
 

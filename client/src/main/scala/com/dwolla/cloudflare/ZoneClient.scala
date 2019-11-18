@@ -7,8 +7,6 @@ import com.dwolla.cloudflare.domain.model._
 import fs2._
 import org.http4s._
 
-import scala.language.higherKinds
-
 trait ZoneClient[F[_]] {
   def getZoneId(domain: String): Stream[F, ZoneId]
 }

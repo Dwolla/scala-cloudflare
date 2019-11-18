@@ -1,6 +1,6 @@
 package com.dwolla.circe
 
-import io.circe.{Decoder, Encoder}
+import io.circe._
 import io.circe.generic.extras.Configuration
 import io.circe.{ DecodingFailure, Json }
 import shapeless._
@@ -51,7 +51,7 @@ trait EnumerationSnakeCodec {
                                                                      ): EnumerationSnakeDecoder[FieldType[K, V] :+: R] =
     c => c.as[String] match {
       case Right(s) if s == Configuration.snakeCaseTransformation(wit.value.name) => Right(Inl(field[K](gv.from(HNil))))
-      case Right(_) => dr.apply(c).right.map(Inr(_))
+      case Right(_) => dr.apply(c).map(Inr(_))
       case Left(_) => Left(DecodingFailure("Enumeration", c.history))
     }
 
@@ -59,7 +59,7 @@ trait EnumerationSnakeCodec {
                                                        gen: LabelledGeneric.Aux[A, Repr],
                                                        rr: EnumerationSnakeDecoder[Repr]
                                                       ): EnumerationSnakeDecoder[A] =
-    rr(_).right.map(gen.from)
+    rr(_).map(gen.from)
 
   def deriveEnumerationSnakeDecoder[A](implicit decode: Lazy[EnumerationSnakeDecoder[A]]): Decoder[A] = decode.value
 }

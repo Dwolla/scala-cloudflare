@@ -2,6 +2,7 @@ package com.dwolla.cloudflare.domain.model.ratelimits
 
 import java.time.Duration
 
+import io.circe.DecodingFailure
 import org.specs2.mutable.Specification
 import io.circe.literal._
 import io.circe.syntax._
@@ -333,12 +334,12 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
     }
 
     "decode challenge" >> {
-      val output =
+      val output: Either[DecodingFailure, RateLimitAction] =
         json"""{
                  "mode": "challenge"
                }""".as[RateLimitAction]
 
-      output must beRight(Challenge)
+      output must beRight(Challenge: RateLimitAction)
     }
 
     "encode Challenge" >> {
@@ -348,12 +349,12 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
     }
 
     "decode js_challenge" >> {
-      val output =
+      val output: Either[DecodingFailure, RateLimitAction] =
         json"""{
                  "mode": "js_challenge"
                }""".as[RateLimitAction]
 
-      output must beRight(JsChallenge)
+      output must beRight(JsChallenge: RateLimitAction)
     }
 
     "encode JsChallenge" >> {
@@ -363,7 +364,7 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
     }
 
     "decode null list field" >> {
-      val output =
+      val output: Either[DecodingFailure, RateLimit] =
         json"""{
                  "id": "rate-limit-id",
                  "disabled": false,

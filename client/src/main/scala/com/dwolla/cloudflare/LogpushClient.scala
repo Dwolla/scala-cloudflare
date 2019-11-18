@@ -31,13 +31,13 @@ class LogpushClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]
 
   override def createOwnership(zoneId: ZoneId, destination: LogpushDestination): Stream[F, LogpushOwnership] =
     for {
-      req <- Stream.eval(POST(BaseUrl / "zones" / zoneId / "logpush" / "ownership", toDto(destination).asJson))
+      req <- Stream.eval(POST(toDto(destination).asJson, BaseUrl / "zones" / zoneId / "logpush" / "ownership"))
       res <- executor.fetch[LogpushOwnershipDTO](req)
     } yield toModel(res)
 
   override def createJob(zoneId: ZoneId, job: CreateJob): Stream[F, LogpushJob] =
     for {
-      req <- Stream.eval(POST(BaseUrl / "zones" / zoneId / "logpush" / "jobs", toDto(job).asJson))
+      req <- Stream.eval(POST(toDto(job).asJson, BaseUrl / "zones" / zoneId / "logpush" / "jobs"))
       res <- executor.fetch[LogpushJobDTO](req)
     } yield toModel(res)
 

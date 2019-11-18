@@ -38,8 +38,7 @@ package ratelimits {
   case class RateLimitMatch(request: RateLimitMatchRequest, response: Option[RateLimitMatchResponse] = None)
 
   object RateLimitMatch {
-    implicit def rateLimitMatchEncoder: Encoder[RateLimitMatch] = semiauto.deriveEncoder
-    implicit def rateLimitMatchDecoder: Decoder[RateLimitMatch] = semiauto.deriveDecoder
+    implicit val rateLimitMatchCodec: Codec[RateLimitMatch] = semiauto.deriveCodec
   }
 
   case class RateLimitMatchRequest(methods: List[Method] = List.empty,
@@ -47,15 +46,13 @@ package ratelimits {
                                    url: String)
 
   object RateLimitMatchRequest extends NullAsEmptyListCodec {
-    implicit def rateLimitMatchRequestEncoder: Encoder[RateLimitMatchRequest] = semiauto.deriveEncoder
-    implicit def rateLimitMatchRequestDecoder: Decoder[RateLimitMatchRequest] = semiauto.deriveDecoder
+    implicit val rateLimitMatchRequestCodec: Codec[RateLimitMatchRequest] = semiauto.deriveCodec
   }
 
   case class RateLimitCorrelation(by: String)
 
   object RateLimitCorrelation {
-    implicit def rateLimitCorrelationEncoder: Encoder[RateLimitCorrelation] = semiauto.deriveEncoder
-    implicit def rateLimitCorrelationDecoder: Decoder[RateLimitCorrelation] = semiauto.deriveDecoder
+    implicit val rateLimitCorrelationCodec: Codec[RateLimitCorrelation] = semiauto.deriveCodec
   }
 
   sealed trait Method
@@ -114,8 +111,7 @@ package ratelimits {
                                    )
 
   object RateLimitMatchResponse extends NullAsEmptyListCodec {
-    implicit def rateLimitMatchResponseEncoder: Encoder[RateLimitMatchResponse] = semiauto.deriveEncoder
-    implicit def rateLimitMatchResponseDecoder: Decoder[RateLimitMatchResponse] = semiauto.deriveDecoder
+    implicit val rateLimitMatchResponseCodec: Codec[RateLimitMatchResponse] = semiauto.deriveCodec
   }
 
 
@@ -124,8 +120,7 @@ package ratelimits {
                                           value: String)
 
   object RateLimitMatchResponseHeader {
-    implicit def rateLimitMatchResponseHeaderEncoder: Encoder[RateLimitMatchResponseHeader] = semiauto.deriveEncoder
-    implicit def rateLimitMatchResponseHeaderDecoder: Decoder[RateLimitMatchResponseHeader] = semiauto.deriveDecoder
+    implicit val rateLimitMatchResponseHeaderCodec: Codec[RateLimitMatchResponseHeader] = semiauto.deriveCodec
   }
 
   sealed trait Op
@@ -147,8 +142,7 @@ package ratelimits {
   case class RateLimitBypass(name: String, value: String)
 
   object RateLimitBypass {
-    implicit def rateLimitBypassEncoder: Encoder[RateLimitBypass] = semiauto.deriveEncoder
-    implicit def rateLimitBypassDecoder: Decoder[RateLimitBypass] = semiauto.deriveDecoder
+    implicit val rateLimitBypassCodec: Codec[RateLimitBypass] = semiauto.deriveCodec
   }
 
   sealed trait RateLimitAction
@@ -160,8 +154,7 @@ package ratelimits {
   case class RateLimitActionResponse(content_type: ContentType, body: String)
 
   object RateLimitActionResponse {
-    implicit def rateLimitActionResponseEncoder: Encoder[RateLimitActionResponse] = semiauto.deriveEncoder
-    implicit def rateLimitActionResponseDecoder: Decoder[RateLimitActionResponse] = semiauto.deriveDecoder
+    implicit val rateLimitActionResponseCodec: Codec[RateLimitActionResponse] = semiauto.deriveCodec
   }
 
   sealed trait ContentType
@@ -214,12 +207,10 @@ package ratelimits {
 
     private val _ = genDevConfig // work around compiler warning bug
 
-    implicit val rateLimitActionEncoder: Encoder[RateLimitAction] = generic.extras.semiauto.deriveEncoder[RateLimitAction]
-    implicit val rateLimitActionDecoder: Decoder[RateLimitAction] = generic.extras.semiauto.deriveDecoder[RateLimitAction]
+    implicit val rateLimitActionCodec: Codec[RateLimitAction] = generic.extras.semiauto.deriveConfiguredCodec
   }
 
   object RateLimit extends DurationAsSecondsCodec with NullAsEmptyListCodec {
-    implicit def rateLimitEncoder: Encoder[RateLimit] = semiauto.deriveEncoder
-    implicit def rateLimitDecoder: Decoder[RateLimit] = semiauto.deriveDecoder
+    implicit val rateLimitCodec: Codec[RateLimit] = semiauto.deriveCodec
   }
 }

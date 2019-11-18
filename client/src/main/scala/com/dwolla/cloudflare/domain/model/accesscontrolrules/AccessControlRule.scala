@@ -15,8 +15,7 @@ case class Rule(id: AccessControlRuleId,
                 scope: RuleScope)
 
 object Rule {
-  implicit val ruleEncoder: Encoder[Rule] = deriveEncoder
-  implicit val ruleDecoder: Decoder[Rule] = deriveDecoder
+  implicit val ruleCodec: Codec[Rule] = deriveCodec
 }
 
 case class CreateRule(mode: Option[String],
@@ -24,6 +23,5 @@ case class CreateRule(mode: Option[String],
                       notes: Option[String] = None)
 
 object CreateRule {
-  implicit val createRuleEncoder: Encoder[CreateRule] = deriveEncoder
-  implicit val createRuleDecoder: Decoder[CreateRule] = deriveDecoder
+  implicit val createRuleCodec: Codec[CreateRule] = deriveCodec
 }

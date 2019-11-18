@@ -7,10 +7,10 @@ import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorEx
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.ratelimits._
 import dwolla.cloudflare.FakeCloudflareService
-import org.http4s.HttpService
+import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
 import org.specs2.ScalaCheck
-import org.specs2.matcher.{IOMatchers, Matchers}
+import org.specs2.matcher.{ContainWithResult, IOMatchers, Matchers}
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import shapeless.tag.@@
@@ -24,7 +24,7 @@ class RateLimitClientTest extends Specification with ScalaCheck with IOMatchers 
     val authorization = CloudflareAuthorization("email", "key")
     val fakeService = new FakeCloudflareService(authorization)
 
-    protected def buildRateLimitClient(service: HttpService[IO]): RateLimitClient[IO] =
+    protected def buildRateLimitClient(service: HttpRoutes[IO]): RateLimitClient[IO] =
       RateLimitClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
@@ -34,7 +34,7 @@ class RateLimitClientTest extends Specification with ScalaCheck with IOMatchers 
       private val client = buildRateLimitClient(fakeService.listRateLimits(zoneId))
       private val output = client.list(zoneId)
 
-      output.compile.toList must returnValue(contain(RateLimit(
+      output.compile.toList must returnValue(ContainWithResult(RateLimit(
         id = Option("ec794f8d14e2407084de98f4a39e6387").map(tagRateLimitId),
         disabled = Option(true),
         description = Option("hydragents.xyz/sign-up"),
@@ -212,13 +212,9 @@ class RateLimitClientTest extends Specification with ScalaCheck with IOMatchers 
       prop { (zoneId: ZoneId, rateLimitId: RateLimitId) =>
         val client = new RateLimitClient[IO] {
           override def list(zoneId: ZoneId): fs2.Stream[IO, RateLimit] = ???
-
           override def getById(zoneId: ZoneId, rateLimitId: String): fs2.Stream[IO, RateLimit] = ???
-
           override def create(zoneId: ZoneId, rateLimitId: RateLimit): fs2.Stream[IO, RateLimit] = ???
-
           override def update(zoneId: ZoneId, rateLimitId: RateLimit): fs2.Stream[IO, RateLimit] = ???
-
           override def delete(zoneId: ZoneId, rateLimitId: String): fs2.Stream[IO, RateLimitId] = ???
         }
 

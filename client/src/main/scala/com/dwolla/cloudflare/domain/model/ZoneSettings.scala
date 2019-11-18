@@ -44,9 +44,8 @@ object ZoneSettings {
   case class CloudflareSettingValue(value: String)
 
   object CloudflareSettingValue {
-    implicit val cloudflareSettingValueEncoder: Encoder[CloudflareSettingValue] = deriveEncoder
-    implicit val cloudflareSettingValueDecoder: Decoder[CloudflareSettingValue] = deriveDecoder
-  }
+    implicit val cloudflareSettingValueCodec: Codec[CloudflareSettingValue] = deriveCodec
+}
 
 }
 

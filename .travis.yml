@@ -1,7 +1,8 @@
 language: scala
 
 scala:
-  - 2.12.8
+  - 2.12.10
+  - 2.13.1
 
 env:
   - JDK=openjdk8
@@ -20,4 +21,4 @@ deploy:
     script: .travis/release.sh
     on:
       branch: master
-      scala: 2.12.8
+      scala: 2.12.10

@@ -1,7 +1,7 @@
 package com.dwolla.cloudflare.domain.dto
 
-import io.circe.{Encoder, Decoder}
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+import io.circe.Codec
+import io.circe.generic.semiauto.deriveCodec
 
 case class ZoneSettingsDTO(id: String,
                            value: String,
@@ -10,6 +10,5 @@ case class ZoneSettingsDTO(id: String,
                           )
 
 object ZoneSettingsDTO {
-  implicit val zoneSettingsDTOEncoder: Encoder[ZoneSettingsDTO] = deriveEncoder
-  implicit val zoneSettingsDTODecoder: Decoder[ZoneSettingsDTO] = deriveDecoder
+  implicit val zoneSettingsDTOCodec: Codec[ZoneSettingsDTO] = deriveCodec
 }

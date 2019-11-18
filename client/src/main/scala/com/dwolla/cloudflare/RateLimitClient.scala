@@ -56,14 +56,14 @@ class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
     fetch(GET(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId))
 
   override def create(zoneId: ZoneId, rateLimit: RateLimit): Stream[F, RateLimit] =
-    fetch(POST(BaseUrl / "zones" / zoneId / "rate_limits", rateLimit.asJson))
+    fetch(POST(rateLimit.asJson, BaseUrl / "zones" / zoneId / "rate_limits"))
 
   override def update(zoneId: ZoneId, rateLimit: RateLimit): Stream[F, RateLimit] =
   // TODO it would really be better to do this check at compile time by baking the identification question into the types
     if (rateLimit.id.isDefined)
-      fetch(PUT(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimit.id.get, rateLimit.copy(id = None).asJson))
+      fetch(PUT(rateLimit.copy(id = None).asJson, BaseUrl / "zones" / zoneId / "rate_limits" / rateLimit.id.get))
     else
-      Stream.raiseError(CannotUpdateUnidentifiedRateLimit(rateLimit))
+      Stream.raiseError[F](CannotUpdateUnidentifiedRateLimit(rateLimit))
 
   override def delete(zoneId: ZoneId, rateLimitId: String): Stream[F, RateLimitId] =
     for {

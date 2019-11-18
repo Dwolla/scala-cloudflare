@@ -8,6 +8,5 @@ case class RuleScope(id: String,
                      `type`: String)
 
 object RuleScope {
-  implicit val ruleScopeEncoder: Encoder[RuleScope] = deriveEncoder
-  implicit val ruleScopeDecoder: Decoder[RuleScope] = deriveDecoder
+  implicit val ruleScopeCodec: Codec[RuleScope] = deriveCodec
 }

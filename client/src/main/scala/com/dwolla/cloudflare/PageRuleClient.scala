@@ -57,14 +57,14 @@ class PageRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F
     fetch(GET(BaseUrl / "zones" / zoneId / "pagerules" / pageRuleId))
 
   override def create(zoneId: ZoneId, pageRule: PageRule): Stream[F, PageRule] =
-    fetch(POST(BaseUrl / "zones" / zoneId / "pagerules", pageRule.asJson))
+    fetch(POST(pageRule.asJson, BaseUrl / "zones" / zoneId / "pagerules"))
 
   override def update(zoneId: ZoneId, pageRule: PageRule): Stream[F, PageRule] =
     // TODO it would really be better to do this check at compile time by baking the identification question into the types
     if (pageRule.id.isDefined)
-      fetch(PUT(BaseUrl / "zones" / zoneId / "pagerules" / pageRule.id.get, pageRule.copy(id = None).asJson))
+      fetch(PUT(pageRule.copy(id = None).asJson, BaseUrl / "zones" / zoneId / "pagerules" / pageRule.id.get))
     else
-      Stream.raiseError(CannotUpdateUnidentifiedPageRule(pageRule))
+      Stream.raiseError[F](CannotUpdateUnidentifiedPageRule(pageRule))
 
   override def delete(zoneId: ZoneId, pageRuleId: String): Stream[F, PageRuleId] =
     for {

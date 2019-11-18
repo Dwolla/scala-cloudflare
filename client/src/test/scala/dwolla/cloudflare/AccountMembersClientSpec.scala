@@ -13,8 +13,6 @@ import org.specs2.specification.Scope
 import shapeless.tag.@@
 import io.circe.literal._
 
-import scala.language.higherKinds
-
 class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification {
   def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
 

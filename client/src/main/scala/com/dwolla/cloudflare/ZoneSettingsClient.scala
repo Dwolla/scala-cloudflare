@@ -18,15 +18,12 @@ import org.http4s.Method._
 import org.http4s.Uri
 import org.http4s.client.dsl.Http4sClientDsl
 
-import scala.concurrent.ExecutionContext
-
 trait ZoneSettingsClient[F[_]] {
   def updateSettings(zone: Zone): Stream[F, ValidatedNel[Throwable, Unit]]
 }
 
 object ZoneSettingsClient {
-  def apply[F[_] : Effect](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int = 5)
-                          (implicit ec: ExecutionContext): ZoneSettingsClient[F] =
+  def apply[F[_] : Concurrent](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int = 5): ZoneSettingsClient[F] =
     new ZoneSettingsClientImpl(executor, maxConcurrency)
 }
 
@@ -45,8 +42,7 @@ object CloudflareSettingFunctions {
   val allSettings: Set[CloudflareSettingFunction] = Set(setTlsLevel, setSecurityLevel)
 }
 
-class ZoneSettingsClientImpl[F[_] : Effect](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int)
-                                           (implicit ec: ExecutionContext) extends ZoneSettingsClient[F] with Http4sClientDsl[F] {
+class ZoneSettingsClientImpl[F[_] : Concurrent](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int) extends ZoneSettingsClient[F] with Http4sClientDsl[F] {
   implicit private val nelSemigroup: Semigroup[NonEmptyList[Throwable]] =
     SemigroupK[NonEmptyList].algebra[Throwable]
 
@@ -57,7 +53,7 @@ class ZoneSettingsClientImpl[F[_] : Effect](executor: StreamingCloudflareApiExec
   override def updateSettings(zone: Zone): Stream[F, ValidatedNel[Throwable, Unit]] = {
     for {
       zoneId <- zoneClient.getZoneId(zone.name)
-      res <- applySettings(zoneId, zone).map(_.attempt).join(maxConcurrency)
+      res <- applySettings(zoneId, zone).map(_.attempt).parJoin(maxConcurrency)
     } yield res.toValidatedNel
   }.foldMonoid
 
@@ -68,7 +64,7 @@ class ZoneSettingsClientImpl[F[_] : Effect](executor: StreamingCloudflareApiExec
 
   private def patchValue[T](uri: Uri, cloudflareSettingValue: Json) =
     for {
-      req <- Stream.eval(PATCH(uri, cloudflareSettingValue))
+      req <- Stream.eval(PATCH(cloudflareSettingValue, uri))
       _ <- executor.fetch[ZoneSettingsDTO](req)
     } yield ()
 }

@@ -4,15 +4,13 @@ import cats.effect._
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accounts._
-import org.http4s.{HttpService, Status}
+import org.http4s.{HttpRoutes, Status}
 import org.http4s.client.Client
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import shapeless.tag.@@
 import io.circe.literal._
-
-import scala.language.higherKinds
 
 class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
   def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
@@ -87,7 +85,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     }
 
     "return None for invalid URIs" in new Setup {
-      val client = buildAccountsClient(fakeService.client(HttpService.empty[IO]), authorization)
+      val client = buildAccountsClient(fakeService.client(HttpRoutes.empty[IO]), authorization)
 
       private val output = client.getByUri("https://hydragents.xyz")
 

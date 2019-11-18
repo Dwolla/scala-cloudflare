@@ -16,7 +16,6 @@ import org.http4s.Method._
 import org.http4s._
 import org.http4s.client.dsl.Http4sClientDsl
 
-import scala.language.higherKinds
 import scala.util.matching.Regex
 
 trait DnsRecordClient[F[_]] {
@@ -56,7 +55,7 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
   override def createDnsRecord(record: UnidentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
     for {
       zoneId <- zoneClient.getZoneId(domainNameToZoneName(record.name))
-      request <- Stream.eval(POST(BaseUrl / "zones" / zoneId / "dns_records", record.toDto.asJson))
+      request <- Stream.eval(POST(record.toDto.asJson, BaseUrl / "zones" / zoneId / "dns_records"))
       record <- executor.fetch[DnsRecordDTO](request)
     } yield (record, zoneId)
 
@@ -66,7 +65,7 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
   override def updateDnsRecord(record: IdentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
     for {
       uri <- Stream.emit(toUri(record.zoneId, record.resourceId)).covary[F]
-      req <- Stream.eval(PUT(uri, record.unidentify.toDto.asJson))
+      req <- Stream.eval(PUT(record.unidentify.toDto.asJson, uri))
       updatedRecord <- executor.fetch[DnsRecordDTO](req)
     } yield (updatedRecord, record.zoneId)
 

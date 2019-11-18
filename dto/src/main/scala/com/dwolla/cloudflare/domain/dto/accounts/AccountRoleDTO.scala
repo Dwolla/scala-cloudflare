@@ -1,7 +1,7 @@
 package com.dwolla.cloudflare.domain.dto.accounts
 
-import io.circe.{Encoder, Decoder}
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+import io.circe.Codec
+import io.circe.generic.semiauto.deriveCodec
 
 case class AccountRoleDTO (
   id: String,
@@ -11,8 +11,7 @@ case class AccountRoleDTO (
 )
 
 object AccountRoleDTO {
-  implicit val accountRoleDTOEncoder: Encoder[AccountRoleDTO] = deriveEncoder
-  implicit val accountRoleDTODecoder: Decoder[AccountRoleDTO] = deriveDecoder
+  implicit val accountRoleDTOCodec: Codec[AccountRoleDTO] = deriveCodec
 }
 
 case class AccountRolePermissionsDTO (
@@ -21,6 +20,5 @@ case class AccountRolePermissionsDTO (
 )
 
 object AccountRolePermissionsDTO {
-  implicit val accountRolePermissionsDTOEncoder: Encoder[AccountRolePermissionsDTO] = deriveEncoder
-  implicit val accountRolePermissionsDTODecoder: Decoder[AccountRolePermissionsDTO] = deriveDecoder
+  implicit val accountRolePermissionsDTOCodec: Codec[AccountRolePermissionsDTO] = deriveCodec
 }

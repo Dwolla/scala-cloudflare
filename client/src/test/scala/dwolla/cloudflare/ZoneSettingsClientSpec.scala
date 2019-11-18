@@ -7,14 +7,15 @@ import com.dwolla.cloudflare.CloudflareSettingFunctions._
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model._
 import org.http4s._
+import org.http4s.syntax.all._
 import org.http4s.client._
 import org.http4s.dsl.Http4sDsl
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
-import fs2._
+import org.specs2.matcher.IOMatchers
 
-class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
+class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification with IOMatchers {
 
   private val authorization = CloudflareAuthorization("email", "key")
   private val fakeCloudflareService = new FakeCloudflareService(authorization)
@@ -23,7 +24,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
   trait Setup extends Scope with Http4sDsl[IO] {
     def client(csfs: CloudflareSettingFunction*) =
       for {
-        fakeExecutor <- Reader((fakeService: HttpService[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
+        fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
       } yield new ZoneSettingsClientImpl(fakeExecutor, 1) {
         override val settings = csfs.toSet
       }
@@ -67,7 +68,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     }
 
     "contain the default rules for all zone settings" in new Setup {
-      private val zoneSettingsClient = new ZoneSettingsClientImpl(new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(HttpService.empty), authorization), 1)
+      private val zoneSettingsClient = new ZoneSettingsClientImpl(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(HttpRoutes.empty[IO].orNotFound), authorization), 1)
 
       zoneSettingsClient.settings must contain(setSecurityLevel)
       zoneSettingsClient.settings must contain(setTlsLevel)
@@ -75,7 +76,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     }
 
     "accumulate multiple errors, should they occur when updating settings" in new Setup {
-      private val zoneSettingsClient = ZoneSettingsClient(new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(getZoneId), authorization))
+      private val zoneSettingsClient = ZoneSettingsClient(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(getZoneId.orNotFound), authorization))
       private val zone = Zone("hydragents.xyz", ZoneSettings.FullTlsStrict, Option(ZoneSettings.High))
 
       private val output = zoneSettingsClient.updateSettings(zone)

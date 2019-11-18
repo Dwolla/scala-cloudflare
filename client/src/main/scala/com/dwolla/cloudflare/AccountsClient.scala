@@ -1,7 +1,6 @@
 package com.dwolla.cloudflare
 
 import cats.effect._
-import cats.implicits._
 import com.dwolla.cloudflare.AccountsClientImpl._
 import com.dwolla.cloudflare.domain.dto.accounts._
 import com.dwolla.cloudflare.domain.model.accounts.Implicits._
@@ -11,7 +10,6 @@ import fs2._
 import org.http4s.Method._
 import org.http4s.client.dsl.Http4sClientDsl
 
-import scala.language.higherKinds
 import scala.util.matching.Regex
 
 trait AccountsClient[F[_]] {

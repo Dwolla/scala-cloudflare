@@ -7,6 +7,5 @@ case class RuleConfiguration(target: String,
                              value: String)
 
 object RuleConfiguration {
-  implicit val ruleConfigurationEncoder: Encoder[RuleConfiguration] = deriveEncoder
-  implicit val ruleConfigurationDecoder: Decoder[RuleConfiguration] = deriveDecoder
+  implicit val ruleConfigurationCodec: Codec[RuleConfiguration] = deriveCodec
 }

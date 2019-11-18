@@ -1,7 +1,7 @@
 package com.dwolla.cloudflare.domain.dto.dns
 
-import io.circe.{Encoder, Decoder}
-import io.circe.generic.semiauto.{deriveEncoder, deriveDecoder}
+import io.circe.Codec
+import io.circe.generic.semiauto.deriveCodec
 
 case class DnsRecordDTO(id: Option[String] = None,
                         name: String,
@@ -13,8 +13,7 @@ case class DnsRecordDTO(id: Option[String] = None,
                        )
 
 object DnsRecordDTO {
-  implicit val dnsRecordDTOEncoder: Encoder[DnsRecordDTO] = deriveEncoder
-  implicit val dnsRecordDTODecoder: Decoder[DnsRecordDTO] = deriveDecoder
+  implicit val dnsRecordDTOCodec: Codec[DnsRecordDTO] = deriveCodec
 }
 
 case class ZoneDTO(id: Option[String],
@@ -22,6 +21,5 @@ case class ZoneDTO(id: Option[String],
                   )
 
 object ZoneDTO {
-  implicit val zoneDTOEncoder: Encoder[ZoneDTO] = deriveEncoder
-  implicit val zoneDTODecoder: Decoder[ZoneDTO] = deriveDecoder
+  implicit val zoneDTOCodec: Codec[ZoneDTO] = deriveCodec
 }

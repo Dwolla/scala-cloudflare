@@ -4,7 +4,6 @@ package model
 
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 
-import scala.language.implicitConversions
 import scala.util.matching.Regex
 
 trait DnsRecord {

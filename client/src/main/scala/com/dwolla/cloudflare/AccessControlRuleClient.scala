@@ -1,7 +1,6 @@
 package com.dwolla.cloudflare
 
 import cats.effect._
-import cats.implicits._
 import com.dwolla.cloudflare.domain.dto.accesscontrolrules.AccessControlRuleDTO
 import com.dwolla.cloudflare.domain.model.accesscontrolrules.Implicits._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
@@ -15,7 +14,6 @@ import org.http4s._
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
 
-import scala.language.higherKinds
 import scala.util.matching.Regex
 
 trait AccessControlRuleClient[F[_]] {
@@ -54,7 +52,7 @@ class AccessControlRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiE
 
   override def create(accountId: AccountId, rule: CreateRule): Stream[F, Rule] =
     for {
-      req <- Stream.eval(POST(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules", rule.asJson))
+      req <- Stream.eval(POST(rule.asJson, BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules"))
       resp <- executor.fetch[AccessControlRuleDTO](req).map(Implicits.toModel)
     } yield resp
 
