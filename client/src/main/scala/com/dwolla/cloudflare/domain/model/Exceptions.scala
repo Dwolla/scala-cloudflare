@@ -33,7 +33,7 @@ object Exceptions {
       if (errorChain.nonEmpty)
         errorChain
           .map(ResponseInfoDTO.unapply)
-          .map(e ⇒ s"   - ${e.getOrElse("None")}")
+          .map(e => s"   - ${e.getOrElse("None")}")
           .mkString("\n\n  See the following errors:\n", "\n", "\n")
       else ""
     }")

@@ -8,6 +8,7 @@ import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.RecordAlreadyExists
 import com.dwolla.cloudflare.domain.model._
 import org.http4s._
+import org.http4s.syntax.all._
 import org.http4s.client.Client
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
@@ -21,7 +22,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
   
   trait Setup extends Scope {
     val client = for {
-      fakeExecutor ← Reader((fakeService: HttpService[IO]) ⇒ new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
+      fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
     } yield new DnsRecordClientImpl(fakeExecutor)
   }
 
@@ -128,7 +129,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
   }
 
   private def physicalResourceId(zoneId: String, recordId: String): String =
-    (Uri.uri("https://api.cloudflare.com") / "client" / "v4" / "zones" / zoneId / "dns_records" / recordId).toString
+    (uri"https://api.cloudflare.com" / "client" / "v4" / "zones" / zoneId / "dns_records" / recordId).toString
 
   "Cloudflare API client record create" should {
     "accept a DNS Record and return it with its new ID" in new Setup {
@@ -212,7 +213,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
           .compile.toList.attempt.unsafeToFuture()
 
       output must beLeft[Throwable].like {
-        case ex: DnsRecordIdDoesNotExistException ⇒
+        case ex: DnsRecordIdDoesNotExistException =>
           ex.getMessage must startWith("The given DNS record ID does not exist")
           ex.resourceId must_== "https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id"
       }.await

@@ -24,12 +24,12 @@ trait PageRuleClient[F[_]] {
   def delete(zoneId: ZoneId, pageRuleId: String): Stream[F, PageRuleId]
 
   def getByUri(uri: String): Stream[F, PageRule] = parseUri(uri).fold(Stream.empty.covaryAll[F, PageRule]) {
-    case (zoneId, pageRuleId) ⇒ getById(zoneId, pageRuleId)
+    case (zoneId, pageRuleId) => getById(zoneId, pageRuleId)
   }
 
   def parseUri(uri: String): Option[(ZoneId, PageRuleId)] = uri match {
-    case PageRuleClient.uriRegex(zoneId, pageRuleId) ⇒ Option((tagZoneId(zoneId), tagPageRuleId(pageRuleId)))
-    case _ ⇒ None
+    case PageRuleClient.uriRegex(zoneId, pageRuleId) => Option((tagZoneId(zoneId), tagPageRuleId(pageRuleId)))
+    case _ => None
   }
 
   def buildUri(zoneId: ZoneId, pageRuleId: PageRuleId): String =
@@ -46,8 +46,8 @@ object PageRuleClient {
 class PageRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends PageRuleClient[F] with Http4sClientDsl[F] {
   private def fetch(reqF: F[Request[F]]): Stream[F, PageRule] =
     for {
-      req ← Stream.eval(reqF)
-      res ← executor.fetch[PageRule](req)
+      req <- Stream.eval(reqF)
+      res <- executor.fetch[PageRule](req)
     } yield res
 
   override def list(zoneId: ZoneId): Stream[F, PageRule] =
@@ -57,25 +57,25 @@ class PageRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F
     fetch(GET(BaseUrl / "zones" / zoneId / "pagerules" / pageRuleId))
 
   override def create(zoneId: ZoneId, pageRule: PageRule): Stream[F, PageRule] =
-    fetch(POST(BaseUrl / "zones" / zoneId / "pagerules", pageRule.asJson))
+    fetch(POST(pageRule.asJson, BaseUrl / "zones" / zoneId / "pagerules"))
 
   override def update(zoneId: ZoneId, pageRule: PageRule): Stream[F, PageRule] =
     // TODO it would really be better to do this check at compile time by baking the identification question into the types
     if (pageRule.id.isDefined)
-      fetch(PUT(BaseUrl / "zones" / zoneId / "pagerules" / pageRule.id.get, pageRule.copy(id = None).asJson))
+      fetch(PUT(pageRule.copy(id = None).asJson, BaseUrl / "zones" / zoneId / "pagerules" / pageRule.id.get))
     else
-      Stream.raiseError(CannotUpdateUnidentifiedPageRule(pageRule))
+      Stream.raiseError[F](CannotUpdateUnidentifiedPageRule(pageRule))
 
   override def delete(zoneId: ZoneId, pageRuleId: String): Stream[F, PageRuleId] =
     for {
       req <- Stream.eval(DELETE(BaseUrl / "zones" / zoneId / "pagerules" / pageRuleId))
-      json ← executor.fetch[Json](req).last.recover {
-        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) ⇒
+      json <- executor.fetch[Json](req).last.recover {
+        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           None
       }
     } yield tagPageRuleId(json.flatMap(deletedRecordLens).getOrElse(pageRuleId))
 
-  private val deletedRecordLens: Json ⇒ Option[String] = root.id.string.getOption
+  private val deletedRecordLens: Json => Option[String] = root.id.string.getOption
   private val notFoundCodes = List(1002, 7000, 7003)
 }
 

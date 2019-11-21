@@ -24,12 +24,12 @@ trait RateLimitClient[F[_]] {
   def delete(zoneId: ZoneId, rateLimitId: String): Stream[F, RateLimitId]
 
   def getByUri(uri: String): Stream[F, RateLimit] = parseUri(uri).fold(Stream.empty.covaryAll[F, RateLimit]) {
-    case (zoneId, rateLimitId) ⇒ getById(zoneId, rateLimitId)
+    case (zoneId, rateLimitId) => getById(zoneId, rateLimitId)
   }
 
   def parseUri(uri: String): Option[(ZoneId, RateLimitId)] = uri match {
-    case RateLimitClient.uriRegex(zoneId, rateLimitId) ⇒ Option((tagZoneId(zoneId), tagRateLimitId(rateLimitId)))
-    case _ ⇒ None
+    case RateLimitClient.uriRegex(zoneId, rateLimitId) => Option((tagZoneId(zoneId), tagRateLimitId(rateLimitId)))
+    case _ => None
   }
 
   def buildUri(zoneId: ZoneId, rateLimitId: RateLimitId): String =
@@ -45,8 +45,8 @@ object RateLimitClient {
 class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends RateLimitClient[F] with Http4sClientDsl[F] {
   private def fetch(reqF: F[Request[F]]): Stream[F, RateLimit] =
     for {
-      req ← Stream.eval(reqF)
-      res ← executor.fetch[RateLimit](req)
+      req <- Stream.eval(reqF)
+      res <- executor.fetch[RateLimit](req)
     } yield res
 
   override def list(zoneId: ZoneId): Stream[F, RateLimit] =
@@ -56,25 +56,25 @@ class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
     fetch(GET(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId))
 
   override def create(zoneId: ZoneId, rateLimit: RateLimit): Stream[F, RateLimit] =
-    fetch(POST(BaseUrl / "zones" / zoneId / "rate_limits", rateLimit.asJson))
+    fetch(POST(rateLimit.asJson, BaseUrl / "zones" / zoneId / "rate_limits"))
 
   override def update(zoneId: ZoneId, rateLimit: RateLimit): Stream[F, RateLimit] =
   // TODO it would really be better to do this check at compile time by baking the identification question into the types
     if (rateLimit.id.isDefined)
-      fetch(PUT(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimit.id.get, rateLimit.copy(id = None).asJson))
+      fetch(PUT(rateLimit.copy(id = None).asJson, BaseUrl / "zones" / zoneId / "rate_limits" / rateLimit.id.get))
     else
-      Stream.raiseError(CannotUpdateUnidentifiedRateLimit(rateLimit))
+      Stream.raiseError[F](CannotUpdateUnidentifiedRateLimit(rateLimit))
 
   override def delete(zoneId: ZoneId, rateLimitId: String): Stream[F, RateLimitId] =
     for {
       req <- Stream.eval(DELETE(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId))
-      json ← executor.fetch[Json](req).last.recover {
-        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) ⇒
+      json <- executor.fetch[Json](req).last.recover {
+        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           None
       }
     } yield tagRateLimitId(json.flatMap(deletedRecordLens).getOrElse(rateLimitId))
 
-  private val deletedRecordLens: Json ⇒ Option[String] = root.id.string.getOption
+  private val deletedRecordLens: Json => Option[String] = root.id.string.getOption
   private val notFoundCodes = List(1000, 7000, 7003)
 }
 

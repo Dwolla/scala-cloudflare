@@ -27,7 +27,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
 
   "list" should {
     "list challenge rules" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listChallengeAccessRules(Map(1 → SampleResponses.Successes.listChallengeAccessRulesPage1, 2 → SampleResponses.Successes.listChallengeAccessRulesPage2, 3 → SampleResponses.Successes.listChallengeAccessRulesPage3), accountId))
+      val http4sClient = fakeService.client(fakeService.listChallengeAccessRules(Map(1 -> SampleResponses.Successes.listChallengeAccessRulesPage1, 2 -> SampleResponses.Successes.listChallengeAccessRulesPage2, 3 -> SampleResponses.Successes.listChallengeAccessRulesPage3), accountId))
       val client = buildAccessControlRuleClient(http4sClient, authorization)
 
       val output: List[Rule] = client
@@ -73,7 +73,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
       )
     }
     "list whitelist rules" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listWhitelistAccessRules(Map(1 → SampleResponses.Successes.listWhitelistAccessRules), accountId))
+      val http4sClient = fakeService.client(fakeService.listWhitelistAccessRules(Map(1 -> SampleResponses.Successes.listWhitelistAccessRules), accountId))
       val client = buildAccessControlRuleClient(http4sClient, authorization)
 
       val output: List[Rule] = client
@@ -96,7 +96,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
     }
 
     "list access rules across pages doesn't fetch eagerly" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listChallengeAccessRules(Map(1 → SampleResponses.Successes.listChallengeAccessRulesPage1), accountId))
+      val http4sClient = fakeService.client(fakeService.listChallengeAccessRules(Map(1 -> SampleResponses.Successes.listChallengeAccessRulesPage1), accountId))
       val client = buildAccessControlRuleClient(http4sClient, authorization)
 
       val output: List[Rule] = client.list(accountId, Option("challenge")).take(1).compile.toList.unsafeRunSync()
@@ -155,7 +155,7 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
         .unsafeRunSync()
 
       output must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
+        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(None,firewallaccessrules.api.validation_error:unsupported target received: ,invalid mode received: )

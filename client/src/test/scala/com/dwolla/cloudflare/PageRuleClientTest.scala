@@ -10,7 +10,8 @@ import com.dwolla.cloudflare.domain.model.pagerules._
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
 import dwolla.cloudflare.FakeCloudflareService
-import org.http4s.{HttpService, Uri}
+import org.http4s.HttpRoutes
+import org.http4s.syntax.all._
 import org.scalacheck.{Arbitrary, Gen}
 import org.specs2.matcher.{IOMatchers, Matchers}
 import org.specs2.specification.Scope
@@ -24,7 +25,7 @@ class PageRuleClientTest extends Specification with ScalaCheck with IOMatchers w
     val authorization = CloudflareAuthorization("email", "key")
     val fakeService = new FakeCloudflareService(authorization)
 
-    protected def buildPageRuleClient(service: HttpService[IO]): PageRuleClient[IO] =
+    protected def buildPageRuleClient(service: HttpRoutes[IO]): PageRuleClient[IO] =
       PageRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
 
   }
@@ -41,7 +42,7 @@ class PageRuleClientTest extends Specification with ScalaCheck with IOMatchers w
           PageRuleTarget("url", PageRuleConstraint("matches", "http://hydragents.xyz/"))
         ),
         actions = List(
-          ForwardingUrl(Uri.uri("http://hydragents.xyz/home"), PermanentRedirect)
+          ForwardingUrl(uri"http://hydragents.xyz/home", PermanentRedirect)
         ),
         priority = 2,
         status = Disabled,
@@ -74,7 +75,7 @@ class PageRuleClientTest extends Specification with ScalaCheck with IOMatchers w
           PageRuleTarget("url", PageRuleConstraint("matches", "http://hydragents.xyz/"))
         ),
         actions = List(
-          ForwardingUrl(Uri.uri("http://hydragents.xyz/home"), PermanentRedirect)
+          ForwardingUrl(uri"http://hydragents.xyz/home", PermanentRedirect)
         ),
         priority = 2,
         status = Disabled,

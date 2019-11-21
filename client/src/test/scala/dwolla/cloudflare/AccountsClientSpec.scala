@@ -4,15 +4,13 @@ import cats.effect._
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accounts._
-import org.http4s.{HttpService, Status}
+import org.http4s.{HttpRoutes, Status}
 import org.http4s.client.Client
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import shapeless.tag.@@
 import io.circe.literal._
-
-import scala.language.higherKinds
 
 class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
   def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
@@ -28,7 +26,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
 
   "list" should {
     "return all accounts across pages" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccountsPage1, 2 → SampleResponses.Successes.listAccountsPage2, 3 → SampleResponses.Successes.listAccountsPage3)))
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 -> SampleResponses.Successes.listAccountsPage1, 2 -> SampleResponses.Successes.listAccountsPage2, 3 -> SampleResponses.Successes.listAccountsPage3)))
       val client = buildAccountsClient(http4sClient, authorization)
 
       val output: List[Account] = client.list().compile.toList.unsafeRunSync()
@@ -54,7 +52,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     }
 
     "return all accounts across pages doesn't fetch eagerly" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccountsPage1)))
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 -> SampleResponses.Successes.listAccountsPage1)))
       val client = buildAccountsClient(http4sClient, authorization)
 
       val output: List[Account] = client.list().take(1).compile.toList.unsafeRunSync()
@@ -87,7 +85,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     }
 
     "return None for invalid URIs" in new Setup {
-      val client = buildAccountsClient(fakeService.client(HttpService.empty[IO]), authorization)
+      val client = buildAccountsClient(fakeService.client(HttpRoutes.empty[IO]), authorization)
 
       private val output = client.getByUri("https://hydragents.xyz")
 
@@ -134,7 +132,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     "get account by name" in new Setup {
       val accountName = "Another Fake Account Biz"
 
-      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccounts)))
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 -> SampleResponses.Successes.listAccounts)))
       val client = buildAccountsClient(http4sClient, authorization)
 
       val output: Option[Account] = client.getByName(accountName)
@@ -152,7 +150,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     "find account by name across multiple pages of accounts" in new Setup {
       val accountName = "Fake Account Org 3"
 
-      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccountsPage1, 2 → SampleResponses.Successes.listAccountsPage2, 3 → SampleResponses.Successes.listAccountsPage3)))
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 -> SampleResponses.Successes.listAccountsPage1, 2 -> SampleResponses.Successes.listAccountsPage2, 3 -> SampleResponses.Successes.listAccountsPage3)))
       val client = buildAccountsClient(http4sClient, authorization)
 
       val output: Option[Account] = client.getByName(accountName)
@@ -168,7 +166,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     }
 
     "return None if not found" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 → SampleResponses.Successes.listAccounts)))
+      val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 -> SampleResponses.Successes.listAccounts)))
       val client = buildAccountsClient(http4sClient, authorization)
 
       val output: Option[Account] = client.getByName("Test Stuff")
@@ -182,7 +180,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     "return all account roles across pages" in new Setup {
       val accountId = tagString[AccountIdTag]("fake-account-id")
 
-      val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 → SampleResponses.Successes.getRolesPage1, 2 → SampleResponses.Successes.getRolesPage2, 3 → SampleResponses.Successes.getRolesPage3), accountId))
+      val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 -> SampleResponses.Successes.getRolesPage1, 2 -> SampleResponses.Successes.getRolesPage2, 3 -> SampleResponses.Successes.getRolesPage3), accountId))
       val client = buildAccountsClient(http4sClient, authorization)
 
       val output: List[AccountRole] = client.listRoles(accountId).compile.toList.unsafeRunSync()
@@ -192,15 +190,15 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
             id = "1111",
             name = "Fake Role 1",
             description = "this is the first fake role",
-            permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+            permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
           ),
           AccountRole(
             id = "2222",
             name = "Fake Role 2",
             description = "second fake role",
             permissions = Map[String, AccountRolePermissions](
-              "zone" → AccountRolePermissions(read = true, edit = false),
-              "logs" → AccountRolePermissions(read = true, edit = false)
+              "zone" -> AccountRolePermissions(read = true, edit = false),
+              "logs" -> AccountRolePermissions(read = true, edit = false)
             )
           ),
           AccountRole(
@@ -208,8 +206,8 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
             name = "Fake Full Role 3",
             description = "full permissions",
             permissions = Map[String, AccountRolePermissions](
-              "legal" → AccountRolePermissions(read = true, edit = true),
-              "billing" → AccountRolePermissions(read = true, edit = true)
+              "legal" -> AccountRolePermissions(read = true, edit = true),
+              "billing" -> AccountRolePermissions(read = true, edit = true)
             )
           )
         )
@@ -219,7 +217,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
     "return all account roles across pages doesn't fetch eagerly" in new Setup {
       val accountId = tagString[AccountIdTag]("fake-account-id")
 
-      val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 → SampleResponses.Successes.getRolesPage1), accountId))
+      val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 -> SampleResponses.Successes.getRolesPage1), accountId))
       val client = buildAccountsClient(http4sClient, authorization)
 
       val output: List[AccountRole] = client.listRoles(accountId).take(1).compile.toList.unsafeRunSync()
@@ -229,7 +227,7 @@ class AccountsClientSpec(implicit ee: ExecutionEnv) extends Specification {
             id = "1111",
             name = "Fake Role 1",
             description = "this is the first fake role",
-            permissions = Map[String, AccountRolePermissions]("analytics" → AccountRolePermissions(read = true, edit = false))
+            permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
           )
         )
       )

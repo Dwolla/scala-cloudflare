@@ -18,15 +18,12 @@ import org.http4s.Method._
 import org.http4s.Uri
 import org.http4s.client.dsl.Http4sClientDsl
 
-import scala.concurrent.ExecutionContext
-
 trait ZoneSettingsClient[F[_]] {
   def updateSettings(zone: Zone): Stream[F, ValidatedNel[Throwable, Unit]]
 }
 
 object ZoneSettingsClient {
-  def apply[F[_] : Effect](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int = 5)
-                          (implicit ec: ExecutionContext): ZoneSettingsClient[F] =
+  def apply[F[_] : Concurrent](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int = 5): ZoneSettingsClient[F] =
     new ZoneSettingsClientImpl(executor, maxConcurrency)
 }
 
@@ -35,18 +32,17 @@ object CloudflareSettingFunctions {
     * Given a Zone and a Zone ID, return a Some((Uri, Json)) if the
     * setting should be updated, or a None if it should not.
     */
-  type CloudflareSettingFunction = Zone ⇒ ZoneId ⇒ Option[(Uri, Json)]
+  type CloudflareSettingFunction = Zone => ZoneId => Option[(Uri, Json)]
 
-  val setTlsLevel: CloudflareSettingFunction = zone ⇒ zoneId ⇒ Option((BaseUrl / "zones" / zoneId / "settings" / "ssl", zone.tlsLevel.asJson))
+  val setTlsLevel: CloudflareSettingFunction = zone => zoneId => Option((BaseUrl / "zones" / zoneId / "settings" / "ssl", zone.tlsLevel.asJson))
 
   val setSecurityLevel: CloudflareSettingFunction =
-    zone ⇒ zoneId ⇒ zone.securityLevel.map(sl ⇒ (BaseUrl / "zones" / zoneId / "settings" / "security_level", sl.asJson))
+    zone => zoneId => zone.securityLevel.map(sl => (BaseUrl / "zones" / zoneId / "settings" / "security_level", sl.asJson))
 
   val allSettings: Set[CloudflareSettingFunction] = Set(setTlsLevel, setSecurityLevel)
 }
 
-class ZoneSettingsClientImpl[F[_] : Effect](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int)
-                                           (implicit ec: ExecutionContext) extends ZoneSettingsClient[F] with Http4sClientDsl[F] {
+class ZoneSettingsClientImpl[F[_] : Concurrent](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int) extends ZoneSettingsClient[F] with Http4sClientDsl[F] {
   implicit private val nelSemigroup: Semigroup[NonEmptyList[Throwable]] =
     SemigroupK[NonEmptyList].algebra[Throwable]
 
@@ -56,19 +52,19 @@ class ZoneSettingsClientImpl[F[_] : Effect](executor: StreamingCloudflareApiExec
 
   override def updateSettings(zone: Zone): Stream[F, ValidatedNel[Throwable, Unit]] = {
     for {
-      zoneId ← zoneClient.getZoneId(zone.name)
-      res ← applySettings(zoneId, zone).map(_.attempt).join(maxConcurrency)
+      zoneId <- zoneClient.getZoneId(zone.name)
+      res <- applySettings(zoneId, zone).map(_.attempt).parJoin(maxConcurrency)
     } yield res.toValidatedNel
   }.foldMonoid
 
   private def applySettings(zoneId: ZoneId, zone: Zone): Stream[F, Stream[F, Unit]] =
     Stream.emits(settings.toList).map(_(zone)(zoneId)).collect {
-      case Some((uri, zoneSetting)) ⇒ patchValue(uri, zoneSetting)
+      case Some((uri, zoneSetting)) => patchValue(uri, zoneSetting)
     }
 
   private def patchValue[T](uri: Uri, cloudflareSettingValue: Json) =
     for {
-      req ← Stream.eval(PATCH(uri, cloudflareSettingValue))
-      _ ← executor.fetch[ZoneSettingsDTO](req)
+      req <- Stream.eval(PATCH(cloudflareSettingValue, uri))
+      _ <- executor.fetch[ZoneSettingsDTO](req)
     } yield ()
 }

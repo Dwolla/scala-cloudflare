@@ -13,8 +13,6 @@ import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import shapeless.tag.@@
 
-import scala.language.higherKinds
-
 class LogpushClientSpec extends Specification {
   def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
 
@@ -92,7 +90,7 @@ class LogpushClientSpec extends Specification {
         .unsafeRunSync()
 
       output must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
+        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(Some(400),error parsing input: invalid json)
@@ -134,7 +132,7 @@ class LogpushClientSpec extends Specification {
         .unsafeRunSync()
 
       output must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException ⇒ ex.getMessage must_==
+        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(Some(400),new job not allowed)

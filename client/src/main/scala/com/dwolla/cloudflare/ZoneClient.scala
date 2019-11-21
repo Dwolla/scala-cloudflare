@@ -7,8 +7,6 @@ import com.dwolla.cloudflare.domain.model._
 import fs2._
 import org.http4s._
 
-import scala.language.higherKinds
-
 trait ZoneClient[F[_]] {
   def getZoneId(domain: String): Stream[F, ZoneId]
 }
@@ -22,6 +20,6 @@ class ZoneClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) e
     executor.fetch[ZoneDTO](Request[F](uri = BaseUrl / "zones" +? ("name", domain) +? ("status", "active")))
       .map(_.id)
       .collect {
-        case Some(id) ⇒ tagZoneId(id)
+        case Some(id) => tagZoneId(id)
       }
 }

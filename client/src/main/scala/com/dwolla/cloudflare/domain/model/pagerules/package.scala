@@ -2,25 +2,23 @@ package com.dwolla.cloudflare.domain.model
 
 import java.time.Instant
 
-import io.circe.{Decoder, Encoder}
 import shapeless.tag.@@
 import org.http4s.Uri
 import org.http4s.circe._
 import com.dwolla.circe._
+import io.circe._
+import io.circe.export.Exported
+import io.circe.generic.auto._
 
 package object pagerules {
 
   type PageRuleId = String @@ PageRuleIdTag
 
-  private[cloudflare] val tagPageRuleId: String ⇒ PageRuleId = shapeless.tag[PageRuleIdTag][String]
+  private[cloudflare] val tagPageRuleId: String => PageRuleId = shapeless.tag[PageRuleIdTag][String]
 
 }
 
 package pagerules {
-  import io.circe.DecodingFailure
-  import io.circe.generic.auto._
-  import io.circe.java8.time._
-
   trait PageRuleIdTag
 
   case class PageRule(id: Option[PageRuleId] = None,
@@ -32,8 +30,8 @@ package pagerules {
                       created_on: Option[Instant] = None,
                      )
   object PageRule {
-    implicit val pageRuleEncoder = exportEncoder[PageRule]
-    implicit val pageRuleDecoder = exportDecoder[PageRule]
+    implicit val pageRuleEncoder: Exported[Encoder[PageRule]] = exportEncoder[PageRule]
+    implicit val pageRuleDecoder: Exported[Decoder[PageRule]] = exportDecoder[PageRule]
   }
 
   case class PageRuleTarget(target: String, constraint: PageRuleConstraint)
@@ -217,8 +215,8 @@ package pagerules {
 
     private val _ = genDevConfig // work around compiler warning bug
 
-    val derivedEncoder: Encoder[PageRuleAction] = deriveEncoder[PageRuleAction]
-    implicit val decoder: Decoder[PageRuleAction] = deriveDecoder[PageRuleAction]
+    val derivedEncoder: Encoder[PageRuleAction] = deriveConfiguredEncoder[PageRuleAction]
+    implicit val decoder: Decoder[PageRuleAction] = deriveConfiguredDecoder[PageRuleAction]
 
     implicit val pageRuleActionEncoder: Encoder[PageRuleAction] = {
       case a: Minify => minifyEncoder(a)

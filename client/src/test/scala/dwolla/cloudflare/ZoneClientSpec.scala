@@ -5,6 +5,7 @@ import cats.effect._
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model._
 import org.http4s._
+import org.http4s.syntax.all._
 import org.http4s.client.Client
 import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
@@ -17,7 +18,7 @@ class ZoneClientSpec(implicit ee: ExecutionEnv) extends Specification {
 
   trait Setup extends Scope {
     val client = for {
-      fakeExecutor ← Reader((fakeService: HttpService[IO]) ⇒ new StreamingCloudflareApiExecutor[IO](Client.fromHttpService(fakeService), authorization))
+      fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
     } yield new ZoneClientImpl(fakeExecutor)
   }
 
