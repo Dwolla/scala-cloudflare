@@ -12,7 +12,6 @@ import fs2._
 import _root_.org.http4s.circe._
 import com.dwolla.cloudflare.CloudflareSettingFunctions._
 import com.dwolla.cloudflare.domain.dto.ZoneSettingsDTO
-import com.dwolla.cloudflare.domain.model.ZoneSettings._
 import com.dwolla.cloudflare.domain.model._
 import org.http4s.Method._
 import org.http4s.Uri
@@ -39,7 +38,10 @@ object CloudflareSettingFunctions {
   val setSecurityLevel: CloudflareSettingFunction =
     zone => zoneId => zone.securityLevel.map(sl => (BaseUrl / "zones" / zoneId / "settings" / "security_level", sl.asJson))
 
-  val allSettings: Set[CloudflareSettingFunction] = Set(setTlsLevel, setSecurityLevel)
+  val setWaf: CloudflareSettingFunction =
+    zone => zoneId => zone.waf.map(w => (BaseUrl / "zones" / zoneId / "settings" / "waf", w.asJson))
+
+  val allSettings: Set[CloudflareSettingFunction] = Set(setTlsLevel, setSecurityLevel, setWaf)
 }
 
 class ZoneSettingsClientImpl[F[_] : Concurrent](executor: StreamingCloudflareApiExecutor[F], maxConcurrency: Int) extends ZoneSettingsClient[F] with Http4sClientDsl[F] {

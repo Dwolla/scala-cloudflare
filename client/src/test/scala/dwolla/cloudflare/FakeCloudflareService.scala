@@ -547,6 +547,27 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       } yield res
   }
 
+  def setWafService(zoneId: String, expectedValue: String) = HttpRoutes.of[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / id / "settings" / "waf" if id == zoneId =>
+      for {
+        input <- req.decodeJson[CloudflareSettingValue]
+        _ <- if (input.value != expectedValue) IO.raiseError(new RuntimeException(s"Expected $expectedValue but got ${input.value}")) else IO.unit
+        res <- okWithJson(
+          """{
+            |  "success": true,
+            |  "errors": [],
+            |  "messages": [],
+            |  "result": {
+            |    "id": "waf",
+            |    "value": "on",
+            |    "editable": true,
+            |    "modified_on": "2014-01-01T05:20:00.12345Z"
+            |  }
+            |}
+          """.stripMargin)
+      } yield res
+  }
+
   def listLogpushJobs(zoneId: String, responseBody: Json) = HttpRoutes.of[IO] {
     case GET -> Root / "client" / "v4" / "zones" / id / "logpush" / "jobs" if id == zoneId =>
       Ok(responseBody)

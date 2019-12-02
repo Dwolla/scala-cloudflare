@@ -5,6 +5,7 @@ import cats.effect._
 import cats.implicits._
 import com.dwolla.cloudflare.CloudflareSettingFunctions._
 import com.dwolla.cloudflare._
+import com.dwolla.cloudflare.domain.model.ZoneSettings.{CloudflareSecurityLevel, CloudflareTlsLevel, CloudflareWaf}
 import com.dwolla.cloudflare.domain.model._
 import org.http4s._
 import org.http4s.syntax.all._
@@ -34,7 +35,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
 
     "apply the TLS setting to the given domain" in new Setup {
 
-      val zone = Zone("hydragents.xyz", ZoneSettings.FullTlsStrict, None)
+      val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, None)
 
       private val zoneSettingsClient = client(setTlsLevel)(getZoneId <+> fakeCloudflareService.setTlsLevelService("fake-zone-id", "strict"))
       private val output = zoneSettingsClient.updateSettings(zone)
@@ -46,7 +47,7 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
     }
 
     "apply the security level to the given domain" in new Setup {
-      val zone = Zone("hydragents.xyz", ZoneSettings.FullTlsStrict, Option(ZoneSettings.High))
+      val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, Option(CloudflareSecurityLevel.High), None)
 
       private val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setSecurityLevelService("fake-zone-id", "high"))
       private val output = zoneSettingsClient.updateSettings(zone)
@@ -56,10 +57,10 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
       }.await
     }
 
-    "ignore security level if it's not set (indicating a custom setting)" in new Setup {
-      val zone = Zone("hydragents.xyz", ZoneSettings.FullTlsStrict, None)
+    "apply waf to the given domain" in new Setup {
+      val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, Option(CloudflareWaf.On))
 
-      private val zoneSettingsClient = client(setSecurityLevel)(getZoneId)
+      private val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setWafService("fake-zone-id", "on"))
       private val output = zoneSettingsClient.updateSettings(zone)
 
       output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
@@ -67,17 +68,31 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
       }.await
     }
 
+    "ignore optional settings if they're not set (indicating a custom setting)" in new Setup {
+      val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, None)
+
+      def testOptionalSetting(cloudflareSettingFunction: CloudflareSettingFunction) = {
+        val zoneSettingsClient = client(cloudflareSettingFunction)(getZoneId)
+        val output = zoneSettingsClient.updateSettings(zone)
+
+        output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
+          case Validated.Valid(u) => u must_==(())
+        }.await
+      }
+
+      private val settingsUnderTest = List(setSecurityLevel, setWaf)
+      settingsUnderTest.foreach(testOptionalSetting)
+    }
+
     "contain the default rules for all zone settings" in new Setup {
       private val zoneSettingsClient = new ZoneSettingsClientImpl(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(HttpRoutes.empty[IO].orNotFound), authorization), 1)
 
-      zoneSettingsClient.settings must contain(setSecurityLevel)
-      zoneSettingsClient.settings must contain(setTlsLevel)
-      zoneSettingsClient.settings should have size 2
+      zoneSettingsClient.settings must_==(Set(setSecurityLevel, setTlsLevel, setWaf))
     }
 
     "accumulate multiple errors, should they occur when updating settings" in new Setup {
       private val zoneSettingsClient = ZoneSettingsClient(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(getZoneId.orNotFound), authorization))
-      private val zone = Zone("hydragents.xyz", ZoneSettings.FullTlsStrict, Option(ZoneSettings.High))
+      private val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, Option(CloudflareSecurityLevel.High), None)
 
       private val output = zoneSettingsClient.updateSettings(zone)
 
