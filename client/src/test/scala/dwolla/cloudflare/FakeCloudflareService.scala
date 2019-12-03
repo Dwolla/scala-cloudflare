@@ -429,9 +429,25 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       }
   }
 
+  def getAccessRuleById(responseBody: Json, accountId: String, ruleId: String, status: Status = Status.Ok)= HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" / rule =>
+      if (account != accountId || rule != ruleId) BadRequest()
+      else {
+        IO(Response(status).withEntity(responseBody))
+      }
+  }
+
   def createAccessRule(responseBody: Json, accountId: String, status: Status = Status.Ok) = HttpRoutes.of[IO] {
     case POST -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" =>
       if (account != accountId) BadRequest()
+      else {
+        IO(Response(status).withEntity(responseBody))
+      }
+  }
+
+  def updateAccessRule(responseBody: Json, accountId: String, ruleId: String, status: Status = Status.Ok) = HttpRoutes.of[IO] {
+    case PATCH -> Root / "client" / "v4" / "accounts" / account / "firewall" / "access_rules" / "rules" / rule =>
+      if (account != accountId || rule != ruleId) BadRequest()
       else {
         IO(Response(status).withEntity(responseBody))
       }

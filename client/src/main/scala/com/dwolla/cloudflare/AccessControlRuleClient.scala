@@ -18,7 +18,9 @@ import scala.util.matching.Regex
 
 trait AccessControlRuleClient[F[_]] {
   def list(accountId: AccountId, mode: Option[String]): Stream[F, Rule]
+  def getById(accountId: AccountId, ruleId: String): Stream[F, Rule]
   def create(accountId: AccountId, rule: CreateRule): Stream[F, Rule]
+  def update(accountId: AccountId, rule: Rule): Stream[F, Rule]
   def delete(accountId: AccountId, ruleId: String): Stream[F, AccessControlRuleId]
 
   def parseUri(uri: String): Option[(AccountId, AccessControlRuleId)] = uri match {
@@ -53,6 +55,18 @@ class AccessControlRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiE
   override def create(accountId: AccountId, rule: CreateRule): Stream[F, Rule] =
     for {
       req <- Stream.eval(POST(rule.asJson, BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules"))
+      resp <- executor.fetch[AccessControlRuleDTO](req).map(Implicits.toModel)
+    } yield resp
+
+  override def getById(accountId: AccountId, ruleId: String): Stream[F, Rule] =
+    for {
+      req <- Stream.eval(GET(BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules" / ruleId))
+      resp <- executor.fetch[AccessControlRuleDTO](req).returningEmptyOnErrorCodes(10001).map(Implicits.toModel)
+    } yield resp
+
+  override def update(accountId: AccountId, rule: Rule): Stream[F, Rule] =
+    for {
+      req <- Stream.eval(PATCH(rule.asJson, BaseUrl / "accounts" / accountId / "firewall" / "access_rules" / "rules" / rule.id))
       resp <- executor.fetch[AccessControlRuleDTO](req).map(Implicits.toModel)
     } yield resp
 

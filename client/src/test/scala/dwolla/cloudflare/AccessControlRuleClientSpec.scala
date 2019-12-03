@@ -164,6 +164,60 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
     }
   }
 
+  "get by id" should {
+    "return the access rule with the given id" in new Setup {
+      val accessControlRule = Rule(
+        id = accessRuleId1,
+        notes = Some("Some notes"),
+        allowedModes = List("whitelist", "block", "challenge", "js_challenge"),
+        mode = Some("challenge"),
+        configuration = RuleConfiguration("ip", "198.51.100.4"),
+        createdOn = Some("2014-01-01T05:20:00.12345Z"),
+        modifiedOn = Some("2014-01-01T05:20:00.12345Z"),
+        scope = RuleScope("fake-rule-scope", Option("Some Account"), "account")
+      )
+
+      val http4sClient = fakeService.client(fakeService.getAccessRuleById(SampleResponses.Successes.accessRule, accountId, accessRuleId1))
+      val client = buildAccessControlRuleClient(http4sClient, authorization)
+
+      private val output = client.getById(accountId, accessRuleId1)
+
+      output.compile.toList.unsafeToFuture() must be_==(List(accessControlRule)).await
+    }
+
+    "return None if not found" in new Setup {
+      val failure = SampleResponses.Failures.accessRuleDoesNotExist
+      val http4sClient = fakeService.client(fakeService.getAccessRuleById(failure.json, accountId, accessRuleId1, failure.status))
+      val client = buildAccessControlRuleClient(http4sClient, authorization)
+
+      private val output = client.getById(accountId, accessRuleId1)
+
+      output.compile.last.unsafeToFuture() must beNone.await
+    }
+  }
+
+  "update" should {
+    "update access rule" in new Setup {
+      val accessControlRule = Rule(
+        id = accessRuleId1,
+        notes = Some("Some notes"),
+        allowedModes = List("whitelist", "block", "challenge", "js_challenge"),
+        mode = Some("challenge"),
+        configuration = RuleConfiguration("ip", "198.51.100.4"),
+        createdOn = Some("2014-01-01T05:20:00.12345Z"),
+        modifiedOn = Some("2014-01-01T05:20:00.12345Z"),
+        scope = RuleScope("fake-rule-scope", Option("Some Account"), "account")
+      )
+
+      val http4sClient = fakeService.client(fakeService.updateAccessRule(SampleResponses.Successes.accessRule, accountId, accessControlRule.id))
+      val client = buildAccessControlRuleClient(http4sClient, authorization)
+
+      private val output = client.update(accountId, accessControlRule)
+
+      output.compile.toList.unsafeToFuture() must be_==(List(accessControlRule)).await
+    }
+  }
+
   "deleteAccessRule" should {
     "delete access rule from account" in new Setup {
       val http4sClient = fakeService.client(fakeService.deleteAccessRule(SampleResponses.Successes.removedAccessRule, accountId, accessRuleId1))
@@ -178,7 +232,9 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
   "parse uri" should {
     val nullClient = new AccessControlRuleClient[IO] {
       override def list(accountId: AccountId, mode: Option[String]) = ???
+      override def getById(accountId: AccountId, ruleId: String) = ???
       override def create(accountId: AccountId, rule: CreateRule) = ???
+      override def update(accountId: AccountId, rule: Rule) = ???
       override def delete(accountId: AccountId, ruleId: String) = ???
     }
 
@@ -404,6 +460,21 @@ class AccessControlRuleClientSpec(implicit ee: ExecutionEnv) extends Specificati
             "messages": [],
             "result": null
           }
+        """)
+
+      val accessRuleDoesNotExist = Failure(Status.NotFound,
+        json"""
+           {
+             "success": false,
+             "errors": [
+               {
+                 "code": 10001,
+                 "message": "firewallaccessrules.api.not_found"
+                }
+             ],
+             "messages": [],
+             "result": null
+           }
         """)
     }
 
