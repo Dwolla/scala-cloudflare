@@ -64,7 +64,7 @@ class ZoneClientSpec(implicit ee: ExecutionEnv) extends Specification {
              "success": true,
              "errors": [],
              "messages": []
-           }""".noSpaces
+           }"""
 
     }
 

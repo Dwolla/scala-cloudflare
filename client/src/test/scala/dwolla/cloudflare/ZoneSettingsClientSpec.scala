@@ -15,6 +15,7 @@ import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import org.specs2.matcher.IOMatchers
+import io.circe.literal._
 
 class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification with IOMatchers {
 
@@ -107,33 +108,33 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
 
     object Successes {
       val getZones =
-        """{
-          |  "result": [
-          |    {
-          |      "id": "fake-zone-id",
-          |      "name": "hydragents.xyz",
-          |      "status": "active",
-          |      "paused": false,
-          |      "type": "full",
-          |      "development_mode": 0,
-          |      "name_servers": [
-          |        "eric.ns.cloudflare.com",
-          |        "lucy.ns.cloudflare.com"
-          |      ]
-          |    }
-          |  ],
-          |  "result_info": {
-          |    "page": 1,
-          |    "per_page": 20,
-          |    "total_pages": 1,
-          |    "count": 1,
-          |    "total_count": 1
-          |  },
-          |  "success": true,
-          |  "errors": [],
-          |  "messages": []
-          |}
-        """.stripMargin
+        json"""{
+            "result": [
+              {
+                "id": "fake-zone-id",
+                "name": "hydragents.xyz",
+                "status": "active",
+                "paused": false,
+                "type": "full",
+                "development_mode": 0,
+                "name_servers": [
+                  "eric.ns.cloudflare.com",
+                  "lucy.ns.cloudflare.com"
+                ]
+              }
+            ],
+            "result_info": {
+              "page": 1,
+              "per_page": 20,
+              "total_pages": 1,
+              "count": 1,
+              "total_count": 1
+            },
+            "success": true,
+            "errors": [],
+            "messages": []
+          }
+        """
 
 
     }

@@ -4,7 +4,6 @@ import java.time.Duration
 
 import cats.implicits._
 import com.dwolla.circe._
-import io.circe.Decoder.Result
 import io.circe.generic.semiauto
 import io.circe._
 import shapeless.tag.@@
@@ -173,25 +172,6 @@ package ratelimits {
       case "text/plain" => Text
       case "text/xml" => Xml
       case "application/json" => Json
-    }
-  }
-
-  trait DurationAsSecondsCodec {
-    implicit val durationEncoder: Encoder[Duration] = Encoder[Long].contramap(_.getSeconds)
-    implicit val durationDecoder: Decoder[Duration] = Decoder[Long].map(Duration.ofSeconds)
-  }
-
-  trait NullAsEmptyListCodec {
-    implicit def listDecoder[A: Decoder]: Decoder[List[A]] = new Decoder[List[A]] {
-      def apply(c: HCursor): Result[List[A]] = tryDecode(c)
-
-      override def tryDecode(c: ACursor): Decoder.Result[List[A]] = c match {
-        case c: HCursor =>
-          if (c.value.isNull) Right(List.empty)
-          else Decoder.decodeList[A].tryDecode(c)
-        case c: FailedCursor =>
-          if (!c.incorrectFocus) Right(List.empty) else Left(DecodingFailure("List[A]", c.history))
-      }
     }
   }
 
