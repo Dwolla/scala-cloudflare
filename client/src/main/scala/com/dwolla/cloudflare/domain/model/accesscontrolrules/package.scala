@@ -14,7 +14,7 @@ package object accesscontrolrules {
   type AccessControlRuleConfigurationValue = String @@ AccessControlRuleConfigurationValueTag
   type AccessControlRuleScopeId = String @@ AccessControlRuleScopeIdTag
   type AccessControlRuleScopeName = String @@ AccessControlRuleScopeNameTag
-  type AccessControlRuleScopeType = String @@ AccessControlRuleScopeTypeTag
+  type AccessControlRuleScopeEmail = String @@ AccessControlRuleScopeEmailTag
 
   private[cloudflare] val tagAccessControlRuleId: String => AccessControlRuleId = shapeless.tag[AccessControlRuleIdTag][String]
   private[cloudflare] val tagAccessControlRuleMode: String => AccessControlRuleMode = shapeless.tag[AccessControlRuleModeTag][String]
@@ -22,7 +22,7 @@ package object accesscontrolrules {
   private[cloudflare] val tagAccessControlRuleConfigurationValue: String => AccessControlRuleConfigurationValue = shapeless.tag[AccessControlRuleConfigurationValueTag][String]
   private[cloudflare] val tagAccessControlRuleScopeId: String => AccessControlRuleScopeId = shapeless.tag[AccessControlRuleScopeIdTag][String]
   private[cloudflare] val tagAccessControlRuleScopeName: String => AccessControlRuleScopeName = shapeless.tag[AccessControlRuleScopeNameTag][String]
-  private[cloudflare] val tagAccessControlRuleScopeType: String => AccessControlRuleScopeType = shapeless.tag[AccessControlRuleScopeTypeTag][String]
+  private[cloudflare] val tagAccessControlRuleScopeEmail: String => AccessControlRuleScopeEmail = shapeless.tag[AccessControlRuleScopeEmailTag][String]
 }
 
 package accesscontrolrules {
@@ -35,7 +35,7 @@ package accesscontrolrules {
   trait AccessControlRuleConfigurationValueTag
   trait AccessControlRuleScopeIdTag
   trait AccessControlRuleScopeNameTag
-  trait AccessControlRuleScopeTypeTag
+  trait AccessControlRuleScopeEmailTag
 
   case class AccessControlRule(id: Option[AccessControlRuleId] = None,
                                   notes: Option[String] = None,
@@ -57,12 +57,27 @@ package accesscontrolrules {
     implicit val accessControlRuleConfigurationCodec: Codec[AccessControlRuleConfiguration] = semiauto.deriveCodec
   }
 
-  case class AccessControlRuleScope(id: AccessControlRuleScopeId,
-                                    name: Option[AccessControlRuleScopeName],
-                                    `type`: AccessControlRuleScopeType)
-
+  sealed trait AccessControlRuleScope
   object AccessControlRuleScope {
-    implicit val accessControlRuleScopeCodec: Codec[AccessControlRuleScope] = semiauto.deriveCodec
-  }
+    import io.circe.generic.extras.Configuration
 
+    case class Organization(id: AccessControlRuleScopeId) extends AccessControlRuleScope
+    case class Account(id: AccessControlRuleScopeId,
+                       name: Option[AccessControlRuleScopeName]) extends AccessControlRuleScope
+    case class Zone(id: AccessControlRuleScopeId,
+                    name: Option[AccessControlRuleScopeName]) extends AccessControlRuleScope
+    case class User(id: AccessControlRuleScopeId,
+                    email: Option[AccessControlRuleScopeEmail]) extends AccessControlRuleScope
+
+    private implicit val genDevConfig: Configuration =
+      Configuration
+        .default
+        .withSnakeCaseMemberNames
+        .withSnakeCaseConstructorNames
+        .withDiscriminator("type")
+
+    private val _ = genDevConfig // work around compiler warning bug
+
+    implicit val accessControlRuleScopeCodec: Codec[AccessControlRuleScope] = generic.extras.semiauto.deriveConfiguredCodec
+  }
 }

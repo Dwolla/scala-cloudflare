@@ -410,7 +410,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
 
   }
 
-  def listAccessControlRules(accountId: AccountId) = HttpRoutes.of[IO] {
+  def listAccessControlRulesByAccount(accountId: AccountId) = HttpRoutes.of[IO] {
     case GET -> Root / "client" / "v4" / "accounts" / id / "firewall" / "access_rules" / "rules" if id == accountId =>
       Ok(
         json"""{
@@ -467,7 +467,64 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       )
   }
 
-  def listAccessControlRulesFilteredByWhitelistMode(accountId: AccountId) = HttpRoutes.of[IO] {
+  def listAccessControlRulesByZone(zoneId: ZoneId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / id / "firewall" / "access_rules" / "rules" if id == zoneId =>
+      Ok(
+        json"""{
+                 "result": [
+                     {
+                      "id": "fake-access-rule-1",
+                      "notes": "Some notes",
+                      "allowed_modes": [
+                        "whitelist",
+                        "block",
+                        "challenge",
+                        "js_challenge"
+                      ],
+                      "mode": "challenge",
+                      "configuration": {
+                        "target": "ip",
+                        "value": "1.2.3.4"
+                      },
+                      "created_on": "2014-01-01T05:20:00.12345Z",
+                      "modified_on": "2014-01-01T05:20:00.12345Z",
+                      "scope": {
+                        "id": "fake-rule-scope",
+                        "name": "Some Zone",
+                        "type": "zone"
+                      }
+                    },
+                    {
+                      "id": "fake-access-rule-2",
+                      "notes": "Some notes",
+                      "allowed_modes": [
+                        "whitelist",
+                        "block",
+                        "challenge",
+                        "js_challenge"
+                      ],
+                      "mode": "challenge",
+                      "configuration": {
+                        "target": "ip",
+                        "value": "2.3.4.5"
+                      },
+                      "created_on": "2014-01-01T05:20:00.12345Z",
+                      "modified_on": "2014-01-01T05:20:00.12345Z",
+                      "scope": {
+                        "id": "fake-rule-scope",
+                        "name": "Some Zone",
+                        "type": "zone"
+                      }
+                    }
+                  ],
+                  "success": true,
+                  "errors": [],
+                  "messages": []
+                }"""
+      )
+  }
+
+  def listAccessControlRulesByAccountFilteredByWhitelistMode(accountId: AccountId) = HttpRoutes.of[IO] {
     case GET -> Root / "client" / "v4" / "accounts" / id / "firewall" / "access_rules" / "rules" :? ListAccessControlRulesParameters.modeParam("whitelist") if id == accountId =>
       Ok(
         json"""{
@@ -502,7 +559,42 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       )
   }
 
-  def getAccessControlRuleById(accountId: AccountId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
+  def listAccessControlRulesByZoneFilteredByWhitelistMode(zoneId: ZoneId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / id / "firewall" / "access_rules" / "rules" :? ListAccessControlRulesParameters.modeParam("whitelist") if id == zoneId =>
+      Ok(
+        json"""{
+                 "result": [
+                    {
+                      "id": "fake-access-rule-1",
+                      "notes": "Some notes",
+                      "allowed_modes": [
+                        "whitelist",
+                        "block",
+                        "challenge",
+                        "js_challenge"
+                      ],
+                      "mode": "whitelist",
+                      "configuration": {
+                        "target": "ip",
+                        "value": "1.2.3.4"
+                      },
+                      "created_on": "2014-01-01T05:20:00.12345Z",
+                      "modified_on": "2014-01-01T05:20:00.12345Z",
+                      "scope": {
+                        "id": "fake-rule-scope",
+                        "name": "Some Zone",
+                        "type": "zone"
+                      }
+                    }
+                  ],
+                  "success": true,
+                  "errors": [],
+                  "messages": []
+                }"""
+      )
+  }
+
+  def getAccessControlRuleByIdForAccount(accountId: AccountId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
     case GET -> Root / "client" / "v4" / "accounts" / id / "firewall" / "access_rules" / "rules" / rid if id == accountId && rid == ruleId =>
       Ok(
         json"""{
@@ -537,7 +629,42 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       )
   }
 
-  def createAccessControlRule(accountId: AccountId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
+  def getAccessControlRuleByIdForZone(zoneId: ZoneId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / id / "firewall" / "access_rules" / "rules" / rid if id == zoneId && rid == ruleId =>
+      Ok(
+        json"""{
+                 "result": [
+                     {
+                      "id": "fake-access-rule-1",
+                      "notes": "Some notes",
+                      "allowed_modes": [
+                        "whitelist",
+                        "block",
+                        "challenge",
+                        "js_challenge"
+                      ],
+                      "mode": "challenge",
+                      "configuration": {
+                        "target": "ip",
+                        "value": "198.51.100.4"
+                      },
+                      "created_on": "2014-01-01T05:20:00.12345Z",
+                      "modified_on": "2014-01-01T05:20:00.12345Z",
+                      "scope": {
+                        "id": "fake-rule-scope",
+                        "name": "Some Zone",
+                        "type": "account"
+                      }
+                    }
+                  ],
+                  "success": true,
+                  "errors": [],
+                  "messages": []
+                }"""
+      )
+  }
+
+  def createAccessControlRuleForAccount(accountId: AccountId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
     case req@POST -> Root / "client" / "v4" / "accounts" / id / "firewall" / "access_rules" / "rules" if id == accountId =>
       for {
         input <- req.decodeJson[AccessControlRule]
@@ -545,6 +672,10 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
           id = Option(ruleId),
           created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
           modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
+          scope = Option(AccessControlRuleScope.Account(
+            id = shapeless.tag[AccessControlRuleScopeIdTag][String]("fake-rule-scope"),
+            name = Option(shapeless.tag[AccessControlRuleScopeNameTag][String]("Some Account"))
+          ))
         )
         resp <- Ok(ResponseDTO(
           result = created,
@@ -555,29 +686,68 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       } yield resp
   }
 
-  def updateAccessControlRule(accountId: AccountId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "accounts" / aid / "firewall" / "access_rules" / "rules" / rid if aid == accountId && rid == ruleId =>
+  def createAccessControlRuleForZone(zoneId: ZoneId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
+    case req@POST -> Root / "client" / "v4" / "zones" / id / "firewall" / "access_rules" / "rules" if id == zoneId =>
       for {
         input <- req.decodeJson[AccessControlRule]
-        resp <- if (input.id.isEmpty)
-          Ok(ResponseDTO(
-            result = input.copy(
-              id = Option(ruleId),
-              modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
-            ),
-            success = true,
-            errors = None,
-            messages = None,
-          ).asJson)
-        else
-          BadRequest("input ID should be empty")
+        created = input.copy(
+          id = Option(ruleId),
+          created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
+          modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
+          scope = Option(AccessControlRuleScope.Zone(
+            id = shapeless.tag[AccessControlRuleScopeIdTag][String]("fake-rule-scope"),
+            name = Option(shapeless.tag[AccessControlRuleScopeNameTag][String]("Some Zone"))
+          ))
+        )
+        resp <- Ok(ResponseDTO(
+          result = created,
+          success = true,
+          errors = None,
+          messages = None,
+        ).asJson)
       } yield resp
   }
 
-  def deleteAccessControlRule(accountId: AccountId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "accounts" / aid / "firewall" / "access_rules" / "rules" / rid if aid == accountId && rid == ruleId =>
-      Ok(
-        json"""{
+  def updateAccessControlRule(level: Level, ruleId: AccessControlRuleId) = {
+    def buildResponse(req: Request[IO], scope: AccessControlRuleScope) = for {
+      input <- req.decodeJson[AccessControlRule]
+      resp <- if (input.id.isEmpty)
+        Ok(ResponseDTO(
+          result = input.copy(
+            id = Option(ruleId),
+            modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
+            scope = Option(scope)
+          ),
+          success = true,
+          errors = None,
+          messages = None,
+        ).asJson)
+      else
+        BadRequest("input ID should be empty")
+    } yield resp
+
+    HttpRoutes.of[IO] {
+      case req@PATCH -> Root / "client" / "v4" / lev / id / "firewall" / "access_rules" / "rules" / rid if rid == ruleId =>
+        (lev, level) match {
+          case ("accounts", Level.Account(aid)) if aid == id =>
+            val scope = AccessControlRuleScope.Account(
+              id = shapeless.tag[AccessControlRuleScopeIdTag][String]("fake-rule-scope"),
+              name = Option(shapeless.tag[AccessControlRuleScopeNameTag][String]("Some Account"))
+            )
+            buildResponse(req, scope)
+          case ("zones", Level.Zone(zid)) if zid == id =>
+            val scope = AccessControlRuleScope.Zone(
+              id = shapeless.tag[AccessControlRuleScopeIdTag][String]("fake-rule-scope"),
+              name = Option(shapeless.tag[AccessControlRuleScopeNameTag][String]("Some Zone"))
+            )
+            buildResponse(req, scope)
+        }
+    }
+  }
+
+  def deleteAccessControlRule(level: Level, ruleId: AccessControlRuleId) = {
+    val response = Ok(
+      json"""{
                  "result": {
                    "id": ${ruleId: String}
                  },
@@ -585,17 +755,32 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
                  "errors": [],
                  "messages": []
                }""")
+
+    HttpRoutes.of[IO] {
+      case DELETE -> Root / "client" / "v4" / lev / id / "firewall" / "access_rules" / "rules" / rid if rid == ruleId =>
+        (lev, level) match {
+          case ("accounts", Level.Account(aid)) if aid == id => response
+          case ("zones", Level.Zone(zid)) if zid == id => response
+        }
+    }
   }
 
-  def deleteAccessControlThatDoesNotExist(accountId: AccountId) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "accounts" / aid / "firewall" / "access_rules" / "rules" / _ if aid == accountId =>
-      Ok(
-        json"""{
+  def deleteAccessControlThatDoesNotExist(level: Level) = {
+    val response = Ok(
+      json"""{
                  "result": null,
                  "success": true,
                  "errors": null,
                  "messages": null
                }""")
+
+    HttpRoutes.of[IO] {
+      case DELETE -> Root / "client" / "v4" / lev / id / "firewall" / "access_rules" / "rules" / _ if List("accounts", "zones").contains(lev) =>
+        (lev, level) match {
+          case ("accounts", Level.Account(aid)) if aid == id => response
+          case ("zones", Level.Zone(zid)) if zid == id => response
+        }
+    }
   }
 
   def listAccounts(pages: Map[Int, String]) = HttpRoutes.of[IO] {
