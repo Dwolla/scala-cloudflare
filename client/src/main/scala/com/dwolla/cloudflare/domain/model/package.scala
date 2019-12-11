@@ -9,7 +9,6 @@ package object model {
   type AccountId = String @@ AccountIdTag
   type AccountMemberId = String @@ AccountMemberIdTag
   type UserId = String @@ UserIdTag
-  type AccessControlRuleId = String @@ AccessControlRuleIdTag
   type PhysicalResourceId = String @@ PhysicalResourceIdTag
   type LogpushId = Int @@ LogpushIdTag
   type LogpushDestination = String @@ LogpushDestinationTag
@@ -20,7 +19,6 @@ package object model {
   private[cloudflare] val tagAccountId: String => AccountId = shapeless.tag[AccountIdTag][String]
   private[cloudflare] val tagAccountMemberId: String => AccountMemberId = shapeless.tag[AccountMemberIdTag][String]
   private[cloudflare] val tagUserId: String => UserId = shapeless.tag[UserIdTag][String]
-  private[cloudflare] val tagAccessControlRuleId: String => AccessControlRuleId = shapeless.tag[AccessControlRuleIdTag][String]
   private[cloudflare] val tagPhysicalResourceId: String => PhysicalResourceId = shapeless.tag[PhysicalResourceIdTag][String]
   private[cloudflare] val tagLogpushId: Int => LogpushId = shapeless.tag[LogpushIdTag][Int]
   private[cloudflare] val tagLogpushDestination: String => LogpushDestination = shapeless.tag[LogpushDestinationTag][String]
@@ -34,7 +32,6 @@ package model {
   trait AccountIdTag
   trait AccountMemberIdTag
   trait UserIdTag
-  trait AccessControlRuleIdTag
   trait PhysicalResourceIdTag
   trait LogpushIdTag
   trait LogpushDestinationTag

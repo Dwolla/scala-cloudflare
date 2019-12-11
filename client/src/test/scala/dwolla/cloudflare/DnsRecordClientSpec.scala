@@ -1,6 +1,6 @@
 package dwolla.cloudflare
 
-import cats._
+//import cats._
 import cats.data._
 import cats.effect._
 import cats.implicits._
@@ -224,7 +224,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
 
     object Successes {
       val getZones =
-    json"""{
+        json"""{
              "result": [
                {
                  "id": "fake-zone-id",
@@ -250,7 +250,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
              "errors": [],
              "messages": []
            }
-        """.noSpaces
+        """
 
       def listDnsRecordsWithOneResult(content: String = "example.dwollalabs.com",
                                       recordType: String = "CNAME") =
