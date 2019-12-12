@@ -2,7 +2,6 @@ package com.dwolla.cloudflare.domain.model
 
 import java.time.Duration
 
-import cats.implicits._
 import com.dwolla.circe._
 import io.circe.generic.semiauto
 import io.circe._
@@ -13,12 +12,6 @@ package object ratelimits {
   type RateLimitId = String @@ RateLimitIdTag
 
   private[cloudflare] val tagRateLimitId: String => RateLimitId = shapeless.tag[RateLimitIdTag][String]
-
-  implicit val booleanDecoder: Decoder[Boolean] = Decoder.decodeBoolean or Decoder.decodeString.emap {
-    case s if s.toLowerCase() == "true" => true.asRight
-    case s if s.toLowerCase() == "false" => false.asRight
-    case _ => "Boolean".asLeft
-  }
 }
 
 package ratelimits {
@@ -109,7 +102,7 @@ package ratelimits {
                                     status: List[Int] = List.empty,
                                    )
 
-  object RateLimitMatchResponse extends NullAsEmptyListCodec {
+  object RateLimitMatchResponse extends NullAsEmptyListCodec with StringAsBooleanCodec {
     implicit val rateLimitMatchResponseCodec: Codec[RateLimitMatchResponse] = semiauto.deriveCodec
   }
 
@@ -190,7 +183,7 @@ package ratelimits {
     implicit val rateLimitActionCodec: Codec[RateLimitAction] = generic.extras.semiauto.deriveConfiguredCodec
   }
 
-  object RateLimit extends DurationAsSecondsCodec with NullAsEmptyListCodec {
+  object RateLimit extends DurationAsSecondsCodec with NullAsEmptyListCodec with StringAsBooleanCodec {
     implicit val rateLimitCodec: Codec[RateLimit] = semiauto.deriveCodec
   }
 }
