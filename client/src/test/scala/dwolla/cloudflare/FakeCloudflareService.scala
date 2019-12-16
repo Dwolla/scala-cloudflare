@@ -10,6 +10,7 @@ import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 import com.dwolla.cloudflare.domain.model.ZoneSettings.CloudflareSettingValue
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
+import com.dwolla.cloudflare.domain.model.firewallrules._
 import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleEncoder
 import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleDecoder
 import com.dwolla.cloudflare.domain.model.pagerules._
@@ -1111,6 +1112,179 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
                      {
                        "code": 7003,
                        "message": "Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/pagerules/asdf, perhaps your object identifier is invalid?"
+                     },
+                     {
+                       "code": 7000,
+                       "message": "No route for that URI"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+
+  }
+
+  def listFirewallRules(zoneId: ZoneId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / id / "firewall" / "rules" if id == zoneId =>
+      Ok(
+        json"""{
+                  "result": [
+                    {
+                      "id": "ccbfa4a0b26b4ffa8a006e8b11557397",
+                      "paused": false,
+                      "description": "rule1",
+                      "action": "log",
+                      "priority": 1,
+                      "filter": {
+                        "id": "d5266c8daa9443e081e5207f64763836",
+                        "expression": "(cf.bot_management.verified_bot)",
+                        "paused": false
+                      },
+                      "created_on": "2019-12-14T01:38:21Z",
+                      "modified_on": "2019-12-14T01:38:21Z"
+                    },
+                    {
+                      "id": "c41d348b8ff64bc8a7f4f8b58c986c4c",
+                      "paused": false,
+                      "description": "rule2",
+                      "action": "challenge",
+                      "priority": 2,
+                      "filter": {
+                        "id": "308d8c703fa14939b563c84db4320fee",
+                        "expression": "(ip.src ne 0.0.0.0)",
+                        "paused": false
+                      },
+                      "created_on": "2019-12-14T01:39:06Z",
+                      "modified_on": "2019-12-14T01:39:06Z"
+                    }
+                  ],
+                  "success": true,
+                  "errors": [],
+                  "messages": [],
+                  "result_info": {
+                    "page": 1,
+                    "per_page": 25,
+                    "count": 2,
+                    "total_count": 2,
+                    "total_pages": 1
+                  }
+                }"""
+      )
+  }
+
+  def getFirewallRuleById(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules"/ fid if zid == zoneId && fid == firewallRuleId =>
+      Ok(
+        json"""{
+                  "result": {
+                    "id": "ccbfa4a0b26b4ffa8a006e8b11557397",
+                    "paused": false,
+                    "description": "rule1",
+                    "action": "log",
+                    "priority": 1,
+                    "filter": {
+                      "id": "d5266c8daa9443e081e5207f64763836",
+                      "expression": "(cf.bot_management.verified_bot)",
+                      "paused": false
+                    },
+                    "created_on": "2019-12-14T01:38:21Z",
+                    "modified_on": "2019-12-14T01:38:21Z"
+                  },
+                  "success": true,
+                  "errors": [],
+                  "messages": []
+          }"""
+      )
+  }
+
+  def createFirewallRule(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
+    case req@POST -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" if zid == zoneId =>
+      for {
+        input <- req.decodeJson[List[FirewallRule]](Decoder.decodeList[FirewallRule])
+        created = input.map(_.copy(
+          id = Option(firewallRuleId),
+          created_on = Option("2019-12-14T01:38:21Z").map(Instant.parse),
+          modified_on = Option("2019-12-14T01:38:21Z").map(Instant.parse),
+        ))
+        resp <- Ok(ResponseDTO(
+          result = created,
+          success = true,
+          errors = None,
+          messages = None,
+        ).asJson)
+      } yield resp
+  }
+
+  val createFirewallRuleFails = HttpRoutes.of[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / _ / "firewall" / "rules" =>
+      Ok(
+        json"""{
+                  "result": null,
+                  "success": false,
+                  "errors": [
+                    {
+                      "message": "products is only valid for the 'bypass' action",
+                      "source": {
+                        "pointer": "/0"
+                      }
+                    }
+                  ],
+                  "messages": null
+                }""")
+  }
+
+  def updateFirewallRule(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
+    case req@PUT -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" / fid if zid == zoneId && fid == firewallRuleId =>
+      for {
+        input <- req.decodeJson[FirewallRule]
+        resp <- if (input.id.isEmpty)
+          Ok(ResponseDTO(
+            result = input.copy(
+              id = Option(firewallRuleId),
+              modified_on = Option("2019-12-14T01:39:58Z").map(Instant.parse)
+            ),
+            success = true,
+            errors = None,
+            messages = None,
+          ).asJson)
+        else
+          BadRequest("input ID should be empty")
+      } yield resp
+  }
+
+  def deleteFirewallRule(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" / fid if zid == zoneId && fid == firewallRuleId =>
+      Ok(
+        json"""{
+                 "result": {
+                   "id": ${firewallRuleId: String}
+                 },
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }""")
+  }
+
+  def deleteFirewallRuleThatDoesNotExist(zoneId: ZoneId, firewallRuleId: FirewallRuleId, validId: Boolean) = HttpRoutes.of[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" / _ if zid == zoneId =>
+      if (validId)
+        Ok(
+          json"""{
+                    "result": {
+                      "id": ${firewallRuleId: String}
+                    },
+                    "success": true,
+                    "errors": [],
+                    "messages": []
+                  }""")
+      else
+        Ok(
+          json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 7003,
+                       "message": "Could not route to /zones/90940840480ba654a3a5ddcdc5d741f9/firewall/rules/asdf, perhaps your object identifier is invalid?"
                      },
                      {
                        "code": 7000,
