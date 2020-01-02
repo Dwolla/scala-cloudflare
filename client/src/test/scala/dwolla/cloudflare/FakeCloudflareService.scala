@@ -16,6 +16,7 @@ import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleDecoder
 import com.dwolla.cloudflare.domain.model.pagerules._
 import com.dwolla.cloudflare.domain.model.ratelimits._
 import com.dwolla.cloudflare.domain.model.wafrulegroups.WafRuleGroup
+import com.dwolla.cloudflare.domain.model.wafrulepackages.WafRulePackage
 import com.dwolla.cloudflare.domain.model.wafrules.{WafRule, WafRuleId}
 import io.circe._
 import io.circe.Encoder._
@@ -54,6 +55,10 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
 
   object ListWafRuleGroupsQueryParameters {
     object groupName extends QueryParamDecoderMatcher[String]("name")
+  }
+
+  object ListWafRulePackagesQueryParameters {
+    object packageName extends QueryParamDecoderMatcher[String]("name")
   }
 
   def listZones(zoneName: String, responseBody: Json) = HttpRoutes.of[IO] {
@@ -1459,6 +1464,79 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
     case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" :? ListWafRuleGroupsQueryParameters.groupName(gname) if zid == zoneId && pid == packageId && gname == wafRuleGroup.name.asInstanceOf[String] =>
       Ok(ResponseDTO(
         result = wafRuleGroup,
+        success = true,
+        errors = None,
+        messages = None
+      ).asJson)
+  }
+
+  def listWafRulePackages(zoneId: ZoneId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" if zid == zoneId =>
+      Ok(
+        json"""{
+                 "result": [
+                   {
+                     "id": "059f5a550fffae09cbb4072edf101bd2",
+                     "name": "USER",
+                     "description": null,
+                     "zone_id": "90940840480ba654a3a5ddcdc5d741f9",
+                     "detection_mode": "traditional"
+                   },
+                   {
+                     "id": "c504870194831cd12c3fc0284f294abb",
+                     "name": "OWASP ModSecurity Core Rule Set",
+                     "description": "OWASP Core Ruleset (2013) provides protection against common attack categories, including SQL Injection and Cross-Site Scripting.",
+                     "zone_id": "90940840480ba654a3a5ddcdc5d741f9",
+                     "detection_mode": "anomaly",
+                     "sensitivity": "off",
+                     "action_mode": "challenge"
+                   }
+                 ],
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }"""
+      )
+  }
+
+  def getWafRulePackageById(zoneId: ZoneId, packageId: WafRulePackageId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid if zid == zoneId && pid == packageId =>
+      Ok(
+        json"""{
+                 "result": {
+                   "id": "059f5a550fffae09cbb4072edf101bd2",
+                   "name": "USER",
+                   "description": null,
+                   "zone_id": "90940840480ba654a3a5ddcdc5d741f9",
+                   "detection_mode": "traditional"
+                 },
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }"""
+      )
+  }
+
+  def editWafRulePackage(zoneId: ZoneId, wafRulePackage: WafRulePackage, sensitivity: wafrulepackages.Sensitivity, actionMode: wafrulepackages.ActionMode) = HttpRoutes.of[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid if zid == zoneId && pid == wafRulePackage.id =>
+      for {
+        input <- req.decodeJson[Map[String, String]]
+        resp <- if (input == Map("sensitivity" -> sensitivity.asJson.asString.get, "action_mode" -> actionMode.asJson.asString.get))
+          Ok(ResponseDTO(
+            result = wafRulePackage.copy(sensitivity = Option(sensitivity), action_mode = Option(actionMode)),
+            success = true,
+            errors = None,
+            messages = None,
+          ).asJson)
+        else
+          BadRequest("input sensitivity and action_mode should match expected values")
+      } yield resp
+  }
+
+  def listWafRulePackagesByName(zoneId: ZoneId, wafRulePackage: WafRulePackage) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" :? ListWafRulePackagesQueryParameters.packageName(pname) if zid == zoneId && pname == wafRulePackage.name.asInstanceOf[String] =>
+      Ok(ResponseDTO(
+        result = wafRulePackage,
         success = true,
         errors = None,
         messages = None
