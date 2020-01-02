@@ -36,6 +36,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
 
   object OptionalPageQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("page")
   object DirectionPageQueryParamMatcher extends QueryParamDecoderMatcher[String]("direction")
+  object NameQueryParamMatcher extends QueryParamDecoderMatcher[String]("name")
   object ListAccessControlRulesParameters {
     object modeParam extends QueryParamDecoderMatcher[String]("mode")
   }
@@ -43,26 +44,16 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   import com.dwolla.cloudflare.domain.model.Implicits._
 
   object ListZonesQueryParameters {
-    object zoneName extends QueryParamDecoderMatcher[String]("name")
     object status extends QueryParamDecoderMatcher[String]("status")
   }
 
   object ListRecordsForZoneQueryParameters {
-    object recordNameParam extends QueryParamDecoderMatcher[String]("name")
     object contentParam extends OptionalQueryParamDecoderMatcher[String]("content")
     object recordTypeParam extends OptionalQueryParamDecoderMatcher[String]("type")
   }
-
-  object ListWafRuleGroupsQueryParameters {
-    object groupName extends QueryParamDecoderMatcher[String]("name")
-  }
-
-  object ListWafRulePackagesQueryParameters {
-    object packageName extends QueryParamDecoderMatcher[String]("name")
-  }
-
+  
   def listZones(zoneName: String, responseBody: Json) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" :? ListZonesQueryParameters.zoneName(zone) +& ListZonesQueryParameters.status("active") if zone == zoneName =>
+    case GET -> Root / "client" / "v4" / "zones" :? NameQueryParamMatcher(zone) +& ListZonesQueryParameters.status("active") if zone == zoneName =>
       Ok(responseBody)
     case GET -> Root / "client" / "v4" / "zones" =>
       Ok(
@@ -135,7 +126,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   ) = {
     import ListRecordsForZoneQueryParameters._
     HttpRoutes.of[IO] {
-      case GET -> Root / "client" / "v4" / "zones" / zone / "dns_records" :? recordNameParam(name) +& contentParam(c) +& recordTypeParam(t)
+      case GET -> Root / "client" / "v4" / "zones" / zone / "dns_records" :? NameQueryParamMatcher(name) +& contentParam(c) +& recordTypeParam(t)
         if zone == zoneId &&
           name == recordName &&
           c == contentFilter &&
@@ -1461,7 +1452,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listWafRuleGroupsByName(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleGroup: WafRuleGroup) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" :? ListWafRuleGroupsQueryParameters.groupName(gname) if zid == zoneId && pid == packageId && gname == wafRuleGroup.name.asInstanceOf[String] =>
+    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" :? NameQueryParamMatcher(gname) if zid == zoneId && pid == packageId && gname == wafRuleGroup.name.asInstanceOf[String] =>
       Ok(ResponseDTO(
         result = wafRuleGroup,
         success = true,
@@ -1534,7 +1525,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listWafRulePackagesByName(zoneId: ZoneId, wafRulePackage: WafRulePackage) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" :? ListWafRulePackagesQueryParameters.packageName(pname) if zid == zoneId && pname == wafRulePackage.name.asInstanceOf[String] =>
+    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" :? NameQueryParamMatcher(pname) if zid == zoneId && pname == wafRulePackage.name.asInstanceOf[String] =>
       Ok(ResponseDTO(
         result = wafRulePackage,
         success = true,
