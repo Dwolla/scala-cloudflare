@@ -15,6 +15,7 @@ import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleEncoder
 import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleDecoder
 import com.dwolla.cloudflare.domain.model.pagerules._
 import com.dwolla.cloudflare.domain.model.ratelimits._
+import com.dwolla.cloudflare.domain.model.wafrules.{WafRule, WafRuleId}
 import io.circe._
 import io.circe.Encoder._
 import io.circe.literal._
@@ -1295,6 +1296,91 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
                    "result": null
                  }""")
 
+  }
+
+  def listWafRules(zoneId: ZoneId, packageId: WafRulePackageId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" if zid == zoneId && pid == packageId =>
+      Ok(
+        json"""{
+                 "result": [
+                   {
+                     "id": "958019",
+                     "description": "Cross-site Scripting (XSS) Attack",
+                     "priority": "14",
+                     "package_id": "c504870194831cd12c3fc0284f294abb",
+                     "group": {
+                       "id": "d508327aee37c147e03873f79288bb1d",
+                       "name": "OWASP XSS Attacks"
+                     },
+                     "mode": "on",
+                     "allowed_modes": [
+                       "on",
+                       "off"
+                     ]
+                   },
+                   {
+                     "id": "958020",
+                     "description": "Cross-site Scripting (XSS) Attack",
+                     "priority": "56",
+                     "package_id": "c504870194831cd12c3fc0284f294abb",
+                     "group": {
+                       "id": "d508327aee37c147e03873f79288bb1d",
+                       "name": "OWASP XSS Attacks"
+                     },
+                     "mode": "on",
+                     "allowed_modes": [
+                       "on",
+                       "off"
+                     ]
+                   }
+                 ],
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }"""
+      )
+  }
+
+  def getWafRuleById(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleId: WafRuleId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" / rid if zid == zoneId && pid == packageId && rid == wafRuleId =>
+      Ok(
+        json"""{
+                 "result": {
+                   "id": "958019",
+                   "description": "Cross-site Scripting (XSS) Attack",
+                   "priority": "14",
+                   "package_id": "c504870194831cd12c3fc0284f294abb",
+                   "group": {
+                     "id": "d508327aee37c147e03873f79288bb1d",
+                     "name": "OWASP XSS Attacks"
+                   },
+                   "mode": "on",
+                   "allowed_modes": [
+                     "on",
+                     "off"
+                   ]
+                 },
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }"""
+      )
+  }
+
+  def setModeForWafRuleToOn(zoneId: ZoneId, wafRule: WafRule) = HttpRoutes.of[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" / rid if zid == zoneId && pid == wafRule.package_id && rid == wafRule.id =>
+      for {
+        input <- req.decodeJson[Map[String, String]]
+        resp <- if (input.get("mode") == Option("on"))
+          Ok(ResponseDTO(
+            result = wafRule.copy(mode = wafrules.Mode.On),
+            success = true,
+            errors = None,
+            messages = None,
+          ).asJson)
+        else
+          BadRequest("input mode should be on")
+      } yield resp
   }
 
   private def okWithJson(responseBody: String) = {
