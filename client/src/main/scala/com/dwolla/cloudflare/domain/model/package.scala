@@ -13,6 +13,9 @@ package object model {
   type LogpushId = Int @@ LogpushIdTag
   type LogpushDestination = String @@ LogpushDestinationTag
   type LogpullOptions = String @@ LogpullOptionsTag
+  type WafRulePackageId = String @@ WafRulePackageIdTag
+  type WafRuleGroupId = String @@ WafRuleGroupIdTag
+  type WafRuleGroupName = String @@ WafRuleGroupNameTag
 
   private[cloudflare] val tagZoneId: String => ZoneId = shapeless.tag[ZoneIdTag][String]
   private[cloudflare] val tagResourceId: String => ResourceId = shapeless.tag[ResourceIdTag][String]
@@ -23,7 +26,9 @@ package object model {
   private[cloudflare] val tagLogpushId: Int => LogpushId = shapeless.tag[LogpushIdTag][Int]
   private[cloudflare] val tagLogpushDestination: String => LogpushDestination = shapeless.tag[LogpushDestinationTag][String]
   private[cloudflare] val tagLogpullOptions: String => LogpullOptions = shapeless.tag[LogpullOptionsTag][String]
-
+  private[cloudflare] val tagWafRulePackageId: String => WafRulePackageId = shapeless.tag[WafRulePackageIdTag][String]
+  private[cloudflare] val tagWafRuleGroupId: String => WafRuleGroupId = shapeless.tag[WafRuleGroupIdTag][String]
+  private[cloudflare] val tagWafRuleGroupName: String => WafRuleGroupName = shapeless.tag[WafRuleGroupNameTag][String]
 }
 
 package model {
@@ -36,4 +41,7 @@ package model {
   trait LogpushIdTag
   trait LogpushDestinationTag
   trait LogpullOptionsTag
+  trait WafRulePackageIdTag
+  trait WafRuleGroupIdTag
+  trait WafRuleGroupNameTag
 }
