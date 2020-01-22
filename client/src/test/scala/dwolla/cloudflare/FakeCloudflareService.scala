@@ -1342,20 +1342,20 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       )
   }
 
-  def getWafRuleById(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleId: WafRuleId) = HttpRoutes.of[IO] {
+  def getWafRuleById(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleId: WafRuleId, mode: wafrules.Mode) = HttpRoutes.of[IO] {
     case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" / rid if zid == zoneId && pid == packageId && rid == wafRuleId =>
       Ok(
         json"""{
                  "result": {
-                   "id": "958019",
+                   "id": ${wafRuleId.asInstanceOf[String]},
                    "description": "Cross-site Scripting (XSS) Attack",
                    "priority": "14",
-                   "package_id": "c504870194831cd12c3fc0284f294abb",
+                   "package_id": ${packageId.asInstanceOf[String]},
                    "group": {
                      "id": "d508327aee37c147e03873f79288bb1d",
                      "name": "OWASP XSS Attacks"
                    },
-                   "mode": "on",
+                   "mode": ${mode.asJson},
                    "allowed_modes": [
                      "on",
                      "off"
@@ -1381,6 +1381,41 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
           ).asJson)
         else
           BadRequest("input mode should be on")
+      } yield resp
+  }
+
+  def setModeForWafRuleThatAlreadyHasTheSpecifiedModeValue(zoneId: ZoneId, wafRule: WafRule) = HttpRoutes.of[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" / rid if zid == zoneId && pid == wafRule.package_id && rid == wafRule.id =>
+      for {
+        input <- req.decodeJson[Map[String, String]]
+        resp <- if (input.get("mode") == Option("on"))
+          Ok(
+            json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 1008,
+                       "message": "WAF Rule is already enabled"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+        else if (input.get("mode") == Option("off"))
+          Ok(
+            json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 1009,
+                       "message": "WAF Rule is already disabled"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+        else
+          BadRequest("input mode should be on or off")
       } yield resp
   }
 
@@ -1415,7 +1450,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       )
   }
 
-  def getWafRuleGroupById(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleGroupId: WafRuleGroupId) = HttpRoutes.of[IO] {
+  def getWafRuleGroupById(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleGroupId: WafRuleGroupId, mode: wafrulegroups.Mode) = HttpRoutes.of[IO] {
     case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" / gid if zid == zoneId && pid == packageId && gid == wafRuleGroupId =>
       Ok(
         json"""{
@@ -1423,7 +1458,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
                    "id": "cfda825dfda411ea218cb70e6c88e82e",
                    "name": "OWASP Uri XSS Attacks",
                    "description": "Cross site scripting (XSS) attacks that may result in unwanted HTML being inserted into web pages via URIs",
-                   "mode": "off",
+                   "mode": ${mode.asJson},
                    "package_id": "c504870194831cd12c3fc0284f294abb",
                    "rules_count": 112,
                    "modified_rules_count": 0
@@ -1459,6 +1494,41 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
         errors = None,
         messages = None
       ).asJson)
+  }
+
+  def setModeForWafRuleGroupThatAlreadyHasTheSpecifiedModeValue(zoneId: ZoneId, wafRuleGroup: WafRuleGroup) = HttpRoutes.of[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" / gid if zid == zoneId && pid == wafRuleGroup.package_id && gid == wafRuleGroup.id =>
+      for {
+        input <- req.decodeJson[Map[String, String]]
+        resp <- if (input.get("mode") == Option("on"))
+          Ok(
+            json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 1019,
+                       "message": "WAF Group is already on"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+        else if (input.get("mode") == Option("off"))
+          Ok(
+            json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 1020,
+                       "message": "WAF Group is already off"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+        else
+          BadRequest("input mode should be on or off")
+      } yield resp
   }
 
   def listWafRulePackages(zoneId: ZoneId) = HttpRoutes.of[IO] {
