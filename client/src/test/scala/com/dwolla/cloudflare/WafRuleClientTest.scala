@@ -5,6 +5,7 @@ import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.wafrules._
 import dwolla.cloudflare.FakeCloudflareService
 import org.http4s.HttpRoutes
+import org.http4s.server.Router
 import org.scalacheck.{Arbitrary, Gen}
 import org.specs2.ScalaCheck
 import org.specs2.matcher.{IOMatchers, Matchers}
@@ -71,7 +72,7 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
   "get by id" should {
 
     "return the waf rule with the given id" in new Setup {
-      private val client = buildWafRuleClient(fakeService.getWafRuleById(zoneId, wafRulePackageId, wafRuleId))
+      private val client = buildWafRuleClient(fakeService.getWafRuleById(zoneId, wafRulePackageId, wafRuleId, Mode.On))
       private val output = client.getById(zoneId, wafRulePackageId, wafRuleId)
 
       output.compile.toList must returnValue(List(WafRule(
@@ -115,6 +116,60 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
       private val output = client.setMode(zoneId, input.package_id, input.id, Mode.On)
 
       output.compile.toList must returnValue(List(input.copy(mode = Mode.On)))
+    }
+
+    "return success if waf rule is already on" in new Setup {
+      private val existingWafRule = WafRule(
+        id = tagWafRuleId("958019"),
+        description = "Cross-site Scripting (XSS) Attack",
+        priority = tagWafRulePriority("14"),
+        package_id = wafRulePackageId,
+        group = WafRuleGroup(
+          id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
+          name = tagWafRuleGroupName("OWASP XSS Attacks")
+        ),
+        mode = Mode.On,
+        allowed_modes = List(
+          Mode.On,
+          Mode.Off
+        )
+      )
+
+      private val service = Router(
+        "" -> fakeService.setModeForWafRuleThatAlreadyHasTheSpecifiedModeValue(zoneId, existingWafRule),
+        "" -> fakeService.getWafRuleById(zoneId, existingWafRule.package_id, existingWafRule.id, existingWafRule.mode)
+      )
+      private val client = buildWafRuleClient(service)
+      private val output = client.setMode(zoneId, existingWafRule.package_id, existingWafRule.id, existingWafRule.mode)
+
+      output.compile.toList must returnValue(List(existingWafRule))
+    }
+
+    "return success if waf rule is already off" in new Setup {
+      private val input = WafRule(
+        id = tagWafRuleId("958019"),
+        description = "Cross-site Scripting (XSS) Attack",
+        priority = tagWafRulePriority("14"),
+        package_id = wafRulePackageId,
+        group = WafRuleGroup(
+          id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
+          name = tagWafRuleGroupName("OWASP XSS Attacks")
+        ),
+        mode = Mode.Off,
+        allowed_modes = List(
+          Mode.On,
+          Mode.Off
+        )
+      )
+
+      private val service = Router(
+        "" -> fakeService.setModeForWafRuleThatAlreadyHasTheSpecifiedModeValue(zoneId, input),
+        "" -> fakeService.getWafRuleById(zoneId, wafRulePackageId, input.id, input.mode)
+      )
+      private val client = buildWafRuleClient(service)
+      private val output = client.setMode(zoneId, input.package_id, input.id, Mode.Off)
+
+      output.compile.toList must returnValue(List(input.copy(mode = Mode.Off)))
     }
   }
 

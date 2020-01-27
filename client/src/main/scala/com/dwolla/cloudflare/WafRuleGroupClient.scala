@@ -2,8 +2,10 @@ package com.dwolla.cloudflare
 
 import _root_.io.circe.literal._
 import cats.effect.Sync
-import com.dwolla.cloudflare.domain.model.wafrulegroups._
+import cats.implicits._
+import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model._
+import com.dwolla.cloudflare.domain.model.wafrulegroups._
 import io.circe.syntax._
 import fs2._
 import org.http4s.Method._
@@ -52,7 +54,13 @@ class WafRuleGroupClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecut
     fetch(GET(BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" / wafRuleGroupId))
 
   override def setMode(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleGroupId: WafRuleGroupId, mode: Mode): Stream[F, WafRuleGroup] =
-    fetch(PATCH(json"""{"mode" : ${mode.asJson}}""", BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" / wafRuleGroupId))
+    for {
+      req <- Stream.eval(PATCH(json"""{"mode" : ${mode.asJson}}""", BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" / wafRuleGroupId))
+      res <- executor.fetch[WafRuleGroup](req).last.recover {
+        case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(alreadyEnabledOrDisabledCodes.contains) =>
+          None
+      }.flatMap(_.fold(getById(zoneId, wafRulePackageId, wafRuleGroupId))(Stream.emit(_)))
+    } yield res
 
   override def getRuleGroupId(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, name: WafRuleGroupName): Stream[F, WafRuleGroupId] =
     fetch(GET(BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" +? ("name", name.asInstanceOf[String])))
@@ -60,4 +68,6 @@ class WafRuleGroupClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecut
         .collect {
           case id => id
         }
+
+  private val alreadyEnabledOrDisabledCodes = List(1019, 1020)
 }
