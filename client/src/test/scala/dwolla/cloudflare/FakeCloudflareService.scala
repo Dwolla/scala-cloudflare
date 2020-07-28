@@ -10,6 +10,7 @@ import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 import com.dwolla.cloudflare.domain.model.ZoneSettings.CloudflareSettingValue
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
+import com.dwolla.cloudflare.domain.model.filters.{Filter, FilterId}
 import com.dwolla.cloudflare.domain.model.firewallrules._
 import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleEncoder
 import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleDecoder
@@ -1291,6 +1292,142 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
                      {
                        "code": 7000,
                        "message": "No route for that URI"
+                     }
+                   ],
+                   "messages": [],
+                   "result": null
+                 }""")
+
+  }
+
+  def listFilters(zoneId: ZoneId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / id / "filters" if id == zoneId =>
+      Ok(
+        json"""{
+                 "result": [
+                   {
+                     "id": "97a013e8b34b4909bd454d84dccc6d02",
+                     "paused": false,
+                     "description": "filter1",
+                     "ref": "ref1",
+                     "expression": "(cf.bot_management.verified_bot)"
+                   },
+                   {
+                     "id": "1e9746e64ff54e82b0c7306a2f93c1c6",
+                     "paused": false,
+                     "expression": "(ip.src ne 0.0.0.0)"
+                   }
+                 ],
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }"""
+      )
+  }
+
+  def getFilterById(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / zid / "filters" / fid if zid == zoneId && fid == filterId =>
+      Ok(
+        json"""{
+                 "result": {
+                   "id": "97a013e8b34b4909bd454d84dccc6d02",
+                   "paused": false,
+                   "description": "filter1",
+                   "ref": "ref1",
+                   "expression": "(cf.bot_management.verified_bot)"
+                 },
+                "success": true,
+                "errors": [],
+                "messages": []
+               }"""
+      )
+  }
+
+  def createFilter(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
+    case req@POST -> Root / "client" / "v4" / "zones" / zid / "filters" if zid == zoneId =>
+      for {
+        input <- req.decodeJson[List[Filter]](Decoder.decodeList[Filter])
+        created = input.map(_.copy(
+          id = Option(filterId)
+        ))
+        resp <- Ok(ResponseDTO(
+          result = created,
+          success = true,
+          errors = None,
+          messages = None,
+        ).asJson)
+      } yield resp
+  }
+
+  val createFilterFails = HttpRoutes.of[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / _ / "filters" =>
+      Ok(
+        json"""{
+                  "result": null,
+                  "success": false,
+                  "errors": [
+                    {
+                      "message": "config duplicates an already existing config",
+                      "source": {
+                        "pointer": "/0"
+                      }
+                    }
+                  ],
+                  "messages": null
+                }""")
+  }
+
+  def updateFilter(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
+    case req@PUT -> Root / "client" / "v4" / "zones" / zid / "filters" / fid if zid == zoneId && fid == filterId =>
+      for {
+        input <- req.decodeJson[Filter]
+        resp <- if (input.id.isEmpty)
+          Ok(ResponseDTO(
+            result = input.copy(
+              id = Option(filterId)
+            ),
+            success = true,
+            errors = None,
+            messages = None,
+          ).asJson)
+        else
+          BadRequest("input ID should be empty")
+      } yield resp
+  }
+
+  def deleteFilter(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zid / "filters" / fid if zid == zoneId && fid == filterId =>
+      Ok(
+        json"""{
+                 "result": {
+                   "id": ${filterId: String}
+                 },
+                 "success": true,
+                 "errors": [],
+                 "messages": []
+               }""")
+  }
+
+  def deleteFilterThatDoesNotExist(zoneId: ZoneId, filterId: FilterId, validId: Boolean) = HttpRoutes.of[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / zid / "filters" / _ if zid == zoneId =>
+      if (validId)
+        Ok(
+          json"""{
+                    "result": {
+                      "id": ${filterId: String}
+                    },
+                    "success": true,
+                    "errors": [],
+                    "messages": []
+                  }""")
+      else
+        Ok(
+          json"""{
+                   "success": false,
+                   "errors": [
+                     {
+                       "code": 1000,
+                       "message": "not_found"
                      }
                    ],
                    "messages": [],
