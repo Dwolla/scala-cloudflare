@@ -6,6 +6,7 @@ import cats.effect._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.firewallrules._
+import com.dwolla.cloudflare.domain.model.filters._
 import dwolla.cloudflare.FakeCloudflareService
 import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
@@ -19,7 +20,7 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
   trait Setup extends Scope {
     val zoneId: ZoneId = tagZoneId("zone-id")
     val firewallRuleId = tagFirewallRuleId("ccbfa4a0b26b4ffa8a006e8b11557397")
-    val firewallFilterRuleId = tagFirewallRuleFilterId("d5266c8daa9443e081e5207f64763836")
+    val filterId = tagFilterId("d5266c8daa9443e081e5207f64763836")
 
     val authorization = CloudflareAuthorization("email", "key")
     val fakeService = new FakeCloudflareService(authorization)
@@ -43,9 +44,9 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
           action = Action.Log,
           priority = tagFirewallRulePriority(1),
           filter = FirewallRuleFilter(
-            id = Option("d5266c8daa9443e081e5207f64763836").map(tagFirewallRuleFilterId),
-            expression = tagFirewallRuleFilterExpression("(cf.bot_management.verified_bot)"),
-            paused = false
+            id = Option("d5266c8daa9443e081e5207f64763836").map(tagFilterId),
+            expression = Option(tagFilterExpression("(cf.bot_management.verified_bot)")),
+            paused = Option(false)
           ),
           created_on = Option("2019-12-14T01:38:21Z").map(Instant.parse),
           modified_on = Option("2019-12-14T01:38:21Z").map(Instant.parse)
@@ -57,9 +58,9 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
           action = Action.Challenge,
           priority = tagFirewallRulePriority(2),
           filter = FirewallRuleFilter(
-            id = Option("308d8c703fa14939b563c84db4320fee").map(tagFirewallRuleFilterId),
-            expression = tagFirewallRuleFilterExpression("(ip.src ne 0.0.0.0)"),
-            paused = false
+            id = Option("308d8c703fa14939b563c84db4320fee").map(tagFilterId),
+            expression = Option(tagFilterExpression("(ip.src ne 0.0.0.0)")),
+            paused = Option(false)
           ),
           created_on = Option("2019-12-14T01:39:06Z").map(Instant.parse),
           modified_on = Option("2019-12-14T01:39:06Z").map(Instant.parse)
@@ -82,9 +83,9 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
         action = Action.Log,
         priority = tagFirewallRulePriority(1),
         filter = FirewallRuleFilter(
-          id = Option("d5266c8daa9443e081e5207f64763836").map(tagFirewallRuleFilterId),
-          expression = tagFirewallRuleFilterExpression("(cf.bot_management.verified_bot)"),
-          paused = false
+          id = Option("d5266c8daa9443e081e5207f64763836").map(tagFilterId),
+          expression = Option(tagFilterExpression("(cf.bot_management.verified_bot)")),
+          paused = Option(false)
         ),
         created_on = Option("2019-12-14T01:38:21Z").map(Instant.parse),
         modified_on = Option("2019-12-14T01:38:21Z").map(Instant.parse)
@@ -96,8 +97,8 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
   "create" should {
     val input = FirewallRule(
       filter = FirewallRuleFilter(
-        expression = tagFirewallRuleFilterExpression("(cf.bot_management.verified_bot)"),
-        paused = false
+        expression = Option(tagFilterExpression("(cf.bot_management.verified_bot)")),
+        paused = Option(false)
       ),
       action = Action.Log,
       priority = tagFirewallRulePriority(1),
@@ -134,9 +135,9 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
       private val input = FirewallRule(
         id = Option(firewallRuleId),
         filter = FirewallRuleFilter(
-          id = Option(firewallFilterRuleId),
-          expression = tagFirewallRuleFilterExpression("(cf.bot_management.verified_bot)"),
-          paused = false
+          id = Option(filterId),
+          expression = Option(tagFilterExpression("(cf.bot_management.verified_bot)")),
+          paused = Option(false)
         ),
         action = Action.Log,
         priority = tagFirewallRulePriority(1),
@@ -153,9 +154,9 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
       private val input = FirewallRule(
         id = None,
         filter = FirewallRuleFilter(
-          id = Option(firewallFilterRuleId),
-          expression = tagFirewallRuleFilterExpression("(cf.bot_management.verified_bot)"),
-          paused = false
+          id = Option(filterId),
+          expression = Option(tagFilterExpression("(cf.bot_management.verified_bot)")),
+          paused = Option(false)
         ),
         action = Action.Log,
         priority = tagFirewallRulePriority(1),

@@ -11,29 +11,21 @@ import shapeless.tag.@@
 package object firewallrules {
 
   type FirewallRuleId = String @@ FirewallRuleIdTag
-  type FirewallRuleFilterId = String @@ FirewallRuleFilterIdTag
   type FirewallRulePriority = Int @@ FirewallRulePriorityTag
   type FirewallRuleRef = String @@ FirewallRuleRefTag
-  type FirewallRuleFilterExpression = String @@ FirewallRuleFilterExpressionTag
-  type FirewallRuleFilterRef = String @@ FirewallRuleFilterRefTag
 
   private[cloudflare] val tagFirewallRuleId: String => FirewallRuleId = shapeless.tag[FirewallRuleIdTag][String]
-  private[cloudflare] val tagFirewallRuleFilterId: String => FirewallRuleFilterId = shapeless.tag[FirewallRuleFilterIdTag][String]
   private[cloudflare] val tagFirewallRulePriority: Int => FirewallRulePriority = shapeless.tag[FirewallRulePriorityTag][Int]
   private[cloudflare] val tagFirewallRuleRef: String => FirewallRuleRef = shapeless.tag[FirewallRuleRefTag][String]
-  private[cloudflare] val tagFirewallRuleFilterExpression: String => FirewallRuleFilterExpression = shapeless.tag[FirewallRuleFilterExpressionTag][String]
-  private[cloudflare] val tagFirewallRuleFilterRef: String => FirewallRuleFilterRef = shapeless.tag[FirewallRuleFilterRefTag][String]
 }
 
 //TODO: Can you add support for dependencies withing dwolla-cloudformation. For filter -> rule relationship.
 package firewallrules {
+  import com.dwolla.cloudflare.domain.model.filters._
 
   trait FirewallRuleIdTag
-  trait FirewallRuleFilterIdTag
   trait FirewallRulePriorityTag
   trait FirewallRuleRefTag
-  trait FirewallRuleFilterExpressionTag
-  trait FirewallRuleFilterRefTag
 
   case class FirewallRule(id: Option[FirewallRuleId] = None,
                           filter: FirewallRuleFilter,
@@ -61,12 +53,11 @@ package firewallrules {
     implicit val firewallRuleDecoder: Decoder[FirewallRule] = semiauto.deriveDecoder
   }
 
-  case class FirewallRuleFilter(
-                             id: Option[FirewallRuleFilterId] = None,
-                             expression: FirewallRuleFilterExpression,
-                             paused: Boolean,
-                             description: Option[String] = None,
-                             ref: Option[FirewallRuleFilterRef] = None)
+  case class FirewallRuleFilter(id: Option[FilterId] = None,
+                                expression: Option[FilterExpression],
+                                paused: Option[Boolean],
+                                description: Option[String] = None,
+                                ref: Option[FilterRef] = None)
 
   object FirewallRuleFilter extends StringAsBooleanCodec {
     implicit val firewallRuleFilterCodec: Codec[FirewallRuleFilter] = semiauto.deriveCodec
