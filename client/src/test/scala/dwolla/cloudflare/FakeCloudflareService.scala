@@ -1,7 +1,6 @@
 package dwolla.cloudflare
 
 import java.time.Instant
-
 import cats.data._
 import cats.effect._
 import com.dwolla.cloudflare._
@@ -33,6 +32,9 @@ import org.http4s.server.middleware.VirtualHost
 import org.http4s.server.middleware.VirtualHost.exact
 import org.http4s.util.CaseInsensitiveString
 
+import scala.annotation.nowarn
+
+@nowarn("msg=match may not be exhaustive")
 class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http4sDsl[IO] {
 
   object OptionalPageQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("page")
@@ -52,7 +54,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
     object contentParam extends OptionalQueryParamDecoderMatcher[String]("content")
     object recordTypeParam extends OptionalQueryParamDecoderMatcher[String]("type")
   }
-  
+
   def listZones(zoneName: String, responseBody: Json) = HttpRoutes.of[IO] {
     case GET -> Root / "client" / "v4" / "zones" :? NameQueryParamMatcher(zone) +& ListZonesQueryParameters.status("active") if zone == zoneName =>
       Ok(responseBody)
@@ -1203,7 +1205,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   def createFirewallRule(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
     case req@POST -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" if zid == zoneId =>
       for {
-        input <- req.decodeJson[List[FirewallRule]](Decoder.decodeList[FirewallRule])
+        input <- req.decodeJson[List[FirewallRule]](implicitly, Decoder.decodeList[FirewallRule])
         created = input.map(_.copy(
           id = Option(firewallRuleId),
           created_on = Option("2019-12-14T01:38:21Z").map(Instant.parse),
@@ -1346,7 +1348,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   def createFilter(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
     case req@POST -> Root / "client" / "v4" / "zones" / zid / "filters" if zid == zoneId =>
       for {
-        input <- req.decodeJson[List[Filter]](Decoder.decodeList[Filter])
+        input <- req.decodeJson[List[Filter]](implicitly, Decoder.decodeList[Filter])
         created = input.map(_.copy(
           id = Option(filterId)
         ))

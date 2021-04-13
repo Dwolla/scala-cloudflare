@@ -17,12 +17,10 @@ case class CloudflareAuthorization(email: String, key: String)
 
 class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorization: CloudflareAuthorization) {
 
-  def raw[T](request: Request[F])(f: Response[F] => F[T]): F[T] = {
-    client.fetch(setupRequest(request))(f)
-  }
+  def raw[T](request: Request[F])(f: Response[F] => F[T]): F[T] =
+    client.run(setupRequest(request)).use(f)
 
-  def fetch[T](req: Request[F])
-              (implicit decoder: Decoder[T]): Stream[F, T] =
+  def fetch[T: Decoder](req: Request[F]): Stream[F, T] =
     Pagination.offsetUnfoldChunkEval[F, Int, T] { maybePageNumber: Option[Int] =>
       val pagedRequest = maybePageNumber.fold(req) { pageNumber =>
         req.withUri(req.uri.withQueryParam("page", pageNumber))

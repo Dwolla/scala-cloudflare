@@ -28,6 +28,7 @@ package object accesscontrolrules {
 package accesscontrolrules {
 
   import java.time.Instant
+  import scala.annotation.nowarn
 
   trait AccessControlRuleIdTag
   trait AccessControlRuleModeTag
@@ -69,14 +70,13 @@ package accesscontrolrules {
     case class User(id: AccessControlRuleScopeId,
                     email: Option[AccessControlRuleScopeEmail]) extends AccessControlRuleScope
 
+    @nowarn("msg=private val genDevConfig in object .* is never used")
     private implicit val genDevConfig: Configuration =
       Configuration
         .default
         .withSnakeCaseMemberNames
         .withSnakeCaseConstructorNames
         .withDiscriminator("type")
-
-    private val _ = genDevConfig // work around compiler warning bug
 
     implicit val accessControlRuleScopeCodec: Codec[AccessControlRuleScope] = generic.extras.semiauto.deriveConfiguredCodec
   }

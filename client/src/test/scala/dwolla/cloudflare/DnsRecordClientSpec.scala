@@ -19,7 +19,7 @@ import io.circe.literal._
 class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
 
   private def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
-  
+
   trait Setup extends Scope {
     val client = for {
       fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
@@ -36,7 +36,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
       private val output = client(getDnsRecordsForZone <+> getZoneId)
         .getExistingDnsRecords("example.dwolla.com")
 
-      output.compile.last.unsafeToFuture must beSome(IdentifiedDnsRecord(
+      output.compile.last.unsafeToFuture() must beSome(IdentifiedDnsRecord(
         physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
         zoneId = tagString[ZoneIdTag]("fake-zone-id"),
         resourceId = tagString[ResourceIdTag]("fake-resource-id"),
@@ -60,7 +60,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
       private val output = client(getDnsRecordsForZone <+> getZoneId)
         .getExistingDnsRecords("example.dwolla.com", content = Option(content))
 
-      output.compile.last.unsafeToFuture must beSome(IdentifiedDnsRecord(
+      output.compile.last.unsafeToFuture() must beSome(IdentifiedDnsRecord(
         physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
         zoneId = tagString[ZoneIdTag]("fake-zone-id"),
         resourceId = tagString[ResourceIdTag]("fake-resource-id"),
@@ -83,7 +83,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
         )
       private val output = client(getDnsRecordsForZone <+> getZoneId).getExistingDnsRecords("example.dwolla.com", recordType = Option(recordType))
 
-      output.compile.last.unsafeToFuture must beSome(IdentifiedDnsRecord(
+      output.compile.last.unsafeToFuture() must beSome(IdentifiedDnsRecord(
         physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
         zoneId = tagString[ZoneIdTag]("fake-zone-id"),
         resourceId = tagString[ResourceIdTag]("fake-resource-id"),
@@ -99,7 +99,7 @@ class DnsRecordClientSpec(implicit ee: ExecutionEnv) extends Specification {
       val getDnsRecordsForZone = new FakeCloudflareService(authorization).listRecordsForZone("fake-zone-id", "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithNoResults)
       private val output = client(getDnsRecordsForZone <+> getZoneId).getExistingDnsRecords("example.dwolla.com")
 
-      output.compile.last.unsafeToFuture must beNone.await
+      output.compile.last.unsafeToFuture() must beNone.await
     }
 
     "accept the URI of a DNS record and return it as an IdentifiedDnsRecord" in new Setup {
