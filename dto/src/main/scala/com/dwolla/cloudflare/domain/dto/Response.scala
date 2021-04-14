@@ -4,6 +4,8 @@ import cats.implicits._
 import io.circe._
 import io.circe.generic.semiauto._
 
+import scala.annotation.nowarn
+
 sealed trait BaseResponseDTO[T] {
   def success: Boolean
   def errors: Option[Seq[ResponseInfoDTO]]
@@ -59,8 +61,10 @@ object ResponseDTO {
     messages = messages
   )
 
-  implicit def responseDTOEncoder[T: Encoder]: Encoder[ResponseDTO[T]] = deriveEncoder
-  implicit def responseDTODecoder[T: Decoder]: Decoder[ResponseDTO[T]] = deriveDecoder
+  @nowarn("msg=parameter value .* is never used")
+  implicit def responseDTOEncoder[T: Encoder]: Encoder[ResponseDTO[T]] = deriveEncoder[ResponseDTO[T]]
+  @nowarn("msg=parameter value .* is never used")
+  implicit def responseDTODecoder[T: Decoder]: Decoder[ResponseDTO[T]] = deriveDecoder[ResponseDTO[T]]
 }
 
 case class PagedResponseDTO[T] (
@@ -72,7 +76,9 @@ case class PagedResponseDTO[T] (
 ) extends BaseResponseDTO[T]
 
 object PagedResponseDTO {
+  @nowarn("msg=parameter value .* is never used")
   implicit def pagedResponseDTOEncoder[T: Encoder]: Encoder[PagedResponseDTO[T]] = deriveEncoder
+  @nowarn("msg=parameter value .* is never used")
   implicit def pagedResponseDTODecoder[T: Decoder]: Decoder[PagedResponseDTO[T]] = deriveDecoder
 }
 

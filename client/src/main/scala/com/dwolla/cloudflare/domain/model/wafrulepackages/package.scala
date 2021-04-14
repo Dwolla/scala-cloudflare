@@ -46,8 +46,9 @@ package wafrulepackages {
       case Status.Active => "active"
     }
 
-    implicit val statusDecoder: Decoder[Status] = Decoder[String].map {
-      case "active" => Status.Active
+    implicit val statusDecoder: Decoder[Status] = Decoder[String].emap {
+      case "active" => Right(Status.Active)
+      case other => Left(s""""$other" is not a valid status""")
     }
   }
 

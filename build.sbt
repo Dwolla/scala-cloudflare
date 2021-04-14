@@ -1,63 +1,59 @@
 import Dependencies._
 
-lazy val buildSettings = Seq(
+inThisBuild(List(
   organization := "com.dwolla",
-  homepage := Some(url("https://github.com/Dwolla/scala-cloudflare")),
   description := "Scala library for the Cloudflare v4 API",
+  homepage := Some(url("https://github.com/Dwolla/scala-cloudflare")),
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
+  developers := List(
+    Developer(
+      "bpholt",
+      "Brian Holt",
+      "bholt+github@dwolla.com",
+      url("https://dwolla.com")
+    ),
+    Developer(
+      "coreyjonoliver",
+      "Corey Oliver",
+      "corey@dwolla.com",
+      url("https://dwolla.com")
+    ),
+  ),
+  crossScalaVersions := Seq("2.13.5", "2.12.13"),
+  scalaVersion := crossScalaVersions.value.head,
   startYear := Option(2016),
-  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full),
+  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.3" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  resolvers += Resolver.bintrayRepo("dwolla", "maven"),
-)
 
-lazy val releaseSettings = {
-  import ReleaseTransformations._
-  import sbtrelease.Version.Bump._
-  Seq(
-    releaseVersionBump := Minor,
-    releaseCrossBuild := true,
-    releaseCommitMessage :=
-      s"""${releaseCommitMessage.value}
-         |
-         |[ci skip]""".stripMargin,
-    releaseProcess := Seq[ReleaseStep](
-      checkSnapshotDependencies,
-      inquireVersions,
-      runClean,
-      releaseStepCommandAndRemaining("testOnly -- timefactor 10"),
-      setReleaseVersion,
-      commitReleaseVersion,
-      tagRelease,
-      publishArtifacts,
-      setNextVersion,
-      commitNextVersion,
-      pushChanges
+  githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11"),
+  githubWorkflowTargetTags ++= Seq("v*"),
+  githubWorkflowPublishTargetBranches :=
+    Seq(RefPredicate.StartsWith(Ref.Tag("v"))),
+  githubWorkflowPublish := Seq(
+    WorkflowStep.Sbt(
+      List("ci-release"),
+      env = Map(
+        "PGP_PASSPHRASE" -> "${{ secrets.PGP_PASSPHRASE }}",
+        "PGP_SECRET" -> "${{ secrets.PGP_SECRET }}",
+        "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
+        "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}"
+      )
     )
-  )
-}
-
-lazy val bintraySettings = Seq(
-  bintrayVcsUrl := homepage.value.map(_.toString),
-  publishMavenStyle := true,
-  bintrayRepository := "maven",
-  bintrayOrganization := Option("dwolla"),
-  pomIncludeRepository := { _ => false },
-)
+  ),
+))
 
 lazy val dto = (project in file("dto"))
-  .settings(buildSettings ++ bintraySettings ++ releaseSettings: _*)
   .settings(
     name := "cloudflare-api-dto",
     libraryDependencies ++= circeAll,
   )
 
 lazy val client = (project in file("client"))
-  .settings(buildSettings ++ bintraySettings ++ releaseSettings ++ documentationSettings: _*)
+  .settings(documentationSettings: _*)
   .settings(
     name := "cloudflare-api-client",
     libraryDependencies ++= {
-      val http4sVersion = "0.21.0-M5"
+      val http4sVersion = "0.21.22"
       Seq(
         "org.http4s" %% "http4s-dsl",
         "org.http4s" %% "http4s-circe",
@@ -83,7 +79,7 @@ lazy val client = (project in file("client"))
           catsEffectLaws,
         ).map(_ % Test)
     },
-    scalacOptions in Test -= {
+    Test / scalacOptions -= {
       // Getting some spurious unreachable code warnings in 2.13 (see https://github.com/scala/bug/issues/11457)
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, 13)) =>
@@ -96,15 +92,8 @@ lazy val client = (project in file("client"))
   .dependsOn(dto)
 
 lazy val scalaCloudflare = (project in file("."))
-  .settings(buildSettings ++ noPublishSettings ++ releaseSettings: _*)
+  .settings(publish / skip := true)
   .aggregate(dto, client)
-
-lazy val noPublishSettings = Seq(
-  publish := {},
-  publishLocal := {},
-  publishArtifact := false,
-  Keys.`package` := file(""),
-)
 
 val documentationSettings = Seq(
   autoAPIMappings := true,

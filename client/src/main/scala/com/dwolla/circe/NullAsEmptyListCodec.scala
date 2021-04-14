@@ -15,6 +15,7 @@ trait NullAsEmptyListCodec {
         else Decoder.decodeList[A].tryDecode(c)
       case c: FailedCursor =>
         if (!c.incorrectFocus) Right(List.empty) else Left(DecodingFailure("List[A]", c.history))
+      case _ => super.tryDecode(c)
     }
   }
 }

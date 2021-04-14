@@ -15,6 +15,9 @@ package object ratelimits {
 }
 
 package ratelimits {
+
+  import scala.annotation.nowarn
+
   trait RateLimitIdTag
 
   case class RateLimit(id: Option[RateLimitId] = None,
@@ -171,14 +174,13 @@ package ratelimits {
   object RateLimitAction extends EnumerationSnakeCodec with DurationAsSecondsCodec {
     import io.circe.generic.extras.Configuration
 
+    @nowarn("msg=private val genDevConfig in object .* is never used")
     private implicit val genDevConfig: Configuration =
       Configuration
         .default
         .withSnakeCaseMemberNames
         .withSnakeCaseConstructorNames
         .withDiscriminator("mode")
-
-    private val _ = genDevConfig // work around compiler warning bug
 
     implicit val rateLimitActionCodec: Codec[RateLimitAction] = generic.extras.semiauto.deriveConfiguredCodec
   }

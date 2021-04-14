@@ -6,7 +6,7 @@ import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 
 import scala.util.matching.Regex
 
-trait DnsRecord {
+sealed trait DnsRecord {
   val name: String
   val content: String
   val recordType: String

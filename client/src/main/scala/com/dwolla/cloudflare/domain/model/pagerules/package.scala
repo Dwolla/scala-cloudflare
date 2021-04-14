@@ -19,6 +19,9 @@ package object pagerules {
 }
 
 package pagerules {
+
+  import scala.annotation.nowarn
+
   trait PageRuleIdTag
 
   case class PageRule(id: Option[PageRuleId] = None,
@@ -206,14 +209,13 @@ package pagerules {
     import io.circe.generic.extras.semiauto._
     import io.circe.generic.extras.Configuration
 
+    @nowarn("msg=private val genDevConfig in object .* is never used")
     private implicit val genDevConfig: Configuration =
       Configuration
         .default
         .withSnakeCaseMemberNames
         .withSnakeCaseConstructorNames
         .withDiscriminator("id")
-
-    private val _ = genDevConfig // work around compiler warning bug
 
     val derivedEncoder: Encoder[PageRuleAction] = deriveConfiguredEncoder[PageRuleAction]
     implicit val decoder: Decoder[PageRuleAction] = deriveConfiguredDecoder[PageRuleAction]
