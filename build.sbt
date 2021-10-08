@@ -22,7 +22,7 @@ inThisBuild(List(
   crossScalaVersions := Seq("2.13.5", "2.12.13"),
   scalaVersion := crossScalaVersions.value.head,
   startYear := Option(2016),
-  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.3" cross CrossVersion.full),
+  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.13.2" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
 
   githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11"),
