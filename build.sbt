@@ -71,7 +71,7 @@ lazy val client = (project in file("client"))
           specs2Core,
           specs2Scalacheck,
           specs2Cats,
-          "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.3",
+          "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
           dwollaTestUtils,
           "org.http4s" %% "http4s-blaze-server" % http4sVersion,
           "org.http4s" %% "http4s-testing" % http4sVersion,
