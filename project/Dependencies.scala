@@ -19,6 +19,6 @@ object Dependencies {
     "io.circe" %% "circe-parser",
   ).map(_ % "0.13.0") ++ Seq(
     "io.circe" %% "circe-generic-extras" % "0.14.1",
-    "io.circe" %% "circe-optics" % "0.12.0",
+    "io.circe" %% "circe-optics" % "0.14.1",
   )
 }
