@@ -48,12 +48,12 @@ lazy val dto = (project in file("dto"))
     libraryDependencies ++= circeAll,
   )
 
-lazy val client = (project in file("client"))
+lazy val apiClient = (project in file("client"))
   .settings(documentationSettings: _*)
   .settings(
     name := "cloudflare-api-client",
     libraryDependencies ++= {
-      val http4sVersion = "0.21.22"
+      val http4sVersion = "0.21.31"
       Seq(
         "org.http4s" %% "http4s-dsl",
         "org.http4s" %% "http4s-circe",
@@ -93,13 +93,13 @@ lazy val client = (project in file("client"))
 
 lazy val scalaCloudflare = (project in file("."))
   .settings(publish / skip := true)
-  .aggregate(dto, client)
+  .aggregate(dto, apiClient)
 
 val documentationSettings = Seq(
   autoAPIMappings := true,
   apiMappings ++= {
     // Lookup the path to jar (it's probably somewhere under ~/.ivy/cache) from computed classpath
-    val classpath = (fullClasspath in Compile).value
+    val classpath = (Compile / fullClasspath).value
     def findJar(name: String): File = {
       val regex = ("/" + name + "[^/]*.jar$").r
       classpath.find { jar => regex.findFirstIn(jar.data.toString).nonEmpty }.get.data // fail hard if not found
