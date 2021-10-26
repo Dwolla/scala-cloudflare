@@ -31,7 +31,7 @@ class ZoneClientSpec(implicit ee: ExecutionEnv) extends Specification {
 
       private val output = client(getZoneId).getZoneId(domain)
 
-      output.compile.last.unsafeToFuture must beSome(tagString[ZoneIdTag]("fake-zone-id")).await
+      output.compile.last.unsafeToFuture() must beSome(tagString[ZoneIdTag]("fake-zone-id")).await
     }
   }
 
