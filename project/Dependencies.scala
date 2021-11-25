@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  val specs2Core = "org.specs2" %% "specs2-core" % "4.13.0"
+  val specs2Core = "org.specs2" %% "specs2-core" % "4.13.1"
   val specs2Scalacheck = "org.specs2" %% "specs2-scalacheck" % specs2Core.revision
   val specs2Cats = "org.specs2" %% "specs2-cats" % "4.12.1"
   val dwollaTestUtils = "com.dwolla" %% "testutils" % "2.0.0-M6"
