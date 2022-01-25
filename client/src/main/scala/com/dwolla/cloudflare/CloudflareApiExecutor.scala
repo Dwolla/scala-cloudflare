@@ -12,6 +12,7 @@ import io.circe._
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.client._
+import org.typelevel.ci._
 
 case class CloudflareAuthorization(email: String, key: String)
 
@@ -49,12 +50,12 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
     }
 
   private def setupRequest(request: Request[F]) = {
-    val authEmailHeader = Header("X-Auth-Email", authorization.email)
-    val authKeyHeader = Header("X-Auth-Key", authorization.key)
-    val contentTypeHeader = Header("Content-Type", "application/json")
+    val authEmailHeader = Header.Raw(ci"X-Auth-Email", authorization.email)
+    val authKeyHeader = Header.Raw(ci"X-Auth-Key", authorization.key)
+    val contentTypeHeader = Header.Raw(ci"Content-Type", "application/json")
 
     request
-      .withHeaders(Headers.of(authEmailHeader, authKeyHeader, contentTypeHeader))
+      .withHeaders(Headers(authEmailHeader, authKeyHeader, contentTypeHeader))
   }
 
   private def responseToJson[T: Decoder](resp: Response[F]): F[BaseResponseDTO[T]] =
