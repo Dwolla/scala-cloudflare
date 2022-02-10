@@ -30,9 +30,9 @@ import org.http4s.client.Client
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.middleware.VirtualHost
 import org.http4s.server.middleware.VirtualHost.exact
-import org.http4s.util.CaseInsensitiveString
 
 import scala.annotation.nowarn
+import org.typelevel.ci.CIString
 
 @nowarn("msg=match may not be exhaustive")
 class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http4sDsl[IO] {
@@ -1755,10 +1755,10 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def cloudflareApi(service: HttpRoutes[IO]) = Kleisli[OptionT[IO, *], Request[IO], Response[IO]] { req =>
-    req.headers.get(CaseInsensitiveString("X-Auth-Email")) match {
-      case Some(Header(_, email)) if email == authorization.email =>
-        req.headers.get(CaseInsensitiveString("X-Auth-Key")) match {
-          case Some(Header(_, key)) if key == authorization.key =>
+    req.headers.get(CIString("X-Auth-Email")) match {
+      case Some(Header.Raw(_, email)) if email == authorization.email =>
+        req.headers.get(CIString("X-Auth-Key")) match {
+          case Some(Header.Raw(_, key)) if key == authorization.key =>
             VirtualHost(exact(service, "api.cloudflare.com")).run(req)
           case _ => OptionT.liftF(Forbidden())
         }
