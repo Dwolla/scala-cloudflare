@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  val specs2Core = "org.specs2" %% "specs2-core" % "4.13.2"
+  val specs2Core = "org.specs2" %% "specs2-core" % "4.13.3"
   val specs2Scalacheck = "org.specs2" %% "specs2-scalacheck" % specs2Core.revision
   val specs2Cats = "org.specs2" %% "specs2-cats" % "4.12.12"
   val dwollaTestUtils = "com.dwolla" %% "testutils" % "2.0.0-M6"
@@ -11,7 +11,7 @@ object Dependencies {
   val catsEffectLaws = "org.typelevel" %% "cats-effect-laws" % catsEffect.revision
   val fs2 = "co.fs2" %% "fs2-core" % "2.5.10"
   val dwollaFs2Utils = "com.dwolla" %% "fs2-utils" % "2.0.0-M16"
-  val shapeless = "com.chuusai" %% "shapeless" % "2.3.7"
+  val shapeless = "com.chuusai" %% "shapeless" % "2.3.8"
 
   val circeAll: Seq[ModuleID] = Seq(
     "io.circe" %% "circe-generic",
