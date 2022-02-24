@@ -1,6 +1,6 @@
 package com.dwolla.cloudflare
 
-import cats.effect._
+import cats._
 import cats.implicits._
 import com.dwolla.cloudflare.AccountMembersClientImpl.notFoundCodes
 import com.dwolla.cloudflare.domain.dto.accounts._
@@ -9,8 +9,8 @@ import com.dwolla.cloudflare.domain.model.accounts.Implicits.{toDto, _}
 import com.dwolla.cloudflare.domain.model.accounts._
 import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
 import io.circe.Json
-import io.circe.syntax._
 import io.circe.optics.JsonPath._
+import io.circe.syntax._
 import fs2._
 import org.http4s.Method._
 import org.http4s._
@@ -36,12 +36,12 @@ trait AccountMembersClient[F[_]] {
 }
 
 object AccountMembersClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): AccountMembersClient[F] = new AccountMembersClientImpl[F](executor)
+  def apply[F[_] : MonadThrow](executor: StreamingCloudflareApiExecutor[F]): AccountMembersClient[F] = new AccountMembersClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/accounts/(.+?)/members/(.+)""".r
 }
 
-class AccountMembersClientImpl[F[_]: Sync](executor: StreamingCloudflareApiExecutor[F]) extends AccountMembersClient[F] with Http4sClientDsl[F] {
+class AccountMembersClientImpl[F[_] : MonadThrow](executor: StreamingCloudflareApiExecutor[F]) extends AccountMembersClient[F] with Http4sClientDsl[F] {
   override def getById(accountId: AccountId, accountMemberId: String): Stream[F, AccountMember] =
     for {
       res <- executor.fetch[AccountMemberDTO](GET(buildAccountMemberUri(accountId, accountMemberId))).returningEmptyOnErrorCodes(notFoundCodes: _*)

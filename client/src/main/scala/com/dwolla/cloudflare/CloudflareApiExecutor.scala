@@ -33,7 +33,7 @@ object StreamingCloudflareApiExecutor {
   }
 }
 
-class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorization: CloudflareAuthorization) {
+class StreamingCloudflareApiExecutor[F[_] : Concurrent](client: Client[F], authorization: CloudflareAuthorization) {
 
   def raw[T](request: Request[F])(f: Response[F] => F[T]): F[T] =
     client.run(setupRequest(request)).use(f)
@@ -48,9 +48,9 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
         pageData <- raw(pagedRequest)(responseToJson[T])
         (chunk, nextPage) <- pageData match {
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == Option(81057)) =>
-            Sync[F].raiseError(RecordAlreadyExists)
+            Concurrent[F].raiseError(RecordAlreadyExists)
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(cloudflareAuthorizationFormatError) =>
-            Sync[F].raiseError(AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten))
+            Concurrent[F].raiseError(AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten))
           case single: ResponseDTO[T] if single.success =>
             Applicative[F].pure((Chunk.seq(single.result.toSeq), None))
           case PagedResponseDTO(result, true, _, _, Some(result_info)) =>
@@ -61,7 +61,7 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
             val errors = e.errors.toList.flatten.map(Implicits.toError)
             val messages = e.messages.toList.flatten.map(r => com.dwolla.cloudflare.domain.model.Message(r.code, r.message, None))
 
-            Sync[F].raiseError(UnexpectedCloudflareErrorException(errors, messages))
+            Concurrent[F].raiseError(UnexpectedCloudflareErrorException(errors, messages))
         }
       } yield (chunk, nextPage)
     }
@@ -76,8 +76,8 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
   private def responseToJson[T: Decoder](resp: Response[F]): F[BaseResponseDTO[T]] =
     resp match {
       case Status.Successful(_) | Status.NotFound(_) | Status.BadRequest(_) => resp.decodeJson[BaseResponseDTO[T]]
-      case Status.Forbidden(_) => Sync[F].raiseError(AccessDenied())
-      case _ => Sync[F].raiseError(UnexpectedCloudflareResponseStatus(resp.status))
+      case Status.Forbidden(_) => Concurrent[F].raiseError(AccessDenied())
+      case _ => Concurrent[F].raiseError(UnexpectedCloudflareResponseStatus(resp.status))
     }
 
   private def calculateNextPage(currentPage: Int, totalPages: Int): Option[Int] =

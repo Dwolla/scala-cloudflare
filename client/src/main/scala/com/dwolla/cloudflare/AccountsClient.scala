@@ -1,6 +1,6 @@
 package com.dwolla.cloudflare
 
-import cats.effect._
+import cats._
 import com.dwolla.cloudflare.AccountsClientImpl._
 import com.dwolla.cloudflare.domain.dto.accounts._
 import com.dwolla.cloudflare.domain.model.accounts.Implicits._
@@ -27,7 +27,7 @@ trait AccountsClient[F[_]] {
 }
 
 object AccountsClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): AccountsClient[F] = new AccountsClientImpl[F](executor)
+  def apply[F[_] : MonadThrow](executor: StreamingCloudflareApiExecutor[F]): AccountsClient[F] = new AccountsClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/accounts/(.+?)""".r
 }
@@ -36,7 +36,7 @@ object AccountsClientImpl {
   val notFoundCodes = List(1003)
 }
 
-class AccountsClientImpl[F[_]: Sync](executor: StreamingCloudflareApiExecutor[F]) extends AccountsClient[F] with Http4sClientDsl[F] {
+class AccountsClientImpl[F[_]: MonadThrow](executor: StreamingCloudflareApiExecutor[F]) extends AccountsClient[F] with Http4sClientDsl[F] {
   override def list(): Stream[F, Account] = {
     for {
       record <- executor.fetch[AccountDTO](GET(BaseUrl / "accounts" withQueryParam("direction", "asc")))

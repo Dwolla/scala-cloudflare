@@ -1,19 +1,22 @@
 package dwolla.cloudflare
 
 import cats.effect._
+import cats.effect.testing.specs2.CatsEffect
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accounts._
 import org.http4s._
 import org.http4s.client.Client
-import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import shapeless.tag.@@
 import io.circe.literal._
 
-class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification {
+class AccountMembersClientSpec
+  extends Specification
+    with CatsEffect {
+
   def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
 
   trait Setup extends Scope {
@@ -35,7 +38,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.getByUri(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId")
 
-      output.compile.last.unsafeToFuture() must beSome(
+      output.compile.last.map(_ must beSome(
         AccountMember(
           id = accountMemberId,
           user = User(
@@ -64,7 +67,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
             )
           )
         )
-      ).await
+      ))
     }
 
     "return None if not found" in new Setup {
@@ -77,7 +80,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.getById(accountId, accountMemberId)
 
-      output.compile.last.unsafeToFuture() must beNone.await
+      output.compile.last.map(_ must beNone)
     }
   }
 
@@ -93,7 +96,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.addMember(accountId, email, roleIds)
 
-      output.compile.toList.unsafeToFuture() must contain(
+      output.compile.toList.map(_ must contain(
         AccountMember(
           id = accountMemberId,
           user = User(
@@ -122,7 +125,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
             )
           )
         )
-      ).await
+      ))
     }
 
     "throw unexpected exception if error adding new member" in new Setup {
@@ -136,13 +139,13 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.addMember(accountId, email, roleIds)
 
-      output.compile.last.attempt.unsafeToFuture() must beLeft[Throwable].like {
+      output.compile.last.attempt.map(_ must beLeft[Throwable].like {
         case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(Some(1001),Invalid request: Value required for parameter 'email'.)
             |     """.stripMargin
-      }.await
+      })
     }
   }
 
@@ -194,7 +197,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.updateMember(accountId, updatedAccountMember)
 
-      output.compile.toList.unsafeToFuture() must contain(updatedAccountMember).await
+      output.compile.toList.map(_ must contain(updatedAccountMember))
     }
 
     "throw unexpected exception if error updating existing member" in new Setup {
@@ -244,13 +247,13 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.updateMember(accountId, updatedAccountMember)
 
-      output.compile.last.attempt.unsafeToFuture() must beLeft[Throwable].like {
+      output.compile.last.attempt.map(_ must beLeft[Throwable].like {
         case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(Some(1001),Invalid request: Invalid roles)
             |     """.stripMargin
-      }.await
+      })
     }
   }
 
@@ -264,7 +267,7 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.removeMember(accountId, accountMemberId)
 
-      output.compile.last.unsafeToFuture() must beSome(accountMemberId).await
+      output.compile.last.map(_ must beSome(accountMemberId))
     }
 
     "throw unexpected exception if error removing member" in new Setup {
@@ -277,14 +280,14 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.removeMember(accountId, accountMemberId)
 
-      output.compile.last.attempt.unsafeToFuture() must beLeft[Throwable].like {
+      output.compile.last.attempt.map(_ must beLeft[Throwable].like {
         case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
           """An unexpected Cloudflare error occurred. Errors:
             |
             | - Error(Some(7003),Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?)
             | - Error(Some(7000),No route for that URI)
             |     """.stripMargin
-      }.await
+      })
     }
 
     "throw not found exception if member not in account" in new Setup {
@@ -297,14 +300,14 @@ class AccountMembersClientSpec(implicit ee: ExecutionEnv) extends Specification 
 
       private val output = client.removeMember(accountId, accountMemberId)
 
-      output.compile.last.attempt.unsafeToFuture() must beLeft[Throwable].like {
+      output.compile.last.attempt.map(_ must beLeft[Throwable].like {
         case ex: AccountMemberDoesNotExistException => ex.getMessage must_==
           "The account member fake-account-member-id not found for account fake-account-id1."
-      }.await
+      })
     }
   }
 
-  private def buildAccountMembersClient[F[_]: Sync](http4sClient: Client[F], authorization: CloudflareAuthorization): AccountMembersClient[F] =
+  private def buildAccountMembersClient[F[_]: Concurrent](http4sClient: Client[F], authorization: CloudflareAuthorization): AccountMembersClient[F] =
     AccountMembersClient(new StreamingCloudflareApiExecutor(http4sClient, authorization))
 
   private object SampleResponses {
