@@ -263,16 +263,16 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
       output must beRight(ForwardingUrl(uri"https://hydragents.xyz", input))
     }}
 
-    "encode forwarding url" >> { prop { input: (Uri, ForwardingStatusCode) =>
+    "encode forwarding url" >> { prop { (uri: Uri, code: ForwardingStatusCode) =>
       import PageRuleAction.redirectEncoder
-      val output = (ForwardingUrl(input._1, input._2): PageRuleAction).asJson
+      val output = (ForwardingUrl(uri, code): PageRuleAction).asJson
 
       output must_==
         json"""{
                  "id": "forwarding_url",
                  "value": {
-                   "url": ${input._1},
-                   "status_code": ${input._2}
+                   "url": $uri,
+                   "status_code": $code
                  }
                }"""
     }}

@@ -3,17 +3,35 @@ package com.dwolla.cloudflare
 import cats._
 import cats.effect._
 import cats.implicits._
+import com.dwolla.cloudflare.StreamingCloudflareApiExecutor._
 import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.model.Exceptions._
 import com.dwolla.cloudflare.domain.model.response.Implicits
 import com.dwolla.fs2utils.Pagination
 import fs2.{Chunk, Stream}
 import io.circe._
+import monix.newtypes.NewtypeWrapped
+import org.http4s.Header.Single
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.client._
+import org.http4s.headers.`Content-Type`
+import org.http4s.syntax.all._
+import org.typelevel.ci._
 
 case class CloudflareAuthorization(email: String, key: String)
+
+object StreamingCloudflareApiExecutor {
+  type `X-Auth-Email` = `X-Auth-Email`.Type
+  object `X-Auth-Email` extends NewtypeWrapped[String] {
+    implicit val header: Header[`X-Auth-Email`, Single] = Header.create[`X-Auth-Email`, Single](ci"X-Auth-Email", _.value, `X-Auth-Email`(_).asRight)
+  }
+
+  type `X-Auth-Key` = `X-Auth-Key`.Type
+  object `X-Auth-Key` extends NewtypeWrapped[String] {
+    implicit val header: Header[`X-Auth-Key`, Single] = Header.create[`X-Auth-Key`, Single](ci"X-Auth-Key", _.value, `X-Auth-Key`(_).asRight)
+  }
+}
 
 class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorization: CloudflareAuthorization) {
 
@@ -48,14 +66,12 @@ class StreamingCloudflareApiExecutor[F[_] : Sync](client: Client[F], authorizati
       } yield (chunk, nextPage)
     }
 
-  private def setupRequest(request: Request[F]) = {
-    val authEmailHeader = Header("X-Auth-Email", authorization.email)
-    val authKeyHeader = Header("X-Auth-Key", authorization.key)
-    val contentTypeHeader = Header("Content-Type", "application/json")
-
-    request
-      .withHeaders(Headers.of(authEmailHeader, authKeyHeader, contentTypeHeader))
-  }
+  private def setupRequest(request: Request[F]) =
+    request.withHeaders(Headers(
+      `X-Auth-Email`(authorization.email),
+      `X-Auth-Key`(authorization.key),
+      `Content-Type`(mediaType"application/json"),
+    ))
 
   private def responseToJson[T: Decoder](resp: Response[F]): F[BaseResponseDTO[T]] =
     resp match {

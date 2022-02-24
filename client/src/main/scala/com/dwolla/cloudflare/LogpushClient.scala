@@ -2,7 +2,6 @@ package com.dwolla.cloudflare
 
 import java.time.Instant
 
-import cats.effect._
 import com.dwolla.cloudflare.domain.dto.logpush.{CreateJobDTO, CreateOwnershipDTO, LogpushJobDTO, LogpushOwnershipDTO}
 import com.dwolla.cloudflare.domain.model.logpush._
 import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
@@ -19,26 +18,23 @@ trait LogpushClient[F[_]] {
 }
 
 object LogpushClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): LogpushClient[F] = new LogpushClientImpl(executor)
+  def apply[F[_]](executor: StreamingCloudflareApiExecutor[F]): LogpushClient[F] = new LogpushClientImpl(executor)
 }
 
-class LogpushClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends LogpushClient[F] with Http4sClientDsl[F] {
+class LogpushClientImpl[F[_]](executor: StreamingCloudflareApiExecutor[F]) extends LogpushClient[F] with Http4sClientDsl[F] {
   override def list(zoneId: ZoneId): Stream[F, LogpushJob] =
     for {
-      req <- Stream.eval(GET(BaseUrl / "zones" / zoneId / "logpush" / "jobs"))
-      res <- executor.fetch[LogpushJobDTO](req)
+      res <- executor.fetch[LogpushJobDTO](GET(BaseUrl / "zones" / zoneId / "logpush" / "jobs"))
     } yield toModel(res)
 
   override def createOwnership(zoneId: ZoneId, destination: LogpushDestination): Stream[F, LogpushOwnership] =
     for {
-      req <- Stream.eval(POST(toDto(destination).asJson, BaseUrl / "zones" / zoneId / "logpush" / "ownership"))
-      res <- executor.fetch[LogpushOwnershipDTO](req)
+      res <- executor.fetch[LogpushOwnershipDTO](POST(toDto(destination).asJson, BaseUrl / "zones" / zoneId / "logpush" / "ownership"))
     } yield toModel(res)
 
   override def createJob(zoneId: ZoneId, job: CreateJob): Stream[F, LogpushJob] =
     for {
-      req <- Stream.eval(POST(toDto(job).asJson, BaseUrl / "zones" / zoneId / "logpush" / "jobs"))
-      res <- executor.fetch[LogpushJobDTO](req)
+      res <- executor.fetch[LogpushJobDTO](POST(toDto(job).asJson, BaseUrl / "zones" / zoneId / "logpush" / "jobs"))
     } yield toModel(res)
 
   private def toModel(dto: LogpushJobDTO) =

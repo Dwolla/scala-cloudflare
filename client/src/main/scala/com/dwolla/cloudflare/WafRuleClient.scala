@@ -40,11 +40,8 @@ object WafRuleClient {
 }
 
 class WafRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends WafRuleClient[F] with Http4sClientDsl[F] {
-  private def fetch(reqF: F[Request[F]]): Stream[F, WafRule] =
-    for {
-      req <- Stream.eval(reqF)
-      res <- executor.fetch[WafRule](req)
-    } yield res
+  private def fetch(req: Request[F]): Stream[F, WafRule] =
+    executor.fetch[WafRule](req)
 
   override def list(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): Stream[F, WafRule] =
     fetch(GET(BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "rules"))
@@ -54,8 +51,7 @@ class WafRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]
 
   override def setMode(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId, mode: Mode): Stream[F, WafRule] =
     for {
-      req <- Stream.eval(PATCH(json"""{"mode" : ${mode.asJson}}""", BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "rules" / wafRuleId))
-      res <- executor.fetch[WafRule](req).last.recover {
+      res <- executor.fetch[WafRule](PATCH(json"""{"mode" : ${mode.asJson}}""", BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "rules" / wafRuleId)).last.recover {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(alreadyEnabledOrDisabledCodes.contains) =>
           None
       }.flatMap(_.fold(getById(zoneId, wafRulePackageId, wafRuleId))(Stream.emit(_)))

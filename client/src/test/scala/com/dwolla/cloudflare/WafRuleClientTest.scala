@@ -41,7 +41,7 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
           package_id = wafRulePackageId,
           group = WafRuleGroup(
             id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-            name = tagWafRuleGroupName("OWASP XSS Attacks")
+            name = WafRuleGroupName("OWASP XSS Attacks")
           ),
           mode = Mode.On,
           allowed_modes = List(
@@ -56,7 +56,7 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
           package_id = wafRulePackageId,
           group = WafRuleGroup(
             id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-            name = tagWafRuleGroupName("OWASP XSS Attacks")
+            name = WafRuleGroupName("OWASP XSS Attacks")
           ),
           mode = Mode.On,
           allowed_modes = List(
@@ -82,7 +82,7 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
         package_id = wafRulePackageId,
         group = WafRuleGroup(
           id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-          name = tagWafRuleGroupName("OWASP XSS Attacks")
+          name = WafRuleGroupName("OWASP XSS Attacks")
         ),
         mode = Mode.On,
         allowed_modes = List(
@@ -103,7 +103,7 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
         package_id = wafRulePackageId,
         group = WafRuleGroup(
           id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-          name = tagWafRuleGroupName("OWASP XSS Attacks")
+          name = WafRuleGroupName("OWASP XSS Attacks")
         ),
         mode = Mode.Off,
         allowed_modes = List(
@@ -126,7 +126,7 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
         package_id = wafRulePackageId,
         group = WafRuleGroup(
           id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-          name = tagWafRuleGroupName("OWASP XSS Attacks")
+          name = WafRuleGroupName("OWASP XSS Attacks")
         ),
         mode = Mode.On,
         allowed_modes = List(
@@ -153,7 +153,7 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
         package_id = wafRulePackageId,
         group = WafRuleGroup(
           id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-          name = tagWafRuleGroupName("OWASP XSS Attacks")
+          name = WafRuleGroupName("OWASP XSS Attacks")
         ),
         mode = Mode.Off,
         allowed_modes = List(

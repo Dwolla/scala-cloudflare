@@ -1,5 +1,8 @@
 package com.dwolla.cloudflare.domain
 
+import io.circe._
+import monix.newtypes.NewtypeWrapped
+import org.http4s._
 import shapeless.tag._
 
 package object model {
@@ -15,7 +18,16 @@ package object model {
   type LogpullOptions = String @@ LogpullOptionsTag
   type WafRulePackageId = String @@ WafRulePackageIdTag
   type WafRuleGroupId = String @@ WafRuleGroupIdTag
-  type WafRuleGroupName = String @@ WafRuleGroupNameTag
+
+  type WafRuleGroupName = WafRuleGroupName.Type
+  object WafRuleGroupName extends NewtypeWrapped[String] {
+    implicit val queryParam: QueryParam[WafRuleGroupName] = new QueryParam[WafRuleGroupName] {
+      override def key: QueryParameterKey = QueryParameterKey("name")
+    }
+    implicit val queryParamEncoder: QueryParamEncoder[WafRuleGroupName] = value => QueryParameterValue(value.value)
+    implicit val jsonEncoder: Encoder[WafRuleGroupName] = Encoder[String].contramap(_.value)
+    implicit val jsonDecoder: Decoder[WafRuleGroupName] = Decoder[String].map(WafRuleGroupName(_))
+  }
 
   private[cloudflare] val tagZoneId: String => ZoneId = shapeless.tag[ZoneIdTag][String]
   private[cloudflare] val tagResourceId: String => ResourceId = shapeless.tag[ResourceIdTag][String]
@@ -28,7 +40,6 @@ package object model {
   private[cloudflare] val tagLogpullOptions: String => LogpullOptions = shapeless.tag[LogpullOptionsTag][String]
   private[cloudflare] val tagWafRulePackageId: String => WafRulePackageId = shapeless.tag[WafRulePackageIdTag][String]
   private[cloudflare] val tagWafRuleGroupId: String => WafRuleGroupId = shapeless.tag[WafRuleGroupIdTag][String]
-  private[cloudflare] val tagWafRuleGroupName: String => WafRuleGroupName = shapeless.tag[WafRuleGroupNameTag][String]
 }
 
 package model {
@@ -43,5 +54,4 @@ package model {
   trait LogpullOptionsTag
   trait WafRulePackageIdTag
   trait WafRuleGroupIdTag
-  trait WafRuleGroupNameTag
 }

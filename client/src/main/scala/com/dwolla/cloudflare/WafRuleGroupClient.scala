@@ -41,11 +41,8 @@ object WafRuleGroupClient {
 }
 
 class WafRuleGroupClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends WafRuleGroupClient[F] with Http4sClientDsl[F] {
-  private def fetch(reqF: F[Request[F]]): Stream[F, WafRuleGroup] =
-    for {
-      req <- Stream.eval(reqF)
-      res <- executor.fetch[WafRuleGroup](req)
-    } yield res
+  private def fetch(req: Request[F]): Stream[F, WafRuleGroup] =
+    executor.fetch[WafRuleGroup](req)
 
   override def list(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): Stream[F, WafRuleGroup] =
     fetch(GET(BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups"))
@@ -55,15 +52,14 @@ class WafRuleGroupClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecut
 
   override def setMode(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleGroupId: WafRuleGroupId, mode: Mode): Stream[F, WafRuleGroup] =
     for {
-      req <- Stream.eval(PATCH(json"""{"mode" : ${mode.asJson}}""", BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" / wafRuleGroupId))
-      res <- executor.fetch[WafRuleGroup](req).last.recover {
+      res <- executor.fetch[WafRuleGroup](PATCH(json"""{"mode" : ${mode.asJson}}""", BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" / wafRuleGroupId)).last.recover {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(alreadyEnabledOrDisabledCodes.contains) =>
           None
       }.flatMap(_.fold(getById(zoneId, wafRulePackageId, wafRuleGroupId))(Stream.emit(_)))
     } yield res
 
   override def getRuleGroupId(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, name: WafRuleGroupName): Stream[F, WafRuleGroupId] =
-    fetch(GET(BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" +? ("name", name.asInstanceOf[String])))
+    fetch(GET(BaseUrl / "zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" +*? name))
         .map(_.id)
         .collect {
           case id => id

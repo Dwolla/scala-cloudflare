@@ -36,7 +36,7 @@ class WafRuleGroupClientTest extends Specification with ScalaCheck with IOMatche
       output.compile.toList must returnValue(containTheSameElementsAs(List(
         WafRuleGroup(
           id = tagWafRuleGroupId("cfda825dfda411ea218cb70e6c88e82e"),
-          name = tagWafRuleGroupName("OWASP Uri XSS Attacks"),
+          name = WafRuleGroupName("OWASP Uri XSS Attacks"),
           description = "Cross site scripting (XSS) attacks that may result in unwanted HTML being inserted into web pages via URIs",
           mode = Mode.Off,
           package_id = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb"),
@@ -45,7 +45,7 @@ class WafRuleGroupClientTest extends Specification with ScalaCheck with IOMatche
         ),
         WafRuleGroup(
           id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-          name = tagWafRuleGroupName("OWASP XSS Attacks"),
+          name = WafRuleGroupName("OWASP XSS Attacks"),
           description = "Cross site scripting (XSS) attacks that may result in unwanted HTML being inserted into web pages.",
           mode = Mode.On,
           package_id = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb"),
@@ -64,7 +64,7 @@ class WafRuleGroupClientTest extends Specification with ScalaCheck with IOMatche
 
       output.compile.toList must returnValue(List(WafRuleGroup(
         id = tagWafRuleGroupId("cfda825dfda411ea218cb70e6c88e82e"),
-        name = tagWafRuleGroupName("OWASP Uri XSS Attacks"),
+        name = WafRuleGroupName("OWASP Uri XSS Attacks"),
         description = "Cross site scripting (XSS) attacks that may result in unwanted HTML being inserted into web pages via URIs",
         mode = Mode.Off,
         package_id = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb"),
@@ -78,7 +78,7 @@ class WafRuleGroupClientTest extends Specification with ScalaCheck with IOMatche
     "set the mode for the given waf rule group" in new Setup {
       private val input = WafRuleGroup(
         id = tagWafRuleGroupId("cfda825dfda411ea218cb70e6c88e82e"),
-        name = tagWafRuleGroupName("OWASP Uri XSS Attacks"),
+        name = WafRuleGroupName("OWASP Uri XSS Attacks"),
         description = "Cross site scripting (XSS) attacks that may result in unwanted HTML being inserted into web pages via URIs",
         mode = Mode.Off,
         package_id = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb"),
@@ -95,7 +95,7 @@ class WafRuleGroupClientTest extends Specification with ScalaCheck with IOMatche
     "return success if waf rule group is already on" in new Setup {
       private val existingWafRuleGroup = WafRuleGroup(
         id = tagWafRuleGroupId("cfda825dfda411ea218cb70e6c88e82e"),
-        name = tagWafRuleGroupName("OWASP Uri XSS Attacks"),
+        name = WafRuleGroupName("OWASP Uri XSS Attacks"),
         description = "Cross site scripting (XSS) attacks that may result in unwanted HTML being inserted into web pages via URIs",
         mode = Mode.On,
         package_id = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb"),
@@ -116,7 +116,7 @@ class WafRuleGroupClientTest extends Specification with ScalaCheck with IOMatche
     "return success if waf rule group is already off" in new Setup {
       private val existingWafRuleGroup = WafRuleGroup(
         id = tagWafRuleGroupId("cfda825dfda411ea218cb70e6c88e82e"),
-        name = tagWafRuleGroupName("OWASP Uri XSS Attacks"),
+        name = WafRuleGroupName("OWASP Uri XSS Attacks"),
         description = "Cross site scripting (XSS) attacks that may result in unwanted HTML being inserted into web pages via URIs",
         mode = Mode.Off,
         package_id = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb"),
@@ -140,7 +140,7 @@ class WafRuleGroupClientTest extends Specification with ScalaCheck with IOMatche
     "get the id of the waf rule group with the given name" in new Setup {
       private val input = WafRuleGroup(
         id = tagWafRuleGroupId("cfda825dfda411ea218cb70e6c88e82e"),
-        name = tagWafRuleGroupName("OWASP Uri XSS Attacks"),
+        name = WafRuleGroupName("OWASP Uri XSS Attacks"),
         description = "Cross site scripting (XSS) attacks that may result in unwanted HTML being inserted into web pages via URIs",
         mode = Mode.Off,
         package_id = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb"),

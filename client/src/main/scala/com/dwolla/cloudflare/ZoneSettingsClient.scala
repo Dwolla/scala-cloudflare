@@ -65,8 +65,5 @@ class ZoneSettingsClientImpl[F[_] : Concurrent](executor: StreamingCloudflareApi
     }
 
   private def patchValue[T](uri: Uri, cloudflareSettingValue: Json) =
-    for {
-      req <- Stream.eval(PATCH(cloudflareSettingValue, uri))
-      _ <- executor.fetch[ZoneSettingsDTO](req)
-    } yield ()
+    executor.fetch[ZoneSettingsDTO](PATCH(cloudflareSettingValue, uri)).void
 }

@@ -44,11 +44,8 @@ object FilterClient {
 }
 
 class FilterClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends FilterClient[F] with Http4sClientDsl[F] {
-  private def fetch(reqF: F[Request[F]]): Stream[F, Filter] =
-    for {
-      req <- Stream.eval(reqF)
-      res <- executor.fetch[Filter](req)
-    } yield res
+  private def fetch(req: Request[F]): Stream[F, Filter] =
+    executor.fetch[Filter](req)
 
   override def list(zoneId: ZoneId): Stream[F, Filter] =
     fetch(GET(BaseUrl / "zones" / zoneId / "filters"))
@@ -68,8 +65,7 @@ class FilterClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F])
 
   override def delete(zoneId: ZoneId, filterId: String): Stream[F, FilterId] =
     for {
-      req <- Stream.eval(DELETE(BaseUrl / "zones" / zoneId / "filters" / filterId))
-      json <- executor.fetch[Json](req).last.recover {
+      json <- executor.fetch[Json](DELETE(BaseUrl / "zones" / zoneId / "filters" / filterId)).last.recover {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           None
       }

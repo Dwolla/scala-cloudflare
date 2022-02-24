@@ -32,6 +32,6 @@ package wafrulegroups {
   }
 
   object WafRuleGroup {
-      implicit val wafRuleGroupCodec: Codec[WafRuleGroup] = semiauto.deriveCodec
-    }
+    implicit val wafRuleGroupCodec: Codec[WafRuleGroup] = semiauto.deriveCodec
+  }
 }

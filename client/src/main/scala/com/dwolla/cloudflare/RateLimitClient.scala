@@ -43,11 +43,8 @@ object RateLimitClient {
 }
 
 class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends RateLimitClient[F] with Http4sClientDsl[F] {
-  private def fetch(reqF: F[Request[F]]): Stream[F, RateLimit] =
-    for {
-      req <- Stream.eval(reqF)
-      res <- executor.fetch[RateLimit](req)
-    } yield res
+  private def fetch(req: Request[F]): Stream[F, RateLimit] =
+    executor.fetch[RateLimit](req)
 
   override def list(zoneId: ZoneId): Stream[F, RateLimit] =
     fetch(GET(BaseUrl / "zones" / zoneId / "rate_limits"))
@@ -67,8 +64,7 @@ class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
 
   override def delete(zoneId: ZoneId, rateLimitId: String): Stream[F, RateLimitId] =
     for {
-      req <- Stream.eval(DELETE(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId))
-      json <- executor.fetch[Json](req).last.recover {
+      json <- executor.fetch[Json](DELETE(BaseUrl / "zones" / zoneId / "rate_limits" / rateLimitId)).last.recover {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           None
       }
@@ -79,4 +75,3 @@ class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
 }
 
 case class CannotUpdateUnidentifiedRateLimit(rateLimit: RateLimit) extends RuntimeException(s"Cannot update unidentified rate limit $rateLimit")
-

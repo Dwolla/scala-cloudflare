@@ -34,7 +34,7 @@ class WafRulePackageClientTest extends Specification with ScalaCheck with IOMatc
       output.compile.toList must returnValue(containTheSameElementsAs(List(
         WafRulePackage(
           id = tagWafRulePackageId("059f5a550fffae09cbb4072edf101bd2"),
-          name = tagWafRulePackageName("USER"),
+          name = WafRulePackageName("USER"),
           description = None,
           zone_id = tagZoneId("90940840480ba654a3a5ddcdc5d741f9"),
           detection_mode = DetectionMode.Traditional,
@@ -43,7 +43,7 @@ class WafRulePackageClientTest extends Specification with ScalaCheck with IOMatc
         ),
         WafRulePackage(
           id = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb"),
-          name = tagWafRulePackageName("OWASP ModSecurity Core Rule Set"),
+          name = WafRulePackageName("OWASP ModSecurity Core Rule Set"),
           description = Option("OWASP Core Ruleset (2013) provides protection against common attack categories, including SQL Injection and Cross-Site Scripting."),
           zone_id = tagZoneId("90940840480ba654a3a5ddcdc5d741f9"),
           detection_mode = DetectionMode.Anomaly,
@@ -62,7 +62,7 @@ class WafRulePackageClientTest extends Specification with ScalaCheck with IOMatc
 
       output.compile.toList must returnValue(List(WafRulePackage(
         id = tagWafRulePackageId("059f5a550fffae09cbb4072edf101bd2"),
-        name = tagWafRulePackageName("USER"),
+        name = WafRulePackageName("USER"),
         description = None,
         zone_id = tagZoneId("90940840480ba654a3a5ddcdc5d741f9"),
         detection_mode = DetectionMode.Traditional,
@@ -76,7 +76,7 @@ class WafRulePackageClientTest extends Specification with ScalaCheck with IOMatc
     "set the sensitivity and action_mode for the given waf rule package" in new Setup {
       private val input = WafRulePackage(
         id = tagWafRulePackageId("059f5a550fffae09cbb4072edf101bd2"),
-        name = tagWafRulePackageName("USER"),
+        name = WafRulePackageName("USER"),
         description = None,
         zone_id = tagZoneId("90940840480ba654a3a5ddcdc5d741f9"),
         detection_mode = DetectionMode.Traditional,
@@ -99,7 +99,7 @@ class WafRulePackageClientTest extends Specification with ScalaCheck with IOMatc
     "get the id of the waf rule package with the given name" in new Setup {
       private val input = WafRulePackage(
         id = tagWafRulePackageId("059f5a550fffae09cbb4072edf101bd2"),
-        name = tagWafRulePackageName("USER"),
+        name = WafRulePackageName("USER"),
         description = None,
         zone_id = tagZoneId("90940840480ba654a3a5ddcdc5d741f9"),
         detection_mode = DetectionMode.Traditional,

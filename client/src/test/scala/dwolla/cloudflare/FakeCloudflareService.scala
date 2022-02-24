@@ -3,6 +3,7 @@ package dwolla.cloudflare
 import java.time.Instant
 import cats.data._
 import cats.effect._
+import com.dwolla.cloudflare.StreamingCloudflareApiExecutor._
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
@@ -30,7 +31,6 @@ import org.http4s.client.Client
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.middleware.VirtualHost
 import org.http4s.server.middleware.VirtualHost.exact
-import org.http4s.util.CaseInsensitiveString
 
 import scala.annotation.nowarn
 
@@ -1755,10 +1755,10 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def cloudflareApi(service: HttpRoutes[IO]) = Kleisli[OptionT[IO, *], Request[IO], Response[IO]] { req =>
-    req.headers.get(CaseInsensitiveString("X-Auth-Email")) match {
-      case Some(Header(_, email)) if email == authorization.email =>
-        req.headers.get(CaseInsensitiveString("X-Auth-Key")) match {
-          case Some(Header(_, key)) if key == authorization.key =>
+    req.headers.get[`X-Auth-Email`] match {
+      case Some(`X-Auth-Email`(email)) if email == authorization.email =>
+        req.headers.get[`X-Auth-Key`] match {
+          case Some(`X-Auth-Key`(key)) if key == authorization.key =>
             VirtualHost(exact(service, "api.cloudflare.com")).run(req)
           case _ => OptionT.liftF(Forbidden())
         }
