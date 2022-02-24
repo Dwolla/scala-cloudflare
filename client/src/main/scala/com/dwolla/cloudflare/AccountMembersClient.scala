@@ -1,6 +1,6 @@
 package com.dwolla.cloudflare
 
-import cats.effect._
+import cats._
 import cats.implicits._
 import com.dwolla.cloudflare.AccountMembersClientImpl.notFoundCodes
 import com.dwolla.cloudflare.domain.dto.accounts._
@@ -9,8 +9,8 @@ import com.dwolla.cloudflare.domain.model.accounts.Implicits.{toDto, _}
 import com.dwolla.cloudflare.domain.model.accounts._
 import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
 import io.circe.Json
-import io.circe.syntax._
 import io.circe.optics.JsonPath._
+import io.circe.syntax._
 import fs2._
 import org.http4s.Method._
 import org.http4s._
@@ -36,41 +36,30 @@ trait AccountMembersClient[F[_]] {
 }
 
 object AccountMembersClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): AccountMembersClient[F] = new AccountMembersClientImpl[F](executor)
+  def apply[F[_] : MonadThrow](executor: StreamingCloudflareApiExecutor[F]): AccountMembersClient[F] = new AccountMembersClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/accounts/(.+?)/members/(.+)""".r
 }
 
-class AccountMembersClientImpl[F[_]: Sync](executor: StreamingCloudflareApiExecutor[F]) extends AccountMembersClient[F] with Http4sClientDsl[F] {
+class AccountMembersClientImpl[F[_] : MonadThrow](executor: StreamingCloudflareApiExecutor[F]) extends AccountMembersClient[F] with Http4sClientDsl[F] {
   override def getById(accountId: AccountId, accountMemberId: String): Stream[F, AccountMember] =
     for {
-      req <- Stream.eval(GET(buildAccountMemberUri(accountId, accountMemberId)))
-      res <- executor.fetch[AccountMemberDTO](req).returningEmptyOnErrorCodes(notFoundCodes: _*)
+      res <- executor.fetch[AccountMemberDTO](GET(buildAccountMemberUri(accountId, accountMemberId))).returningEmptyOnErrorCodes(notFoundCodes: _*)
     } yield res
 
   override def addMember(accountId: AccountId, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember] =
-    for {
-      req <- Stream.eval(POST(NewAccountMemberDTO(emailAddress, roleIds, Some("pending")).asJson, BaseUrl / "accounts" / accountId / "members"))
-      resp <- createOrUpdate(req)
-    } yield resp
+    createOrUpdate(POST(NewAccountMemberDTO(emailAddress, roleIds, Some("pending")).asJson, BaseUrl / "accounts" / accountId / "members"))
 
-  override def updateMember(accountId: AccountId, accountMember: AccountMember): Stream[F, AccountMember] = {
-    for {
-      req <- Stream.eval(PUT(toDto(accountMember).asJson, buildAccountMemberUri(accountId, accountMember.id)))
-      resp <- createOrUpdate(req)
-    } yield resp
-  }
+  override def updateMember(accountId: AccountId, accountMember: AccountMember): Stream[F, AccountMember] =
+    createOrUpdate(PUT(toDto(accountMember).asJson, buildAccountMemberUri(accountId, accountMember.id)))
 
   override def removeMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMemberId] =
-  /*_*/
     for {
-      req <- Stream.eval(DELETE(buildAccountMemberUri(accountId, accountMemberId)))
-      json <- executor.fetch[Json](req).last.adaptError {
+      json <- executor.fetch[Json](DELETE(buildAccountMemberUri(accountId, accountMemberId))).last.adaptError {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           AccountMemberDoesNotExistException(accountId, accountMemberId)
       }
     } yield tagAccountMemberId(json.flatMap(deletedRecordLens).getOrElse(accountMemberId))
-  /*_*/
 
   private def buildAccountMemberUri(accountId: AccountId, accountMemberId: String): Uri =
     BaseUrl / "accounts" / accountId / "members" / accountMemberId

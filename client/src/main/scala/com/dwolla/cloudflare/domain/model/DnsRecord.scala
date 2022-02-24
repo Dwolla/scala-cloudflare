@@ -66,7 +66,7 @@ case class IdentifiedDnsRecord(physicalResourceId: PhysicalResourceId,
 }
 
 object IdentifiedDnsRecord {
-  val dnsRecordIdUrlRegex: Regex = "https://api.cloudflare.com/client/v4/zones/([^/]+)/dns_records/([^/]+)".r("zoneId", "recordId")
+  val dnsRecordIdUrlRegex: Regex = "https://api.cloudflare.com/client/v4/zones/(?<zoneId>[^/]+)/dns_records/(?<recordId>[^/]+)".r
 }
 
 object Implicits {

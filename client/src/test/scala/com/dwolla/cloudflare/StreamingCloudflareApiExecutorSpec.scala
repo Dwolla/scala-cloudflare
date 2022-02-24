@@ -1,21 +1,24 @@
 package com.dwolla.cloudflare
 
 import cats.effect._
+import cats.effect.testing.specs2.CatsEffect
 import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.model.Exceptions._
 import dwolla.cloudflare.FakeCloudflareService
 import io.circe.syntax._
-import fs2._
 import org.http4s._
 import org.http4s.syntax.all._
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
-import org.specs2.concurrent.ExecutionEnv
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
 import org.http4s.client.dsl.Http4sClientDsl
 
-class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Specification with Http4sDsl[IO] with Http4sClientDsl[IO] {
+class StreamingCloudflareApiExecutorSpec
+  extends Specification
+    with CatsEffect
+    with Http4sDsl[IO]
+    with Http4sClientDsl[IO] {
 
   object PageQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("page")
 
@@ -96,50 +99,45 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
   "fetch" should {
     "retrieve all the pages specified, once, and no more" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(uri"https://api.cloudflare.com/"))
-        res <- client(multiplePages).fetch[String](req)
+        res <- client(multiplePages).fetch[String](GET(uri"https://api.cloudflare.com/"))
       } yield res
 
-      output.compile.toList.unsafeToFuture() must be_==(List("page-1", "page-2", "page-3")).await
+      output.compile.toList.map(_ must be_==(List("page-1", "page-2", "page-3")))
     }
 
     "return a single page if the response is paginated without result_info" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(uri"https://api.cloudflare.com/"))
-        res <- client(singlePage).fetch[String](req)
+        res <- client(singlePage).fetch[String](GET(uri"https://api.cloudflare.com/"))
       } yield res
 
-      output.compile.toList.unsafeToFuture() must be_==(List("single-page")).await
+      output.compile.toList.map(_ must be_==(List("single-page")))
     }
 
     "return a single result if the response is not paginated" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(uri"https://api.cloudflare.com/"))
-        res <- client(singleResult).fetch[String](req)
+        res <- client(singleResult).fetch[String](GET(uri"https://api.cloudflare.com/"))
       } yield res
 
-      output.compile.toList.unsafeToFuture() must be_==(List("single-result")).await
+      output.compile.toList.map(_ must be_==(List("single-result")))
     }
 
     "raise an exception if authorization fails with a 403 response" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(uri"https://api.cloudflare.com/forbidden"))
-        res <- client(authorizationFailure).fetch[String](req)
+        res <- client(authorizationFailure).fetch[String](GET(uri"https://api.cloudflare.com/forbidden"))
       } yield res
 
-      output.compile.toList.unsafeToFuture() should throwAn[AccessDenied].like {
+      output.compile.toList.map(_ should throwAn[AccessDenied].like {
         case ex =>
           ex.getMessage must_== "The given credentials were invalid"
-      }.await
+      })
     }
 
     "raise an exception if the authorization fails due to invalid headers" in new Setup {
       private val output = for {
-        req <- Stream.eval(GET(uri"https://api.cloudflare.com/invalid-headers"))
-        res <- client(authorizationFailure).fetch[String](req)
+        res <- client(authorizationFailure).fetch[String](GET(uri"https://api.cloudflare.com/invalid-headers"))
       } yield res
 
-      output.compile.toList.unsafeToFuture() should throwAn[AccessDenied].like {
+      output.compile.toList.map(_ should throwAn[AccessDenied].like {
         case ex@AccessDenied(msg) =>
           msg should contain(ResponseInfoDTO(Option(6102), "Invalid format for X-Auth-Email header"))
           msg should contain(ResponseInfoDTO(Option(6103), "Invalid format for X-Auth-Key header"))
@@ -148,7 +146,7 @@ class StreamingCloudflareApiExecutorSpec(implicit ee: ExecutionEnv) extends Spec
               |
               |  See the following errors:
               |   -""".stripMargin)
-      }.await
+      })
     }
   }
 }

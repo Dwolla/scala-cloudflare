@@ -3,12 +3,19 @@ package com.dwolla.cloudflare.domain.model
 import com.dwolla.circe._
 import io.circe._
 import io.circe.generic.semiauto
-import shapeless.tag.@@
+import monix.newtypes.NewtypeWrapped
+import org.http4s.{QueryParam, QueryParamEncoder, QueryParameterKey, QueryParameterValue}
 
 package object wafrulepackages {
-  type WafRulePackageName = String @@ WafRulePackageNameTag
-
-  private[cloudflare] val tagWafRulePackageName: String => WafRulePackageName = shapeless.tag[WafRulePackageNameTag][String]
+  type WafRulePackageName = WafRulePackageName.Type
+  object WafRulePackageName extends NewtypeWrapped[String] {
+    implicit val queryParam: QueryParam[WafRulePackageName] = new QueryParam[WafRulePackageName] {
+      override def key: QueryParameterKey = QueryParameterKey("name")
+    }
+    implicit val queryParamEncoder: QueryParamEncoder[WafRulePackageName] = value => QueryParameterValue(value.value)
+    implicit val jsonEncoder: Encoder[WafRulePackageName] = Encoder[String].contramap(_.value)
+    implicit val jsonDecoder: Decoder[WafRulePackageName] = Decoder[String].map(WafRulePackageName(_))
+  }
 }
 
 package wafrulepackages {

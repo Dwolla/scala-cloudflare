@@ -44,11 +44,8 @@ object FirewallRuleClient {
 }
 
 class FirewallRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends FirewallRuleClient[F] with Http4sClientDsl[F] {
-  private def fetch(reqF: F[Request[F]]): Stream[F, FirewallRule] =
-    for {
-      req <- Stream.eval(reqF)
-      res <- executor.fetch[FirewallRule](req)
-    } yield res
+  private def fetch(req: Request[F]): Stream[F, FirewallRule] =
+    executor.fetch[FirewallRule](req)
 
   override def list(zoneId: ZoneId): Stream[F, FirewallRule] =
     fetch(GET(BaseUrl / "zones" / zoneId / "firewall" / "rules"))
@@ -69,8 +66,7 @@ class FirewallRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecut
 
   override def delete(zoneId: ZoneId, firewallRuleId: String): Stream[F, FirewallRuleId] =
     for {
-      req <- Stream.eval(DELETE(BaseUrl / "zones" / zoneId / "firewall" / "rules" / firewallRuleId))
-      json <- executor.fetch[Json](req).last.recover {
+      json <- executor.fetch[Json](DELETE(BaseUrl / "zones" / zoneId / "firewall" / "rules" / firewallRuleId)).last.recover {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           None
       }

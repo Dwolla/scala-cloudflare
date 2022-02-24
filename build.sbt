@@ -19,13 +19,13 @@ inThisBuild(List(
       url("https://dwolla.com")
     ),
   ),
-  crossScalaVersions := Seq("2.13.6", "2.12.15"),
+  crossScalaVersions := Seq("2.13.8", "2.12.15"),
   scalaVersion := crossScalaVersions.value.head,
   startYear := Option(2016),
   addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.13.2" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
 
-  githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11"),
+  githubWorkflowJavaVersions := Seq(JavaSpec.temurin("8"), JavaSpec.temurin("11")),
   githubWorkflowTargetTags ++= Seq("v*"),
   githubWorkflowPublishTargetBranches :=
     Seq(RefPredicate.StartsWith(Ref.Tag("v"))),
@@ -53,7 +53,7 @@ lazy val apiClient = (project in file("client"))
   .settings(
     name := "cloudflare-api-client",
     libraryDependencies ++= {
-      val http4sVersion = "0.21.32"
+      val http4sVersion = "0.23.10"
       Seq(
         "org.http4s" %% "http4s-dsl",
         "org.http4s" %% "http4s-circe",
@@ -66,15 +66,16 @@ lazy val apiClient = (project in file("client"))
           catsCore,
           catsEffect,
           shapeless,
+          newtypes,
         ) ++
         Seq(
           specs2Core,
           specs2Scalacheck,
           specs2Cats,
+          specs2CatsEffect,
           "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-          dwollaTestUtils,
-          "org.http4s" %% "http4s-blaze-server" % http4sVersion,
-          "org.http4s" %% "http4s-testing" % http4sVersion,
+          "org.http4s" %% "http4s-server" % http4sVersion,
+          "org.http4s" %% "http4s-laws" % http4sVersion,
           catsLaws,
           catsEffectLaws,
         ).map(_ % Test)

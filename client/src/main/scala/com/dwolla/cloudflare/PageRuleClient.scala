@@ -44,11 +44,8 @@ object PageRuleClient {
 }
 
 class PageRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends PageRuleClient[F] with Http4sClientDsl[F] {
-  private def fetch(reqF: F[Request[F]]): Stream[F, PageRule] =
-    for {
-      req <- Stream.eval(reqF)
-      res <- executor.fetch[PageRule](req)
-    } yield res
+  private def fetch(req: Request[F]): Stream[F, PageRule] =
+    executor.fetch[PageRule](req)
 
   override def list(zoneId: ZoneId): Stream[F, PageRule] =
     fetch(GET(BaseUrl / "zones" / zoneId / "pagerules"))
@@ -68,8 +65,7 @@ class PageRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F
 
   override def delete(zoneId: ZoneId, pageRuleId: String): Stream[F, PageRuleId] =
     for {
-      req <- Stream.eval(DELETE(BaseUrl / "zones" / zoneId / "pagerules" / pageRuleId))
-      json <- executor.fetch[Json](req).last.recover {
+      json <- executor.fetch[Json](DELETE(BaseUrl / "zones" / zoneId / "pagerules" / pageRuleId)).last.recover {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           None
       }

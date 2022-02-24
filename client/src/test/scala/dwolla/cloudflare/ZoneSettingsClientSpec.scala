@@ -2,22 +2,23 @@ package dwolla.cloudflare
 
 import cats.data._
 import cats.effect._
+import cats.effect.testing.specs2.CatsEffect
 import cats.implicits._
 import com.dwolla.cloudflare.CloudflareSettingFunctions._
 import com.dwolla.cloudflare._
 import com.dwolla.cloudflare.domain.model.ZoneSettings.{CloudflareSecurityLevel, CloudflareTlsLevel, CloudflareWaf}
 import com.dwolla.cloudflare.domain.model._
+import io.circe.literal._
 import org.http4s._
-import org.http4s.syntax.all._
 import org.http4s.client._
 import org.http4s.dsl.Http4sDsl
-import org.specs2.concurrent.ExecutionEnv
+import org.http4s.syntax.all._
 import org.specs2.mutable.Specification
 import org.specs2.specification.Scope
-import org.specs2.matcher.IOMatchers
-import io.circe.literal._
 
-class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification with IOMatchers {
+class ZoneSettingsClientSpec
+  extends Specification
+    with CatsEffect {
 
   private val authorization = CloudflareAuthorization("email", "key")
   private val fakeCloudflareService = new FakeCloudflareService(authorization)
@@ -41,10 +42,10 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
       private val zoneSettingsClient = client(setTlsLevel)(getZoneId <+> fakeCloudflareService.setTlsLevelService("fake-zone-id", "strict"))
       private val output = zoneSettingsClient.updateSettings(zone)
 
-      output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
+      output.compile.last.map { _ must beSome[ValidatedNel[Throwable, Unit]].like {
         case Validated.Valid(u) => u must_==(())
         case Validated.Invalid(e) => throw e.head
-      }.await
+      }}
     }
 
     "apply the security level to the given domain" in new Setup {
@@ -53,9 +54,9 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
       private val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setSecurityLevelService("fake-zone-id", "high"))
       private val output = zoneSettingsClient.updateSettings(zone)
 
-      output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
+      output.compile.last.map { _ must beSome[ValidatedNel[Throwable, Unit]].like {
         case Validated.Valid(u) => u must_==(())
-      }.await
+      }}
     }
 
     "apply waf to the given domain" in new Setup {
@@ -64,9 +65,9 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
       private val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setWafService("fake-zone-id", "on"))
       private val output = zoneSettingsClient.updateSettings(zone)
 
-      output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
+      output.compile.last.map { _ must beSome[ValidatedNel[Throwable, Unit]].like {
         case Validated.Valid(u) => u must_==(())
-      }.await
+      }}
     }
 
     "ignore optional settings if they're not set (indicating a custom setting)" in new Setup {
@@ -76,9 +77,9 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
         val zoneSettingsClient = client(cloudflareSettingFunction)(getZoneId)
         val output = zoneSettingsClient.updateSettings(zone)
 
-        output.compile.last.unsafeToFuture() must beSome[ValidatedNel[Throwable, Unit]].like {
+        output.compile.last.map { _ must beSome[ValidatedNel[Throwable, Unit]].like {
           case Validated.Valid(u) => u must_==(())
-        }.await
+        }}
       }
 
       private val settingsUnderTest = List(setSecurityLevel, setWaf)
@@ -97,9 +98,9 @@ class ZoneSettingsClientSpec(implicit ee: ExecutionEnv) extends Specification wi
 
       private val output = zoneSettingsClient.updateSettings(zone)
 
-      output.compile.last.unsafeToFuture() should beSome[ValidatedNel[Throwable, Unit]].like {
+      output.compile.last.map { _ should beSome[ValidatedNel[Throwable, Unit]].like {
         case Validated.Invalid(nel) => nel.toList should have size greaterThanOrEqualTo(2)
-      }.await
+      }}
     }
 
   }

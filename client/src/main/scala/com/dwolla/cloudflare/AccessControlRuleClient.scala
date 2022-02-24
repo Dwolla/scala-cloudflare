@@ -51,11 +51,8 @@ object AccessControlRuleClient {
 }
 
 class AccessControlRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends AccessControlRuleClient[F] with Http4sClientDsl[F] {
-  private def fetch(reqF: F[Request[F]]): Stream[F, AccessControlRule] =
-    for {
-      req <- Stream.eval(reqF)
-      res <- executor.fetch[AccessControlRule](req)
-    } yield res
+  private def fetch(req: Request[F]): Stream[F, AccessControlRule] =
+    executor.fetch[AccessControlRule](req)
 
   override def list(level: Level, mode: Option[String] = None): Stream[F, AccessControlRule] = {
     fetch(GET(mode.toSeq.foldLeft(buildBaseUrl(level))((uri: Uri, param: String) => uri.withQueryParam("mode", param))))
@@ -76,8 +73,7 @@ class AccessControlRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiE
 
   override def delete(level: Level, ruleId: String): Stream[F, AccessControlRuleId] =
     for {
-      req <- Stream.eval(DELETE(buildBaseUrl(level) / ruleId))
-      json <- executor.fetch[Json](req).last.recover {
+      json <- executor.fetch[Json](DELETE(buildBaseUrl(level) / ruleId)).last.recover {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           None
       }
