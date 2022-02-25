@@ -1,13 +1,13 @@
 package com.dwolla.cloudflare
 
-import cats.implicits._
+import cats._
+import cats.syntax.all._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
 import com.dwolla.cloudflare.domain.model.{AccountId, ZoneId, tagAccountId, tagZoneId}
 import io.circe.syntax._
 import io.circe._
 import io.circe.optics.JsonPath._
 import fs2._
-import cats.effect.Sync
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import org.http4s.Method._
 import org.http4s._
@@ -44,13 +44,13 @@ trait AccessControlRuleClient[F[_]] {
 }
 
 object AccessControlRuleClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): AccessControlRuleClient[F] = new AccessControlRuleClientImpl[F](executor)
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): AccessControlRuleClient[F] = new AccessControlRuleClientImpl[F](executor)
 
   val accountLevelUriRegex = """https://api.cloudflare.com/client/v4/accounts/(.+?)/firewall/access_rules/rules/(.+)""".r
   val zoneLevelUriRegex = """https://api.cloudflare.com/client/v4/zones/(.+?)/firewall/access_rules/rules/(.+)""".r
 }
 
-class AccessControlRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends AccessControlRuleClient[F] with Http4sClientDsl[F] {
+class AccessControlRuleClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends AccessControlRuleClient[F] with Http4sClientDsl[F] {
   private def fetch(req: Request[F]): Stream[F, AccessControlRule] =
     executor.fetch[AccessControlRule](req)
 

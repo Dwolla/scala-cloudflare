@@ -1,7 +1,7 @@
 package com.dwolla.cloudflare
 
 import cats._
-import cats.implicits._
+import cats.syntax.all._
 import com.dwolla.cloudflare.AccountMembersClientImpl.notFoundCodes
 import com.dwolla.cloudflare.domain.dto.accounts._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
@@ -36,12 +36,12 @@ trait AccountMembersClient[F[_]] {
 }
 
 object AccountMembersClient {
-  def apply[F[_] : MonadThrow](executor: StreamingCloudflareApiExecutor[F]): AccountMembersClient[F] = new AccountMembersClientImpl[F](executor)
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): AccountMembersClient[F] = new AccountMembersClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/accounts/(.+?)/members/(.+)""".r
 }
 
-class AccountMembersClientImpl[F[_] : MonadThrow](executor: StreamingCloudflareApiExecutor[F]) extends AccountMembersClient[F] with Http4sClientDsl[F] {
+class AccountMembersClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends AccountMembersClient[F] with Http4sClientDsl[F] {
   override def getById(accountId: AccountId, accountMemberId: String): Stream[F, AccountMember] =
     for {
       res <- executor.fetch[AccountMemberDTO](GET(buildAccountMemberUri(accountId, accountMemberId))).returningEmptyOnErrorCodes(notFoundCodes: _*)

@@ -1,8 +1,8 @@
 package com.dwolla.cloudflare
 
-import _root_.io.circe.literal._
 import com.dwolla.cloudflare.domain.model.wafrulepackages._
 import com.dwolla.cloudflare.domain.model.{WafRulePackageId, ZoneId, tagWafRulePackageId, tagZoneId}
+import io.circe.literal._
 import io.circe.syntax._
 import fs2._
 import org.http4s.Method._

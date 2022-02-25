@@ -1,14 +1,14 @@
 package com.dwolla.cloudflare
 
-import _root_.io.circe.literal._
-import cats.effect.Sync
+import cats._
+import cats.syntax.all._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.wafrules._
 import com.dwolla.cloudflare.domain.model.{WafRulePackageId, ZoneId, tagWafRulePackageId, tagZoneId}
+import io.circe.literal._
 import io.circe.syntax._
 import fs2._
 import org.http4s.Method._
-import cats.implicits._
 import org.http4s.Request
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
@@ -34,12 +34,12 @@ trait WafRuleClient[F[_]] {
 }
 
 object WafRuleClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): WafRuleClient[F] = new WafRuleClientImpl[F](executor)
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): WafRuleClient[F] = new WafRuleClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/firewall/waf/packages/(.+)/rules/(.+)""".r
 }
 
-class WafRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends WafRuleClient[F] with Http4sClientDsl[F] {
+class WafRuleClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends WafRuleClient[F] with Http4sClientDsl[F] {
   private def fetch(req: Request[F]): Stream[F, WafRule] =
     executor.fetch[WafRule](req)
 

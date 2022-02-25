@@ -12,8 +12,6 @@ import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
 import com.dwolla.cloudflare.domain.model.filters.{Filter, FilterId}
 import com.dwolla.cloudflare.domain.model.firewallrules._
-import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleEncoder
-import com.dwolla.cloudflare.domain.model.pagerules.PageRule.pageRuleDecoder
 import com.dwolla.cloudflare.domain.model.pagerules._
 import com.dwolla.cloudflare.domain.model.ratelimits._
 import com.dwolla.cloudflare.domain.model.wafrulegroups.WafRuleGroup
@@ -1024,8 +1022,6 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
 
   def createPageRule(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpRoutes.of[IO] {
     case req@POST -> Root / "client" / "v4" / "zones" / zid / "pagerules" if zid == zoneId =>
-      implicitly[Encoder[PageRule]](importedEncoder[PageRule])
-      implicitly[Encoder[ResponseDTO[PageRule]]]
       for {
         input <- req.decodeJson[PageRule]
         created = input.copy(

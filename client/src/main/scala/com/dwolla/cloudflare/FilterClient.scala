@@ -1,13 +1,13 @@
 package com.dwolla.cloudflare
 
-import cats.implicits._
+import cats._
+import cats.syntax.all._
 import com.dwolla.cloudflare.domain.model.{ZoneId, tagZoneId}
 import com.dwolla.cloudflare.domain.model.filters._
 import io.circe.syntax._
 import io.circe._
 import io.circe.optics.JsonPath._
 import fs2._
-import cats.effect.Sync
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import org.http4s.Method._
 import org.http4s.Request
@@ -38,12 +38,12 @@ trait FilterClient[F[_]] {
 }
 
 object FilterClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): FilterClient[F] = new FilterClientImpl[F](executor)
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): FilterClient[F] = new FilterClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/filters/(.+)""".r
 }
 
-class FilterClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends FilterClient[F] with Http4sClientDsl[F] {
+class FilterClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends FilterClient[F] with Http4sClientDsl[F] {
   private def fetch(req: Request[F]): Stream[F, Filter] =
     executor.fetch[Filter](req)
 
