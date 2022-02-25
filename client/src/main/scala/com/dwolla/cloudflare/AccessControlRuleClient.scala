@@ -31,8 +31,8 @@ trait AccessControlRuleClient[F[_]] {
     case _ => None
   }
 
-  def buildUri(level: Level, ruleId: AccessControlRuleId): String =
-    (buildBaseUrl(level) / ruleId).renderString
+  def buildUri(level: Level, ruleId: AccessControlRuleId): Uri =
+    buildBaseUrl(level) / ruleId
 
   def buildBaseUrl(level: Level): Uri = {
     val baseUrlWithLevel = level match {

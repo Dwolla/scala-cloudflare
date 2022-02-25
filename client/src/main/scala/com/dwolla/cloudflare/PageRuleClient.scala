@@ -10,9 +10,10 @@ import io.circe.optics.JsonPath._
 import fs2._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import org.http4s.Method._
-import org.http4s.Request
+import org.http4s.{Request, Uri}
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.syntax.all._
 
 import scala.util.matching.Regex
 
@@ -32,8 +33,8 @@ trait PageRuleClient[F[_]] {
     case _ => None
   }
 
-  def buildUri(zoneId: ZoneId, pageRuleId: PageRuleId): String =
-    s"https://api.cloudflare.com/client/v4/zones/$zoneId/pagerules/$pageRuleId"
+  def buildUri(zoneId: ZoneId, pageRuleId: PageRuleId): Uri =
+    uri"https://api.cloudflare.com/client/v4/zones" / zoneId / "pagerules" / pageRuleId
 
 }
 

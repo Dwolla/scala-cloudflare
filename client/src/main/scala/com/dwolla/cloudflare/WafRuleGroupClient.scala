@@ -9,9 +9,10 @@ import io.circe.literal._
 import io.circe.syntax._
 import fs2._
 import org.http4s.Method._
-import org.http4s.Request
+import org.http4s.{Request, Uri}
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.syntax.all._
 
 import scala.util.matching.Regex
 
@@ -30,8 +31,8 @@ trait WafRuleGroupClient[F[_]] {
     case _ => None
   }
 
-  def buildUri(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleGroupId: WafRuleGroupId): String =
-    s"https://api.cloudflare.com/client/v4/zones/$zoneId/firewall/waf/packages/$wafRulePackageId/groups/$wafRuleGroupId"
+  def buildUri(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleGroupId: WafRuleGroupId): Uri =
+    uri"https://api.cloudflare.com/client/v4/zones" / zoneId / "firewall" / "waf" / "packages" / wafRulePackageId / "groups" / wafRuleGroupId
 }
 
 object WafRuleGroupClient {

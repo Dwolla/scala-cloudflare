@@ -196,7 +196,7 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
   }
 
   "buildUri and parseUri" should {
-    val nonEmptyAlphaNumericString = Gen.asciiPrintableStr.suchThat(_.nonEmpty)
+    val nonEmptyAlphaNumericString = Gen.identifier.suchThat(_.nonEmpty)
     implicit val arbitraryZoneId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
     implicit val arbitraryFirewallRuleId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[FirewallRuleIdTag][String]))
 
@@ -209,7 +209,7 @@ class FirewallRuleClientTest extends Specification with ScalaCheck with IOMatche
         override def delete(zoneId: ZoneId, firewallRuleId: String): fs2.Stream[IO, FirewallRuleId] = ???
       }
 
-      client.parseUri(client.buildUri(zoneId, firewallRuleId)) must beSome((zoneId, firewallRuleId))
+      client.parseUri(client.buildUri(zoneId, firewallRuleId).renderString) must beSome((zoneId, firewallRuleId))
     }}
   }
 }

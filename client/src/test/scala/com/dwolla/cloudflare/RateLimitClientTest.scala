@@ -204,7 +204,7 @@ class RateLimitClientTest extends Specification with ScalaCheck with IOMatchers 
   }
 
   "buildUri and parseUri" should {
-    val nonEmptyAlphaNumericString = Gen.asciiPrintableStr.suchThat(_.nonEmpty)
+    val nonEmptyAlphaNumericString = Gen.identifier
     implicit val arbitraryZoneId: Arbitrary[String @@ ZoneIdTag] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
     implicit val arbitraryRateLimitId: Arbitrary[String @@ RateLimitIdTag] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[RateLimitIdTag][String]))
 
@@ -218,7 +218,7 @@ class RateLimitClientTest extends Specification with ScalaCheck with IOMatchers 
           override def delete(zoneId: ZoneId, rateLimitId: String): fs2.Stream[IO, RateLimitId] = ???
         }
 
-        client.parseUri(client.buildUri(zoneId, rateLimitId)) must beSome((zoneId, rateLimitId))
+        client.parseUri(client.buildUri(zoneId, rateLimitId).renderString) must beSome((zoneId, rateLimitId))
       }
     }
   }

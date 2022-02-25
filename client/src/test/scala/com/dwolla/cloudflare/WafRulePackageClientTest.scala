@@ -115,7 +115,7 @@ class WafRulePackageClientTest extends Specification with ScalaCheck with IOMatc
   }
 
   "buildUri and parseUri" should {
-    val nonEmptyAlphaNumericString = Gen.asciiPrintableStr.suchThat(_.nonEmpty)
+    val nonEmptyAlphaNumericString = Gen.identifier
     implicit val arbitraryZoneId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
     implicit val arbitraryWafRulePackageId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[WafRulePackageIdTag][String]))
 
@@ -127,7 +127,7 @@ class WafRulePackageClientTest extends Specification with ScalaCheck with IOMatc
         override def getRulePackageId(zoneId: ZoneId, name: WafRulePackageName): fs2.Stream[IO, WafRulePackageId] = ???
       }
 
-      client.parseUri(client.buildUri(zoneId, wafRulePackageId)) must beSome((zoneId, wafRulePackageId))
+      client.parseUri(client.buildUri(zoneId, wafRulePackageId).renderString) must beSome((zoneId, wafRulePackageId))
     }}
   }
 }

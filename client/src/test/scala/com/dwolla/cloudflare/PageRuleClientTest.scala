@@ -187,7 +187,7 @@ class PageRuleClientTest extends Specification with ScalaCheck with IOMatchers w
   }
 
   "buildUri and parseUri" should {
-    val nonEmptyAlphaNumericString = Gen.asciiPrintableStr.suchThat(_.nonEmpty)
+    val nonEmptyAlphaNumericString = Gen.identifier
     implicit val arbitraryZoneId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
     implicit val arbitraryPageRuleId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[PageRuleIdTag][String]))
 
@@ -200,7 +200,7 @@ class PageRuleClientTest extends Specification with ScalaCheck with IOMatchers w
         override def delete(zoneId: ZoneId, pageRuleId: String): fs2.Stream[IO, PageRuleId] = ???
       }
 
-      client.parseUri(client.buildUri(zoneId, pageRuleId)) must beSome((zoneId, pageRuleId))
+      client.parseUri(client.buildUri(zoneId, pageRuleId).renderString) must beSome((zoneId, pageRuleId))
     }}
   }
 }

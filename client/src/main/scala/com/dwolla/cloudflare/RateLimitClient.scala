@@ -10,11 +10,12 @@ import io.circe.optics.JsonPath._
 import io.circe.syntax._
 import fs2._
 import org.http4s.Method._
-import org.http4s.Request
+import org.http4s.{Request, Uri}
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
 
 import scala.util.matching.Regex
+import org.http4s.syntax.all._
 
 trait RateLimitClient[F[_]] {
   def list(zoneId: ZoneId): Stream[F, RateLimit]
@@ -32,8 +33,8 @@ trait RateLimitClient[F[_]] {
     case _ => None
   }
 
-  def buildUri(zoneId: ZoneId, rateLimitId: RateLimitId): String =
-    s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits/$rateLimitId"
+  def buildUri(zoneId: ZoneId, rateLimitId: RateLimitId): Uri =
+    uri"https://api.cloudflare.com/client/v4/zones" / zoneId / "rate_limits" / rateLimitId
 }
 
 object RateLimitClient {
