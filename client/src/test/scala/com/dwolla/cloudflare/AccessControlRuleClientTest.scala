@@ -352,7 +352,7 @@ class AccessControlRuleClientTest extends Specification with ScalaCheck with IOM
           override def delete(level: Level, ruleId: String): fs2.Stream[IO, AccessControlRuleId] = ???
         }
 
-        client.parseUri(client.buildUri(level, ruleId)) must beSome((level, ruleId))
+        client.parseUri(client.buildUri(level, ruleId).renderString) must beSome((level, ruleId))
       }}
     }
   }

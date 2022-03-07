@@ -1,20 +1,21 @@
 package com.dwolla.cloudflare
 
-import cats.implicits._
-import com.dwolla.cloudflare.domain.model.{ZoneId, tagZoneId}
+import cats._
+import cats.syntax.all._
+import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.ratelimits._
-import io.circe.syntax._
+import com.dwolla.cloudflare.domain.model.{ZoneId, tagZoneId}
 import io.circe._
 import io.circe.optics.JsonPath._
+import io.circe.syntax._
 import fs2._
-import cats.effect.Sync
-import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import org.http4s.Method._
-import org.http4s.Request
+import org.http4s.{Request, Uri}
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
 
 import scala.util.matching.Regex
+import org.http4s.syntax.all._
 
 trait RateLimitClient[F[_]] {
   def list(zoneId: ZoneId): Stream[F, RateLimit]
@@ -32,17 +33,17 @@ trait RateLimitClient[F[_]] {
     case _ => None
   }
 
-  def buildUri(zoneId: ZoneId, rateLimitId: RateLimitId): String =
-    s"https://api.cloudflare.com/client/v4/zones/$zoneId/rate_limits/$rateLimitId"
+  def buildUri(zoneId: ZoneId, rateLimitId: RateLimitId): Uri =
+    uri"https://api.cloudflare.com/client/v4/zones" / zoneId / "rate_limits" / rateLimitId
 }
 
 object RateLimitClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): RateLimitClient[F] = new RateLimitClientImpl[F](executor)
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): RateLimitClient[F] = new RateLimitClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/rate_limits/(.+)""".r
 }
 
-class RateLimitClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends RateLimitClient[F] with Http4sClientDsl[F] {
+class RateLimitClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends RateLimitClient[F] with Http4sClientDsl[F] {
   private def fetch(req: Request[F]): Stream[F, RateLimit] =
     executor.fetch[RateLimit](req)
 

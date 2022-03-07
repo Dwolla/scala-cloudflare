@@ -1,8 +1,7 @@
 package com.dwolla.cloudflare
 
-import _root_.io.circe._
-import _root_.io.circe.generic.auto._
-import _root_.io.circe.syntax._
+import io.circe._
+import io.circe.syntax._
 import cats._
 import cats.data.Validated._
 import cats.data._

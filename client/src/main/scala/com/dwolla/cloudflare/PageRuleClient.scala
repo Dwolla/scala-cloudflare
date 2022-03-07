@@ -1,18 +1,19 @@
 package com.dwolla.cloudflare
 
-import cats.implicits._
+import cats._
+import cats.syntax.all._
 import com.dwolla.cloudflare.domain.model.{ZoneId, tagZoneId}
 import com.dwolla.cloudflare.domain.model.pagerules._
 import io.circe.syntax._
 import io.circe._
 import io.circe.optics.JsonPath._
 import fs2._
-import cats.effect.Sync
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import org.http4s.Method._
-import org.http4s.Request
+import org.http4s.{Request, Uri}
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.syntax.all._
 
 import scala.util.matching.Regex
 
@@ -32,18 +33,18 @@ trait PageRuleClient[F[_]] {
     case _ => None
   }
 
-  def buildUri(zoneId: ZoneId, pageRuleId: PageRuleId): String =
-    s"https://api.cloudflare.com/client/v4/zones/$zoneId/pagerules/$pageRuleId"
+  def buildUri(zoneId: ZoneId, pageRuleId: PageRuleId): Uri =
+    uri"https://api.cloudflare.com/client/v4/zones" / zoneId / "pagerules" / pageRuleId
 
 }
 
 object PageRuleClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): PageRuleClient[F] = new PageRuleClientImpl[F](executor)
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): PageRuleClient[F] = new PageRuleClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/pagerules/(.+)""".r
 }
 
-class PageRuleClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends PageRuleClient[F] with Http4sClientDsl[F] {
+class PageRuleClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends PageRuleClient[F] with Http4sClientDsl[F] {
   private def fetch(req: Request[F]): Stream[F, PageRule] =
     executor.fetch[PageRule](req)
 

@@ -149,7 +149,7 @@ class FilterClientTest extends Specification with ScalaCheck with IOMatchers wit
   }
 
   "buildUri and parseUri" should {
-    val nonEmptyAlphaNumericString = Gen.asciiPrintableStr.suchThat(_.nonEmpty)
+    val nonEmptyAlphaNumericString = Gen.identifier
     implicit val arbitraryZoneId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
     implicit val arbitraryFilterId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[FilterIdTag][String]))
 
@@ -162,7 +162,7 @@ class FilterClientTest extends Specification with ScalaCheck with IOMatchers wit
         override def delete(zoneId: ZoneId, filterId: String): fs2.Stream[IO, FilterId] = ???
       }
 
-      client.parseUri(client.buildUri(zoneId, filterId)) must beSome((zoneId, filterId))
+      client.parseUri(client.buildUri(zoneId, filterId).renderString) must beSome((zoneId, filterId))
     }}
   }
 }

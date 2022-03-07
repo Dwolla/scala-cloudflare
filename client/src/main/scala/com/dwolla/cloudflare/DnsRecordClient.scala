@@ -1,21 +1,19 @@
 package com.dwolla.cloudflare
 
-import _root_.io.circe._
-import _root_.io.circe.generic.auto._
-import _root_.io.circe.optics.JsonPath._
-import _root_.io.circe.syntax._
-import _root_.org.http4s.circe._
 import cats._
-import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import com.dwolla.cloudflare.DnsRecordClientImpl.{DnsRecordContent, DnsRecordName, DnsRecordType}
 import com.dwolla.cloudflare.domain.dto.dns._
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
-import com.dwolla.cloudflare.domain.model.{Error, _}
+import com.dwolla.cloudflare.domain.model._
+import io.circe.{Error => _, _}
+import io.circe.optics.JsonPath._
+import io.circe.syntax._
 import fs2._
 import monix.newtypes.NewtypeWrapped
 import org.http4s.Method._
 import org.http4s._
+import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
 
 import scala.util.matching.Regex
@@ -40,7 +38,7 @@ trait DnsRecordClient[F[_]] {
 }
 
 object DnsRecordClient {
-  def apply[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]): DnsRecordClient[F] = new DnsRecordClientImpl[F](executor)
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): DnsRecordClient[F] = new DnsRecordClientImpl[F](executor)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/dns_records/(.+)""".r
 }
@@ -71,7 +69,7 @@ object DnsRecordClientImpl {
   }
 }
 
-class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[F]) extends DnsRecordClient[F] with Http4sClientDsl[F] {
+class DnsRecordClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends DnsRecordClient[F] with Http4sClientDsl[F] {
   import com.dwolla.cloudflare.domain.model.Implicits._
 
   private val zoneClient = ZoneClient(executor)
@@ -83,7 +81,7 @@ class DnsRecordClientImpl[F[_] : Sync](executor: StreamingCloudflareApiExecutor[
     } yield (record, zoneId)
 
   private def toUri(physicalResourceId: String): F[Uri] =
-    Uri.fromString(physicalResourceId).fold(Sync[F].raiseError, Applicative[F].pure)
+    Uri.fromString(physicalResourceId).liftTo[F]
 
   override def updateDnsRecord(record: IdentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
     for {

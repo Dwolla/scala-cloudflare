@@ -2,7 +2,7 @@ package com.dwolla.cloudflare
 
 import cats._
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import com.dwolla.cloudflare.StreamingCloudflareApiExecutor._
 import com.dwolla.cloudflare.domain.dto._
 import com.dwolla.cloudflare.domain.model.Exceptions._

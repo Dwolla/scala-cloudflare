@@ -1,7 +1,5 @@
 package com.dwolla.cloudflare
 
-import java.time.Instant
-
 import com.dwolla.cloudflare.domain.dto.logpush.{CreateJobDTO, CreateOwnershipDTO, LogpushJobDTO, LogpushOwnershipDTO}
 import com.dwolla.cloudflare.domain.model.logpush._
 import com.dwolla.cloudflare.domain.model.{Implicits => _, _}
@@ -10,6 +8,8 @@ import fs2._
 import org.http4s.Method._
 import org.http4s.circe._
 import org.http4s.client.dsl.Http4sClientDsl
+
+import java.time.Instant
 
 trait LogpushClient[F[_]] {
   def list(zoneId: ZoneId): Stream[F, LogpushJob]
