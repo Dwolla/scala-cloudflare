@@ -12,7 +12,7 @@ object Dependencies {
   val fs2 = "co.fs2" %% "fs2-core" % "3.2.7"
   val dwollaFs2Utils = "com.dwolla" %% "fs2-utils" % "3.0.0-RC1"
   val shapeless = "com.chuusai" %% "shapeless" % "2.3.9"
-  val newtypes = "io.monix" %% "newtypes-core" % "0.2.2"
+  val newtypes = "io.monix" %% "newtypes-core" % "0.2.3"
 
   val circeAll: Seq[ModuleID] = Seq(
     "io.circe" %% "circe-generic",
