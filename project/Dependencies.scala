@@ -5,7 +5,7 @@ object Dependencies {
   val specs2Scalacheck = "org.specs2" %% "specs2-scalacheck" % specs2Core.revision
   val specs2Cats = "org.specs2" %% "specs2-cats" % specs2Core.revision
   val specs2CatsEffect = "org.typelevel" %% "cats-effect-testing-specs2" % "1.4.0"
-  val catsCore = "org.typelevel" %% "cats-core" % "2.7.0"
+  val catsCore = "org.typelevel" %% "cats-core" % "2.8.0"
   val catsLaws = "org.typelevel" %% "cats-core" % catsCore.revision
   val catsEffect = "org.typelevel" %% "cats-effect" % "3.3.12"
   val catsEffectLaws = "org.typelevel" %% "cats-effect-laws" % catsEffect.revision
