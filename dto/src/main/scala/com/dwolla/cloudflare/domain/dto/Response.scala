@@ -61,9 +61,9 @@ object ResponseDTO {
     messages = messages
   )
 
-  @nowarn("msg=parameter value .* is never used")
+  @nowarn("msg=parameter .* is never used")
   implicit def responseDTOEncoder[T: Encoder]: Encoder[ResponseDTO[T]] = deriveEncoder[ResponseDTO[T]]
-  @nowarn("msg=parameter value .* is never used")
+  @nowarn("msg=parameter .* is never used")
   implicit def responseDTODecoder[T: Decoder]: Decoder[ResponseDTO[T]] = deriveDecoder[ResponseDTO[T]]
 }
 
@@ -76,9 +76,9 @@ case class PagedResponseDTO[T] (
 ) extends BaseResponseDTO[T]
 
 object PagedResponseDTO {
-  @nowarn("msg=parameter value .* is never used")
+  @nowarn("msg=parameter .* is never used")
   implicit def pagedResponseDTOEncoder[T: Encoder]: Encoder[PagedResponseDTO[T]] = deriveEncoder
-  @nowarn("msg=parameter value .* is never used")
+  @nowarn("msg=parameter .* is never used")
   implicit def pagedResponseDTODecoder[T: Decoder]: Decoder[PagedResponseDTO[T]] = deriveDecoder
 }
 
