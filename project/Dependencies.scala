@@ -10,7 +10,7 @@ object Dependencies {
   val catsEffect = "org.typelevel" %% "cats-effect" % "3.5.1"
   val catsEffectLaws = "org.typelevel" %% "cats-effect-laws" % catsEffect.revision
   val fs2 = "co.fs2" %% "fs2-core" % "3.7.0"
-  val dwollaFs2Utils = "com.dwolla" %% "fs2-utils" % "3.0.0-RC1"
+  val dwollaFs2Utils = "com.dwolla" %% "fs2-utils" % "3.0.0-RC2"
   val shapeless = "com.chuusai" %% "shapeless" % "2.3.10"
   val newtypes = "io.monix" %% "newtypes-core" % "0.2.3"
 
