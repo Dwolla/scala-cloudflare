@@ -7,7 +7,7 @@ object Dependencies {
   val specs2CatsEffect = "org.typelevel" %% "cats-effect-testing-specs2" % "1.5.0"
   val catsCore = "org.typelevel" %% "cats-core" % "2.10.0"
   val catsLaws = "org.typelevel" %% "cats-core" % catsCore.revision
-  val catsEffect = "org.typelevel" %% "cats-effect" % "3.5.1"
+  val catsEffect = "org.typelevel" %% "cats-effect" % "3.5.2"
   val catsEffectLaws = "org.typelevel" %% "cats-effect-laws" % catsEffect.revision
   val fs2 = "co.fs2" %% "fs2-core" % "3.9.1"
   val dwollaFs2Utils = "com.dwolla" %% "fs2-utils" % "3.0.0-RC2"
