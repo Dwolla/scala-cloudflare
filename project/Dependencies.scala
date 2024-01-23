@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  val specs2Core = "org.specs2" %% "specs2-core" % "4.20.4"
+  val specs2Core = "org.specs2" %% "specs2-core" % "4.20.5"
   val specs2Scalacheck = "org.specs2" %% "specs2-scalacheck" % specs2Core.revision
   val specs2Cats = "org.specs2" %% "specs2-cats" % specs2Core.revision
   val specs2CatsEffect = "org.typelevel" %% "cats-effect-testing-specs2" % "1.5.0"
