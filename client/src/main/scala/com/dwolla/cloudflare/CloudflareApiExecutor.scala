@@ -52,11 +52,11 @@ class StreamingCloudflareApiExecutor[F[_] : Concurrent](client: Client[F], autho
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(cloudflareAuthorizationFormatError) =>
             Concurrent[F].raiseError(AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten))
           case single: ResponseDTO[T] if single.success =>
-            Applicative[F].pure((Chunk.seq(single.result.toSeq), None))
+            Applicative[F].pure((Chunk.from(single.result.toSeq), None))
           case PagedResponseDTO(result, true, _, _, Some(result_info)) =>
-            Applicative[F].pure((Chunk.seq(result), calculateNextPage(result_info.page, result_info.total_pages)))
+            Applicative[F].pure((Chunk.from(result), calculateNextPage(result_info.page, result_info.total_pages)))
           case PagedResponseDTO(result, true, _, _, None) =>
-            Applicative[F].pure((Chunk.seq(result), None))
+            Applicative[F].pure((Chunk.from(result), None))
           case e =>
             val errors = e.errors.toList.flatten.map(Implicits.toError)
             val messages = e.messages.toList.flatten.map(r => com.dwolla.cloudflare.domain.model.Message(r.code, r.message, None))
