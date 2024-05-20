@@ -11,7 +11,7 @@ object Dependencies {
   val catsEffectLaws = "org.typelevel" %% "cats-effect-laws" % catsEffect.revision
   val fs2 = "co.fs2" %% "fs2-core" % "3.10.2"
   val dwollaFs2Utils = "com.dwolla" %% "fs2-utils" % "3.0.0-RC2"
-  val shapeless = "com.chuusai" %% "shapeless" % "2.3.11"
+  val shapeless = "com.chuusai" %% "shapeless" % "2.3.12"
   val newtypes = "io.monix" %% "newtypes-core" % "0.2.3"
 
   val circeAll: Seq[ModuleID] = Seq(
