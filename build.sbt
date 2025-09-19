@@ -16,8 +16,7 @@ ThisBuild / developers := List(
       url("https://dwolla.com")
     ),
   )
-ThisBuild / crossScalaVersions := Seq("2.13.16", "2.12.20")
-ThisBuild / scalaVersion := crossScalaVersions.value.head
+ThisBuild / crossScalaVersions := Seq("2.12.20", "2.13.16")
 ThisBuild / startYear := Option(2016)
 ThisBuild / tlBaseVersion := "4.0"
 ThisBuild / tlJdkRelease := Option(8)
@@ -29,7 +28,9 @@ ThisBuild / mergifyStewardConfig ~= { _.map {
     .withMergeMinors(true)
 }}
 
-lazy val dto = (project in file("dto"))
+lazy val dto = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("dto"))
   .settings(
     name := "cloudflare-api-dto",
     libraryDependencies ++= Seq(
@@ -40,8 +41,13 @@ lazy val dto = (project in file("dto"))
       "io.circe" %% "circe-optics" % "0.14.1",
     ),
   )
+  .jsSettings(
+    tlVersionIntroduced ++= Map("2.12" -> "4.0.0", "2.13" -> "4.0.0"),
+  )
 
-lazy val apiClient = (project in file("client"))
+lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("client"))
   .settings(documentationSettings *)
   .settings(
     name := "cloudflare-api-client",
@@ -73,10 +79,14 @@ lazy val apiClient = (project in file("client"))
     },
   )
   .dependsOn(dto)
+  .jsSettings(
+    tlVersionIntroduced ++= Map("2.12" -> "4.0.0", "2.13" -> "4.0.0"),
+  )
 
-lazy val scalaCloudflare = (project in file("."))
-  .aggregate(dto, apiClient)
-  .enablePlugins(NoPublishPlugin)
+lazy val scalaCloudflare = tlCrossRootProject.aggregate(
+  dto,
+  apiClient,
+)
 
 val documentationSettings = Seq(
   autoAPIMappings := true,
