@@ -19,9 +19,6 @@ package object pagerules {
 }
 
 package pagerules {
-
-  import scala.annotation.nowarn
-
   trait PageRuleIdTag
 
   case class PageRule(id: Option[PageRuleId] = None,
@@ -209,7 +206,6 @@ package pagerules {
     import io.circe.generic.extras.semiauto._
     import io.circe.generic.extras.Configuration
 
-    @nowarn("msg=private val genDevConfig in object .* is never used")
     private implicit val genDevConfig: Configuration =
       Configuration
         .default

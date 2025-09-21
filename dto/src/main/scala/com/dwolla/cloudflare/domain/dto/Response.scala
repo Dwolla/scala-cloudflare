@@ -1,10 +1,8 @@
 package com.dwolla.cloudflare.domain.dto
 
-import cats.implicits._
-import io.circe._
-import io.circe.generic.semiauto._
-
-import scala.annotation.nowarn
+import cats.implicits.*
+import io.circe.*
+import io.circe.generic.semiauto.*
 
 sealed trait BaseResponseDTO[T] {
   def success: Boolean
@@ -13,7 +11,7 @@ sealed trait BaseResponseDTO[T] {
 }
 
 object BaseResponseDTO {
-  def unapply(arg: BaseResponseDTO[_]): Option[(Boolean, Option[Seq[ResponseInfoDTO]], Option[Seq[ResponseInfoDTO]])] =
+  def unapply(arg: BaseResponseDTO[?]): Option[(Boolean, Option[Seq[ResponseInfoDTO]], Option[Seq[ResponseInfoDTO]])] =
     Option((arg.success, arg.errors, arg.messages))
 
   implicit def baseResponseDTODecoder[T: Decoder]: Decoder[BaseResponseDTO[T]] =
@@ -61,9 +59,7 @@ object ResponseDTO {
     messages = messages
   )
 
-  @nowarn("msg=parameter .* is never used")
   implicit def responseDTOEncoder[T: Encoder]: Encoder[ResponseDTO[T]] = deriveEncoder[ResponseDTO[T]]
-  @nowarn("msg=parameter .* is never used")
   implicit def responseDTODecoder[T: Decoder]: Decoder[ResponseDTO[T]] = deriveDecoder[ResponseDTO[T]]
 }
 
@@ -76,9 +72,7 @@ case class PagedResponseDTO[T] (
 ) extends BaseResponseDTO[T]
 
 object PagedResponseDTO {
-  @nowarn("msg=parameter .* is never used")
   implicit def pagedResponseDTOEncoder[T: Encoder]: Encoder[PagedResponseDTO[T]] = deriveEncoder
-  @nowarn("msg=parameter .* is never used")
   implicit def pagedResponseDTODecoder[T: Decoder]: Decoder[PagedResponseDTO[T]] = deriveDecoder
 }
 

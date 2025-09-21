@@ -1,5 +1,5 @@
-logLevel := Level.Warn
-
-addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.6.1")
-addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.4.4")
-addSbtPlugin("com.github.sbt" % "sbt-github-actions" % "0.24.0")
+addSbtPlugin("org.typelevel" % "sbt-typelevel-ci-release" % "0.8.0")
+addSbtPlugin("org.typelevel" % "sbt-typelevel-settings" % "0.8.0")
+addSbtPlugin("org.typelevel" % "sbt-typelevel-mergify" % "0.8.0")
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.20.1")
+addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.3.2")

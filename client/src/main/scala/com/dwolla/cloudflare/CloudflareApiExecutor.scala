@@ -1,23 +1,22 @@
 package com.dwolla.cloudflare
 
-import cats._
-import cats.effect._
-import cats.syntax.all._
-import com.dwolla.cloudflare.StreamingCloudflareApiExecutor._
-import com.dwolla.cloudflare.domain.dto._
-import com.dwolla.cloudflare.domain.model.Exceptions._
+import cats.effect.*
+import cats.syntax.all.*
+import com.dwolla.cloudflare.StreamingCloudflareApiExecutor.*
+import com.dwolla.cloudflare.domain.dto.*
+import com.dwolla.cloudflare.domain.model.Exceptions.*
 import com.dwolla.cloudflare.domain.model.response.Implicits
 import com.dwolla.fs2utils.Pagination
 import fs2.{Chunk, Stream}
-import io.circe._
+import io.circe.*
 import monix.newtypes.NewtypeWrapped
+import org.http4s.*
 import org.http4s.Header.Single
-import org.http4s._
-import org.http4s.circe._
-import org.http4s.client._
+import org.http4s.circe.*
+import org.http4s.client.*
 import org.http4s.headers.`Content-Type`
-import org.http4s.syntax.all._
-import org.typelevel.ci._
+import org.http4s.syntax.all.*
+import org.typelevel.ci.*
 
 case class CloudflareAuthorization(email: String, key: String)
 
@@ -46,22 +45,22 @@ class StreamingCloudflareApiExecutor[F[_] : Concurrent](client: Client[F], autho
 
       for {
         pageData <- raw(pagedRequest)(responseToJson[T])
-        (chunk, nextPage) <- pageData match {
+        case (chunk, nextPage) <- pageData match {
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == Option(81057)) =>
-            Concurrent[F].raiseError(RecordAlreadyExists)
+            RecordAlreadyExists.raiseError
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(cloudflareAuthorizationFormatError) =>
-            Concurrent[F].raiseError(AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten))
+            AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten).raiseError
           case single: ResponseDTO[T] if single.success =>
-            Applicative[F].pure((Chunk.from(single.result.toSeq), None))
+            (Chunk.from(single.result.toSeq), None).pure[F]
           case PagedResponseDTO(result, true, _, _, Some(result_info)) =>
-            Applicative[F].pure((Chunk.from(result), calculateNextPage(result_info.page, result_info.total_pages)))
+            (Chunk.from(result), calculateNextPage(result_info.page, result_info.total_pages)).pure[F]
           case PagedResponseDTO(result, true, _, _, None) =>
-            Applicative[F].pure((Chunk.from(result), None))
+            (Chunk.from(result), None).pure[F]
           case e =>
             val errors = e.errors.toList.flatten.map(Implicits.toError)
             val messages = e.messages.toList.flatten.map(r => com.dwolla.cloudflare.domain.model.Message(r.code, r.message, None))
 
-            Concurrent[F].raiseError(UnexpectedCloudflareErrorException(errors, messages))
+            UnexpectedCloudflareErrorException(errors, messages).raiseError
         }
       } yield (chunk, nextPage)
     }
@@ -76,8 +75,8 @@ class StreamingCloudflareApiExecutor[F[_] : Concurrent](client: Client[F], autho
   private def responseToJson[T: Decoder](resp: Response[F]): F[BaseResponseDTO[T]] =
     resp match {
       case Status.Successful(_) | Status.NotFound(_) | Status.BadRequest(_) => resp.decodeJson[BaseResponseDTO[T]]
-      case Status.Forbidden(_) => Concurrent[F].raiseError(AccessDenied())
-      case _ => Concurrent[F].raiseError(UnexpectedCloudflareResponseStatus(resp.status))
+      case Status.Forbidden(_) => AccessDenied().raiseError
+      case _ => UnexpectedCloudflareResponseStatus(resp.status).raiseError
     }
 
   private def calculateNextPage(currentPage: Int, totalPages: Int): Option[Int] =
