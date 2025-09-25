@@ -71,9 +71,9 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
           "org.http4s" %% "http4s-server" % http4sVersion,
           "org.http4s" %% "http4s-laws" % http4sVersion,
           "org.typelevel" %% "cats-effect-laws" % "3.6.3",
-          "org.specs2" %% "specs2-core" % "4.21.0",
-          "org.specs2" %% "specs2-scalacheck" % "4.21.0",
-          "org.specs2" %% "specs2-cats" % "4.21.0",
+          "org.specs2" %% "specs2-core" % "4.22.0",
+          "org.specs2" %% "specs2-scalacheck" % "4.22.0",
+          "org.specs2" %% "specs2-cats" % "4.22.0",
           "org.typelevel" %% "cats-effect-testing-specs2" % "1.7.0",
         ).map(_ % Test)
     },
