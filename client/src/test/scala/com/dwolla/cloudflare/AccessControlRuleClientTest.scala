@@ -3,357 +3,393 @@ package com.dwolla.cloudflare
 import java.time.Instant
 
 import cats.effect._
+import cats.syntax.all._
 import com.dwolla.cloudflare.domain.model._
 import com.dwolla.cloudflare.domain.model.accesscontrolrules._
 import dwolla.cloudflare.FakeCloudflareService
 import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
-import org.specs2.ScalaCheck
-import org.specs2.matcher.{IOMatchers, Matchers}
-import org.specs2.mutable.Specification
-import org.specs2.specification.Scope
+import munit.CatsEffectSuite
+import munit.ScalaCheckSuite
 
-class AccessControlRuleClientTest extends Specification with ScalaCheck with IOMatchers with Matchers {
-  trait Setup extends Scope {
-    val accountId: AccountId = tagAccountId("account-id")
-    val zoneId: ZoneId = tagZoneId("zone-id")
-    val ruleId: AccessControlRuleId = tagAccessControlRuleId("630758d3b7274d7a96503972441b677c")
+class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
+  // Common setup values and helper
+  val accountId: AccountId = tagAccountId("account-id")
+  val zoneId: ZoneId = tagZoneId("zone-id")
+  val ruleId: AccessControlRuleId = tagAccessControlRuleId("630758d3b7274d7a96503972441b677c")
 
-    val authorization = CloudflareAuthorization("email", "key")
+  val authorization = CloudflareAuthorization("email", "key")
+
+  private def buildAccessControlRuleClient(service: HttpRoutes[IO]): AccessControlRuleClient[IO] = {
     val fakeService = new FakeCloudflareService(authorization)
-
-    protected def buildAccessControlRuleClient(service: HttpRoutes[IO]): AccessControlRuleClient[IO] =
-      AccessControlRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    AccessControlRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
-  "list" should {
+  // list
+  test("list the access control rules for the given account") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByAccount(accountId))
+    val output = client.list(Level.Account(accountId))
 
-    "list the access control rules for the given account" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByAccount(accountId))
-      private val output = client.list(Level.Account(accountId))
-
-      output.compile.toList must returnValue(List(
-        AccessControlRule(
-                    id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
-                    notes = Option("Some notes"),
-                    mode = tagAccessControlRuleMode("challenge"),
-                    configuration = AccessControlRuleConfiguration(
-                      tagAccessControlRuleConfigurationTarget("ip"),
-                      tagAccessControlRuleConfigurationValue("1.2.3.4")
-                    ),
-                    allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
-                    created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-                    modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-                    scope = Option(AccessControlRuleScope.Account(
-                      tagAccessControlRuleScopeId("fake-rule-scope"),
-                      Option("Some Account").map(tagAccessControlRuleScopeName)
-                    ))
-                  ),
-        AccessControlRule(
-                    id = Option("fake-access-rule-2").map(tagAccessControlRuleId),
-                    notes = Option("Some notes"),
-                    mode = tagAccessControlRuleMode("challenge"),
-                    configuration = AccessControlRuleConfiguration(
-                      tagAccessControlRuleConfigurationTarget("ip"),
-                      tagAccessControlRuleConfigurationValue("2.3.4.5")
-                    ),
-                    allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
-                    created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-                    modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-                    scope = Option(AccessControlRuleScope.Account(
-                      tagAccessControlRuleScopeId("fake-rule-scope"),
-                      Option("Some Account").map(tagAccessControlRuleScopeName))
-                    )
-                  )
-      ))
-    }
-
-    "list the access control rules for the given zone" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByZone(zoneId))
-      private val output = client.list(Level.Zone(zoneId))
-
-      output.compile.toList must returnValue(List(
-        AccessControlRule(
-          id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
-          notes = Option("Some notes"),
-          mode = tagAccessControlRuleMode("challenge"),
-          configuration = AccessControlRuleConfiguration(
-            tagAccessControlRuleConfigurationTarget("ip"),
-            tagAccessControlRuleConfigurationValue("1.2.3.4")
-          ),
-          allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
-          created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-          modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-          scope = Option(AccessControlRuleScope.Zone(
-            tagAccessControlRuleScopeId("fake-rule-scope"),
-            Option("Some Zone").map(tagAccessControlRuleScopeName)
-          ))
+    val expected = List(
+      AccessControlRule(
+        id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
+        notes = Option("Some notes"),
+        mode = tagAccessControlRuleMode("challenge"),
+        configuration = AccessControlRuleConfiguration(
+          tagAccessControlRuleConfigurationTarget("ip"),
+          tagAccessControlRuleConfigurationValue("1.2.3.4")
         ),
-        AccessControlRule(
-          id = Option("fake-access-rule-2").map(tagAccessControlRuleId),
-          notes = Option("Some notes"),
-          mode = tagAccessControlRuleMode("challenge"),
-          configuration = AccessControlRuleConfiguration(
-            tagAccessControlRuleConfigurationTarget("ip"),
-            tagAccessControlRuleConfigurationValue("2.3.4.5")
-          ),
-          allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
-          created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-          modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-          scope = Option(AccessControlRuleScope.Zone(
-            tagAccessControlRuleScopeId("fake-rule-scope"),
-            Option("Some Zone").map(tagAccessControlRuleScopeName))
-          )
-        )
-      ))
-    }
-
-    "list the access control rules filtered by mode for an account" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByAccountFilteredByWhitelistMode(accountId))
-      private val output = client.list(Level.Account(accountId), mode=Option("whitelist"))
-
-      output.compile.toList must returnValue(List(
-        AccessControlRule(
-          id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
-          notes = Option("Some notes"),
-          mode = tagAccessControlRuleMode("whitelist"),
-          configuration = AccessControlRuleConfiguration(
-            tagAccessControlRuleConfigurationTarget("ip"),
-            tagAccessControlRuleConfigurationValue("1.2.3.4")
-          ),
-          allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
-          created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-          modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-          scope = Option(AccessControlRuleScope.Account(
-            tagAccessControlRuleScopeId("fake-rule-scope"),
-            Option("Some Account").map(tagAccessControlRuleScopeName)
-          ))
-        )
-      ))
-    }
-
-    "list the access control rules filtered by mode for a zone" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByZoneFilteredByWhitelistMode(zoneId))
-      private val output = client.list(Level.Zone(zoneId), mode=Option("whitelist"))
-
-      output.compile.toList must returnValue(List(
-        AccessControlRule(
-          id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
-          notes = Option("Some notes"),
-          mode = tagAccessControlRuleMode("whitelist"),
-          configuration = AccessControlRuleConfiguration(
-            tagAccessControlRuleConfigurationTarget("ip"),
-            tagAccessControlRuleConfigurationValue("1.2.3.4")
-          ),
-          allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
-          created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-          modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-          scope = Option(AccessControlRuleScope.Zone(
-            tagAccessControlRuleScopeId("fake-rule-scope"),
-            Option("Some Zone").map(tagAccessControlRuleScopeName)
-          ))
-        )
-      ))
-    }
-
-    "get by id" should {
-      "return the access control rule with the given id for an account" in new Setup {
-        private val client = buildAccessControlRuleClient(fakeService.getAccessControlRuleByIdForAccount(accountId, ruleId))
-        private val output = client.getById(Level.Account(accountId), ruleId: String)
-
-        output.compile.toList must returnValue(List(
-          AccessControlRule(
-            id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
-            notes = Option("Some notes"),
-            mode = tagAccessControlRuleMode("challenge"),
-            configuration = AccessControlRuleConfiguration(
-              tagAccessControlRuleConfigurationTarget("ip"),
-              tagAccessControlRuleConfigurationValue("198.51.100.4")
-            ),
-            allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
-            created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-            modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-            scope = Option(AccessControlRuleScope.Account(
-              tagAccessControlRuleScopeId("fake-rule-scope"),
-              Option("Some Account").map(tagAccessControlRuleScopeName)
-            ))
-          )
+        allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
+        created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        scope = Option(AccessControlRuleScope.Account(
+          tagAccessControlRuleScopeId("fake-rule-scope"),
+          Option("Some Account").map(tagAccessControlRuleScopeName)
         ))
-      }
-
-      "return the access control rule with the given id for a zone" in new Setup {
-        private val client = buildAccessControlRuleClient(fakeService.getAccessControlRuleByIdForZone(zoneId, ruleId))
-        private val output = client.getById(Level.Zone(zoneId), ruleId: String)
-
-        output.compile.toList must returnValue(List(
-          AccessControlRule(
-            id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
-            notes = Option("Some notes"),
-            mode = tagAccessControlRuleMode("challenge"),
-            configuration = AccessControlRuleConfiguration(
-              tagAccessControlRuleConfigurationTarget("ip"),
-              tagAccessControlRuleConfigurationValue("198.51.100.4")
-            ),
-            allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
-            created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-            modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
-            scope = Option(AccessControlRuleScope.Account(
-              tagAccessControlRuleScopeId("fake-rule-scope"),
-              Option("Some Zone").map(tagAccessControlRuleScopeName)
-            ))
-          )
+      ),
+      AccessControlRule(
+        id = Option("fake-access-rule-2").map(tagAccessControlRuleId),
+        notes = Option("Some notes"),
+        mode = tagAccessControlRuleMode("challenge"),
+        configuration = AccessControlRuleConfiguration(
+          tagAccessControlRuleConfigurationTarget("ip"),
+          tagAccessControlRuleConfigurationValue("2.3.4.5")
+        ),
+        allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
+        created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        scope = Option(AccessControlRuleScope.Account(
+          tagAccessControlRuleScopeId("fake-rule-scope"),
+          Option("Some Account").map(tagAccessControlRuleScopeName)
         ))
-      }
-    }
-  }
-
-  "create" should {
-    val input = AccessControlRule(
-      mode = tagAccessControlRuleMode("challenge"),
-      notes = Option("Some notes"),
-      configuration = AccessControlRuleConfiguration(
-        tagAccessControlRuleConfigurationTarget("ip"),
-        tagAccessControlRuleConfigurationValue("1.2.3.4")
       )
     )
 
-    "send the json object and return its value for an account" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.createAccessControlRuleForAccount(accountId, ruleId))
-      private val output = client.create(Level.Account(accountId), input)
-
-      output.compile.toList must returnValue(List(input.copy(
-        id = Option(ruleId),
-        created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
-        modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
-        scope = Option(AccessControlRuleScope.Account(
-          id = tagAccessControlRuleScopeId("fake-rule-scope"),
-          name = Option("Some Account").map(tagAccessControlRuleScopeName)
-        ))
-      )))
-    }
-
-    "send the json object and return its value for a zone" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.createAccessControlRuleForZone(zoneId, ruleId))
-      private val output = client.create(Level.Zone(zoneId), input)
-
-      output.compile.toList must returnValue(List(input.copy(
-        id = Option(ruleId),
-        created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
-        modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
-        scope = Option(AccessControlRuleScope.Zone(
-          id = tagAccessControlRuleScopeId("fake-rule-scope"),
-          name = Option("Some Zone").map(tagAccessControlRuleScopeName)
-        ))
-      )))
-    }
+    assertIO(output.compile.toList, expected)
   }
 
-  "update" should {
-    val unidentifiedInput = AccessControlRule(
-      mode = tagAccessControlRuleMode("challenge"),
-      notes = Option("Some notes"),
-      configuration = AccessControlRuleConfiguration(
-        tagAccessControlRuleConfigurationTarget("ip"),
-        tagAccessControlRuleConfigurationValue("1.2.3.4")
+  test("list the access control rules for the given zone") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByZone(zoneId))
+    val output = client.list(Level.Zone(zoneId))
+
+    val expected = List(
+      AccessControlRule(
+        id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
+        notes = Option("Some notes"),
+        mode = tagAccessControlRuleMode("challenge"),
+        configuration = AccessControlRuleConfiguration(
+          tagAccessControlRuleConfigurationTarget("ip"),
+          tagAccessControlRuleConfigurationValue("1.2.3.4")
+        ),
+        allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
+        created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        scope = Option(AccessControlRuleScope.Zone(
+          tagAccessControlRuleScopeId("fake-rule-scope"),
+          Option("Some Zone").map(tagAccessControlRuleScopeName)
+        ))
+      ),
+      AccessControlRule(
+        id = Option("fake-access-rule-2").map(tagAccessControlRuleId),
+        notes = Option("Some notes"),
+        mode = tagAccessControlRuleMode("challenge"),
+        configuration = AccessControlRuleConfiguration(
+          tagAccessControlRuleConfigurationTarget("ip"),
+          tagAccessControlRuleConfigurationValue("2.3.4.5")
+        ),
+        allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
+        created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        scope = Option(AccessControlRuleScope.Zone(
+          tagAccessControlRuleScopeId("fake-rule-scope"),
+          Option("Some Zone").map(tagAccessControlRuleScopeName)
+        ))
       )
     )
 
-    "update the given access control rule for an account" in new Setup {
-      val input = unidentifiedInput.copy(id = Option(ruleId))
-
-      private val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Account(accountId), ruleId))
-      private val output = client.update(Level.Account(accountId), input)
-
-      output.compile.toList must returnValue(List(input.copy(
-        modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
-        scope = Option(AccessControlRuleScope.Account(
-          id = tagAccessControlRuleScopeId("fake-rule-scope"),
-          name = Option("Some Account").map(tagAccessControlRuleScopeName)
-        ))
-      )))
-    }
-
-    "update the given access control rule for a zone" in new Setup {
-      val input = unidentifiedInput.copy(id = Option(ruleId))
-
-      private val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Zone(zoneId), ruleId))
-      private val output = client.update(Level.Zone(zoneId), input)
-
-      output.compile.toList must returnValue(List(input.copy(
-        modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
-        scope = Option(AccessControlRuleScope.Zone(
-          id = tagAccessControlRuleScopeId("fake-rule-scope"),
-          name = Option("Some Zone").map(tagAccessControlRuleScopeName)
-        ))
-      )))
-    }
-
-    "raise an exception when trying to update an unidentified rule for an account" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Account(accountId), ruleId))
-      private val output = client.update(Level.Account(accountId), unidentifiedInput)
-
-      output.attempt.compile.toList must returnValue(List(
-        Left(CannotUpdateUnidentifiedAccessControlRule(unidentifiedInput))
-      ))
-    }
-
-    "raise an exception when trying to update an unidentified rule for a zone" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Zone(zoneId), ruleId))
-      private val output = client.update(Level.Zone(zoneId), unidentifiedInput)
-
-      output.attempt.compile.toList must returnValue(List(
-        Left(CannotUpdateUnidentifiedAccessControlRule(unidentifiedInput))
-      ))
-    }
+    assertIO(output.compile.toList, expected)
   }
 
-  "delete" should {
-    "delete the given access control rule for an account" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.deleteAccessControlRule(Level.Account(accountId), ruleId))
-      private val output = client.delete(Level.Account(accountId), ruleId)
+  test("list the access control rules filtered by mode for an account") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByAccountFilteredByWhitelistMode(accountId))
+    val output = client.list(Level.Account(accountId), mode = Option("whitelist"))
 
-      output.compile.toList must returnValue(List(ruleId))
-    }
+    val expected = List(
+      AccessControlRule(
+        id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
+        notes = Option("Some notes"),
+        mode = tagAccessControlRuleMode("whitelist"),
+        configuration = AccessControlRuleConfiguration(
+          tagAccessControlRuleConfigurationTarget("ip"),
+          tagAccessControlRuleConfigurationValue("1.2.3.4")
+        ),
+        allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
+        created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        scope = Option(AccessControlRuleScope.Account(
+          tagAccessControlRuleScopeId("fake-rule-scope"),
+          Option("Some Account").map(tagAccessControlRuleScopeName)
+        ))
+      )
+    )
 
-    "delete the given access control rule for a zone" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.deleteAccessControlRule(Level.Zone(zoneId), ruleId))
-      private val output = client.delete(Level.Zone(zoneId), ruleId)
+    assertIO(output.compile.toList, expected)
+  }
 
-      output.compile.toList must returnValue(List(ruleId))
-    }
+  test("list the access control rules filtered by mode for a zone") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByZoneFilteredByWhitelistMode(zoneId))
+    val output = client.list(Level.Zone(zoneId), mode = Option("whitelist"))
 
-    "return success if the access control rule id doesn't exist for an account" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.deleteAccessControlThatDoesNotExist(Level.Account(accountId)))
-      private val output = client.delete(Level.Account(accountId), ruleId)
+    val expected = List(
+      AccessControlRule(
+        id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
+        notes = Option("Some notes"),
+        mode = tagAccessControlRuleMode("whitelist"),
+        configuration = AccessControlRuleConfiguration(
+          tagAccessControlRuleConfigurationTarget("ip"),
+          tagAccessControlRuleConfigurationValue("1.2.3.4")
+        ),
+        allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
+        created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        scope = Option(AccessControlRuleScope.Zone(
+          tagAccessControlRuleScopeId("fake-rule-scope"),
+          Option("Some Zone").map(tagAccessControlRuleScopeName)
+        ))
+      )
+    )
 
-      output.compile.toList must returnValue(List(ruleId))
-    }
+    assertIO(output.compile.toList, expected)
+  }
 
-    "return success if the access control rule id doesn't exist for a zone" in new Setup {
-      private val client = buildAccessControlRuleClient(fakeService.deleteAccessControlThatDoesNotExist(Level.Zone(zoneId)))
-      private val output = client.delete(Level.Zone(zoneId), ruleId)
+  // get by id
+  test("return the access control rule with the given id for an account") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.getAccessControlRuleByIdForAccount(accountId, ruleId))
+    val output = client.getById(Level.Account(accountId), ruleId: String)
 
-      output.compile.toList must returnValue(List(ruleId))
-    }
+    val expected = List(
+      AccessControlRule(
+        id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
+        notes = Option("Some notes"),
+        mode = tagAccessControlRuleMode("challenge"),
+        configuration = AccessControlRuleConfiguration(
+          tagAccessControlRuleConfigurationTarget("ip"),
+          tagAccessControlRuleConfigurationValue("198.51.100.4")
+        ),
+        allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
+        created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        scope = Option(AccessControlRuleScope.Account(
+          tagAccessControlRuleScopeId("fake-rule-scope"),
+          Option("Some Account").map(tagAccessControlRuleScopeName)
+        ))
+      )
+    )
 
-    "buildUri and parseUri" should {
-      val nonEmptyAlphaNumericString = Gen.identifier.suchThat(_.nonEmpty)
-      val genAccountLevel = nonEmptyAlphaNumericString.map(shapeless.tag[AccountIdTag][String]).map(Level.Account(_))
-      val genZoneLevel = nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]).map(Level.Zone(_))
-      implicit val arbitraryLevel: Arbitrary[Level] = Arbitrary(Gen.oneOf(genAccountLevel, genZoneLevel))
-      implicit val arbitraryRuleId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[AccessControlRuleIdTag][String]))
+    assertIO(output.compile.toList, expected)
+  }
 
-      "be the inverse of each other" >> { prop { (level: Level, ruleId: AccessControlRuleId) =>
-        val client = new AccessControlRuleClient[IO] {
-          override def list(level: Level, mode: Option[String] = None): fs2.Stream[IO, AccessControlRule] = ???
-          override def getById(level: Level, ruleId: String): fs2.Stream[IO, AccessControlRule] = ???
-          override def create(level: Level, ruleId: AccessControlRule): fs2.Stream[IO, AccessControlRule] = ???
-          override def update(level: Level, ruleId: AccessControlRule): fs2.Stream[IO, AccessControlRule] = ???
-          override def delete(level: Level, ruleId: String): fs2.Stream[IO, AccessControlRuleId] = ???
-        }
+  test("return the access control rule with the given id for a zone") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.getAccessControlRuleByIdForZone(zoneId, ruleId))
+    val output = client.getById(Level.Zone(zoneId), ruleId: String)
 
-        client.parseUri(client.buildUri(level, ruleId).renderString) must beSome((level, ruleId))
-      }}
+    val expected = List(
+      AccessControlRule(
+        id = Option("fake-access-rule-1").map(tagAccessControlRuleId),
+        notes = Option("Some notes"),
+        mode = tagAccessControlRuleMode("challenge"),
+        configuration = AccessControlRuleConfiguration(
+          tagAccessControlRuleConfigurationTarget("ip"),
+          tagAccessControlRuleConfigurationValue("198.51.100.4")
+        ),
+        allowed_modes = List("whitelist", "block", "challenge", "js_challenge"),
+        created_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        modified_on = Option("2014-01-01T05:20:00.12345Z").map(Instant.parse),
+        scope = Option(AccessControlRuleScope.Account(
+          tagAccessControlRuleScopeId("fake-rule-scope"),
+          Option("Some Zone").map(tagAccessControlRuleScopeName)
+        ))
+      )
+    )
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  // create
+  private val createInput = AccessControlRule(
+    mode = tagAccessControlRuleMode("challenge"),
+    notes = Option("Some notes"),
+    configuration = AccessControlRuleConfiguration(
+      tagAccessControlRuleConfigurationTarget("ip"),
+      tagAccessControlRuleConfigurationValue("1.2.3.4")
+    )
+  )
+
+  test("send the json object and return its value for an account") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.createAccessControlRuleForAccount(accountId, ruleId))
+    val output = client.create(Level.Account(accountId), createInput)
+
+    val expected = List(createInput.copy(
+      id = Option(ruleId),
+      created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
+      modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
+      scope = Option(AccessControlRuleScope.Account(
+        id = tagAccessControlRuleScopeId("fake-rule-scope"),
+        name = Option("Some Account").map(tagAccessControlRuleScopeName)
+      ))
+    ))
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("send the json object and return its value for a zone") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.createAccessControlRuleForZone(zoneId, ruleId))
+    val output = client.create(Level.Zone(zoneId), createInput)
+
+    val expected = List(createInput.copy(
+      id = Option(ruleId),
+      created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
+      modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
+      scope = Option(AccessControlRuleScope.Zone(
+        id = tagAccessControlRuleScopeId("fake-rule-scope"),
+        name = Option("Some Zone").map(tagAccessControlRuleScopeName)
+      ))
+    ))
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  // update
+  private val unidentifiedInput = AccessControlRule(
+    mode = tagAccessControlRuleMode("challenge"),
+    notes = Option("Some notes"),
+    configuration = AccessControlRuleConfiguration(
+      tagAccessControlRuleConfigurationTarget("ip"),
+      tagAccessControlRuleConfigurationValue("1.2.3.4")
+    )
+  )
+
+  test("update the given access control rule for an account") {
+    val input = unidentifiedInput.copy(id = Option(ruleId))
+
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Account(accountId), ruleId))
+    val output = client.update(Level.Account(accountId), input)
+
+    val expected = List(input.copy(
+      modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
+      scope = Option(AccessControlRuleScope.Account(
+        id = tagAccessControlRuleScopeId("fake-rule-scope"),
+        name = Option("Some Account").map(tagAccessControlRuleScopeName)
+      ))
+    ))
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("update the given access control rule for a zone") {
+    val input = unidentifiedInput.copy(id = Option(ruleId))
+
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Zone(zoneId), ruleId))
+    val output = client.update(Level.Zone(zoneId), input)
+
+    val expected = List(input.copy(
+      modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
+      scope = Option(AccessControlRuleScope.Zone(
+        id = tagAccessControlRuleScopeId("fake-rule-scope"),
+        name = Option("Some Zone").map(tagAccessControlRuleScopeName)
+      ))
+    ))
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("raise an exception when trying to update an unidentified rule for an account") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Account(accountId), ruleId))
+    val output = client.update(Level.Account(accountId), unidentifiedInput)
+
+    val expected = List(Left(CannotUpdateUnidentifiedAccessControlRule(unidentifiedInput)))
+
+    assertIO(output.attempt.compile.toList, expected)
+  }
+
+  test("raise an exception when trying to update an unidentified rule for a zone") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Zone(zoneId), ruleId))
+    val output = client.update(Level.Zone(zoneId), unidentifiedInput)
+
+    val expected = List(Left(CannotUpdateUnidentifiedAccessControlRule(unidentifiedInput)))
+
+    assertIO(output.attempt.compile.toList, expected)
+  }
+
+  // delete
+  test("delete the given access control rule for an account") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.deleteAccessControlRule(Level.Account(accountId), ruleId))
+    val output = client.delete(Level.Account(accountId), ruleId)
+
+    val expected = List(ruleId)
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("delete the given access control rule for a zone") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.deleteAccessControlRule(Level.Zone(zoneId), ruleId))
+    val output = client.delete(Level.Zone(zoneId), ruleId)
+
+    val expected = List(ruleId)
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("return success if the access control rule id doesn't exist for an account") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.deleteAccessControlThatDoesNotExist(Level.Account(accountId)))
+    val output = client.delete(Level.Account(accountId), ruleId)
+
+    val expected = List(ruleId)
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("return success if the access control rule id doesn't exist for a zone") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildAccessControlRuleClient(fakeService.deleteAccessControlThatDoesNotExist(Level.Zone(zoneId)))
+    val output = client.delete(Level.Zone(zoneId), ruleId)
+
+    val expected = List(ruleId)
+    assertIO(output.compile.toList, expected)
+  }
+
+  // property-based: buildUri and parseUri are inverses
+  private val nonEmptyAlphaNumericString = Gen.identifier.suchThat(_.nonEmpty)
+  private val genAccountLevel = nonEmptyAlphaNumericString.map(shapeless.tag[AccountIdTag][String]).map(Level.Account(_))
+  private val genZoneLevel = nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]).map(Level.Zone(_))
+  implicit private val arbitraryLevel: Arbitrary[Level] = Arbitrary(Gen.oneOf(genAccountLevel, genZoneLevel))
+  implicit private val arbitraryRuleId: Arbitrary[AccessControlRuleId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[AccessControlRuleIdTag][String]))
+
+  property("buildUri and parseUri should be inverses") {
+    import org.scalacheck.Prop.forAll
+
+    forAll { (level: Level, ruleId: AccessControlRuleId) =>
+      val client = new AccessControlRuleClient[IO] {
+        override def list(level: Level, mode: Option[String] = None): fs2.Stream[IO, AccessControlRule] = ???
+        override def getById(level: Level, ruleId: String): fs2.Stream[IO, AccessControlRule] = ???
+        override def create(level: Level, ruleId: AccessControlRule): fs2.Stream[IO, AccessControlRule] = ???
+        override def update(level: Level, ruleId: AccessControlRule): fs2.Stream[IO, AccessControlRule] = ???
+        override def delete(level: Level, ruleId: String): fs2.Stream[IO, AccessControlRuleId] = ???
+      }
+
+      assertEquals(client.parseUri(client.buildUri(level, ruleId).renderString), Some((level, ruleId)))
     }
   }
 }
