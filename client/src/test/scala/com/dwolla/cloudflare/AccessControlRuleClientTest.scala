@@ -2,10 +2,9 @@ package com.dwolla.cloudflare
 
 import java.time.Instant
 
-import cats.effect._
-import cats.syntax.all._
-import com.dwolla.cloudflare.domain.model._
-import com.dwolla.cloudflare.domain.model.accesscontrolrules._
+import cats.effect.*
+import com.dwolla.cloudflare.domain.model.*
+import com.dwolla.cloudflare.domain.model.accesscontrolrules.*
 import dwolla.cloudflare.FakeCloudflareService
 import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
@@ -25,8 +24,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     AccessControlRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
-  // list
-  test("list the access control rules for the given account") {
+  test("list should list the access control rules for the given account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByAccount(accountId))
     val output = client.list(Level.Account(accountId))
@@ -69,7 +67,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("list the access control rules for the given zone") {
+  test("list should list the access control rules for the given zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByZone(zoneId))
     val output = client.list(Level.Zone(zoneId))
@@ -112,7 +110,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("list the access control rules filtered by mode for an account") {
+  test("list should list the access control rules filtered by mode for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByAccountFilteredByWhitelistMode(accountId))
     val output = client.list(Level.Account(accountId), mode = Option("whitelist"))
@@ -139,7 +137,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("list the access control rules filtered by mode for a zone") {
+  test("list should list the access control rules filtered by mode for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByZoneFilteredByWhitelistMode(zoneId))
     val output = client.list(Level.Zone(zoneId), mode = Option("whitelist"))
@@ -166,8 +164,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  // get by id
-  test("return the access control rule with the given id for an account") {
+  test("get by id should return the access control rule with the given id for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.getAccessControlRuleByIdForAccount(accountId, ruleId))
     val output = client.getById(Level.Account(accountId), ruleId: String)
@@ -194,7 +191,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("return the access control rule with the given id for a zone") {
+  test("get by id should return the access control rule with the given id for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.getAccessControlRuleByIdForZone(zoneId, ruleId))
     val output = client.getById(Level.Zone(zoneId), ruleId: String)
@@ -221,7 +218,6 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  // create
   private val createInput = AccessControlRule(
     mode = tagAccessControlRuleMode("challenge"),
     notes = Option("Some notes"),
@@ -231,7 +227,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     )
   )
 
-  test("send the json object and return its value for an account") {
+  test("create should send the json object and return its value for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.createAccessControlRuleForAccount(accountId, ruleId))
     val output = client.create(Level.Account(accountId), createInput)
@@ -249,7 +245,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("send the json object and return its value for a zone") {
+  test("create should send the json object and return its value for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.createAccessControlRuleForZone(zoneId, ruleId))
     val output = client.create(Level.Zone(zoneId), createInput)
@@ -267,7 +263,6 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  // update
   private val unidentifiedInput = AccessControlRule(
     mode = tagAccessControlRuleMode("challenge"),
     notes = Option("Some notes"),
@@ -277,7 +272,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     )
   )
 
-  test("update the given access control rule for an account") {
+  test("update should update the given access control rule for an account") {
     val input = unidentifiedInput.copy(id = Option(ruleId))
 
     val fakeService = new FakeCloudflareService(authorization)
@@ -295,7 +290,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("update the given access control rule for a zone") {
+  test("update should update the given access control rule for a zone") {
     val input = unidentifiedInput.copy(id = Option(ruleId))
 
     val fakeService = new FakeCloudflareService(authorization)
@@ -313,7 +308,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("raise an exception when trying to update an unidentified rule for an account") {
+  test("update should raise an exception when trying to update an unidentified rule for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Account(accountId), ruleId))
     val output = client.update(Level.Account(accountId), unidentifiedInput)
@@ -323,7 +318,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.attempt.compile.toList, expected)
   }
 
-  test("raise an exception when trying to update an unidentified rule for a zone") {
+  test("update should raise an exception when trying to update an unidentified rule for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.updateAccessControlRule(Level.Zone(zoneId), ruleId))
     val output = client.update(Level.Zone(zoneId), unidentifiedInput)
@@ -333,8 +328,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.attempt.compile.toList, expected)
   }
 
-  // delete
-  test("delete the given access control rule for an account") {
+  test("delete should delete the given access control rule for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.deleteAccessControlRule(Level.Account(accountId), ruleId))
     val output = client.delete(Level.Account(accountId), ruleId)
@@ -343,7 +337,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("delete the given access control rule for a zone") {
+  test("delete should delete the given access control rule for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.deleteAccessControlRule(Level.Zone(zoneId), ruleId))
     val output = client.delete(Level.Zone(zoneId), ruleId)
@@ -352,7 +346,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("return success if the access control rule id doesn't exist for an account") {
+  test("delete should return success if the access control rule id doesn't exist for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.deleteAccessControlThatDoesNotExist(Level.Account(accountId)))
     val output = client.delete(Level.Account(accountId), ruleId)
@@ -361,7 +355,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
     assertIO(output.compile.toList, expected)
   }
 
-  test("return success if the access control rule id doesn't exist for a zone") {
+  test("delete should return success if the access control rule id doesn't exist for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.deleteAccessControlThatDoesNotExist(Level.Zone(zoneId)))
     val output = client.delete(Level.Zone(zoneId), ruleId)

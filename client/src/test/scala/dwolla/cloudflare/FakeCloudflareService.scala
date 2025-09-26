@@ -1,35 +1,35 @@
 package dwolla.cloudflare
 
-import java.time.Instant
-import cats.data._
-import cats.effect._
-import com.dwolla.cloudflare.StreamingCloudflareApiExecutor._
-import com.dwolla.cloudflare._
-import com.dwolla.cloudflare.domain.dto._
+import cats.data.*
+import cats.effect.*
+import com.dwolla.cloudflare.*
+import com.dwolla.cloudflare.StreamingCloudflareApiExecutor.*
+import com.dwolla.cloudflare.domain.dto.*
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
+import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.ZoneSettings.CloudflareSettingValue
-import com.dwolla.cloudflare.domain.model._
-import com.dwolla.cloudflare.domain.model.accesscontrolrules._
+import com.dwolla.cloudflare.domain.model.accesscontrolrules.*
 import com.dwolla.cloudflare.domain.model.filters.{Filter, FilterId}
-import com.dwolla.cloudflare.domain.model.firewallrules._
-import com.dwolla.cloudflare.domain.model.pagerules._
-import com.dwolla.cloudflare.domain.model.ratelimits._
+import com.dwolla.cloudflare.domain.model.firewallrules.*
+import com.dwolla.cloudflare.domain.model.pagerules.*
+import com.dwolla.cloudflare.domain.model.ratelimits.*
 import com.dwolla.cloudflare.domain.model.wafrulegroups.WafRuleGroup
 import com.dwolla.cloudflare.domain.model.wafrulepackages.WafRulePackage
 import com.dwolla.cloudflare.domain.model.wafrules.{WafRule, WafRuleId}
-import io.circe._
-import io.circe.Encoder._
-import io.circe.literal._
-import io.circe.parser._
-import io.circe.syntax._
-import org.http4s._
-import org.http4s.syntax.all._
-import org.http4s.circe._
+import io.circe.*
+import io.circe.Encoder.*
+import io.circe.literal.*
+import io.circe.parser.*
+import io.circe.syntax.*
+import org.http4s.*
+import org.http4s.circe.*
 import org.http4s.client.Client
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.middleware.VirtualHost
 import org.http4s.server.middleware.VirtualHost.exact
+import org.http4s.syntax.all.*
 
+import java.time.Instant
 import scala.annotation.nowarn
 
 @nowarn("msg=match may not be exhaustive")
@@ -42,7 +42,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
     object modeParam extends QueryParamDecoderMatcher[String]("mode")
   }
 
-  import com.dwolla.cloudflare.domain.model.Implicits._
+  import com.dwolla.cloudflare.domain.model.Implicits.*
 
   object ListZonesQueryParameters {
     object status extends QueryParamDecoderMatcher[String]("status")
@@ -125,7 +125,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
     contentFilter: Option[String] = None,
     recordTypeFilter: Option[String] = None,
   ) = {
-    import ListRecordsForZoneQueryParameters._
+    import ListRecordsForZoneQueryParameters.*
     HttpRoutes.of[IO] {
       case GET -> Root / "client" / "v4" / "zones" / zone / "dns_records" :? NameQueryParamMatcher(name) +& contentParam(c) +& recordTypeParam(t)
         if zone == zoneId &&

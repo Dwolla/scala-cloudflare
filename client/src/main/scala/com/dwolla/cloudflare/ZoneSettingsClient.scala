@@ -6,7 +6,7 @@ import cats._
 import cats.data.Validated._
 import cats.data._
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all.*
 import fs2._
 import _root_.org.http4s.circe._
 import com.dwolla.cloudflare.CloudflareSettingFunctions._

@@ -1,6 +1,6 @@
 package com.dwolla
 
-import cats.implicits._
+import cats.syntax.all.*
 import io.circe.{Decoder, Encoder}
 import shapeless.tag.@@
 

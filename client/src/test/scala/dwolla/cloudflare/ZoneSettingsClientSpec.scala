@@ -1,108 +1,105 @@
 package dwolla.cloudflare
 
-import cats.data._
-import cats.effect._
-import cats.effect.testing.specs2.CatsEffect
-import cats.implicits._
-import com.dwolla.cloudflare.CloudflareSettingFunctions._
-import com.dwolla.cloudflare._
+import cats.data.*
+import cats.effect.*
+import cats.syntax.all.*
+import com.dwolla.cloudflare.*
+import com.dwolla.cloudflare.CloudflareSettingFunctions.*
+import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.ZoneSettings.{CloudflareSecurityLevel, CloudflareTlsLevel, CloudflareWaf}
-import com.dwolla.cloudflare.domain.model._
-import io.circe.literal._
-import org.http4s._
-import org.http4s.client._
+import io.circe.literal.*
+import munit.CatsEffectSuite
+import org.http4s.*
+import org.http4s.client.*
 import org.http4s.dsl.Http4sDsl
-import org.http4s.syntax.all._
-import org.specs2.mutable.Specification
-import org.specs2.specification.Scope
+import org.http4s.syntax.all.*
 
-class ZoneSettingsClientSpec
-  extends Specification
-    with CatsEffect {
+class ZoneSettingsClientSpec extends CatsEffectSuite with Http4sDsl[IO] {
 
   private val authorization = CloudflareAuthorization("email", "key")
   private val fakeCloudflareService = new FakeCloudflareService(authorization)
   private val getZoneId = fakeCloudflareService.listZones("hydragents.xyz", SampleResponses.Successes.getZones)
 
-  trait Setup extends Scope with Http4sDsl[IO] {
-    def client(csfs: CloudflareSettingFunction*) =
-      for {
-        fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
-      } yield new ZoneSettingsClientImpl(fakeExecutor, 1) {
-        override val settings = csfs.toSet
-      }
+  private def client(csfs: CloudflareSettingFunction*) =
+    for {
+      fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
+    } yield new ZoneSettingsClientImpl(fakeExecutor, 1) {
+      override val settings = csfs.toSet
+    }
+
+  test("Zone Settings client should apply the TLS setting to the given domain") {
+    val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, None)
+
+    val zoneSettingsClient = client(setTlsLevel)(getZoneId <+> fakeCloudflareService.setTlsLevelService("fake-zone-id", "strict"))
+    val output = zoneSettingsClient.updateSettings(zone)
+
+    output.compile.last.map {
+      case Some(Validated.Valid(())) => assertEquals((), ())
+      case Some(Validated.Invalid(e)) => fail(e.toList.mkString(", "))
+      case None => fail("Expected Some result")
+    }
   }
 
-  "Zone Settings client" should {
+  test("Zone Settings client should apply the security level to the given domain") {
+    val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, Option(CloudflareSecurityLevel.High), None)
 
-    "apply the TLS setting to the given domain" in new Setup {
+    val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setSecurityLevelService("fake-zone-id", "high"))
+    val output = zoneSettingsClient.updateSettings(zone)
 
-      val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, None)
-
-      private val zoneSettingsClient = client(setTlsLevel)(getZoneId <+> fakeCloudflareService.setTlsLevelService("fake-zone-id", "strict"))
-      private val output = zoneSettingsClient.updateSettings(zone)
-
-      output.compile.last.map { _ must beSome[ValidatedNel[Throwable, Unit]].like {
-        case Validated.Valid(u) => u must_==(())
-        case Validated.Invalid(e) => throw e.head
-      }}
+    output.compile.last.map {
+      case Some(Validated.Valid(())) => assertEquals((), ())
+      case Some(Validated.Invalid(e)) => fail(e.toList.mkString(", "))
+      case None => fail("Expected Some result")
     }
+  }
 
-    "apply the security level to the given domain" in new Setup {
-      val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, Option(CloudflareSecurityLevel.High), None)
+  test("Zone Settings client should apply waf to the given domain") {
+    val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, Option(CloudflareWaf.On))
 
-      private val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setSecurityLevelService("fake-zone-id", "high"))
-      private val output = zoneSettingsClient.updateSettings(zone)
+    val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setWafService("fake-zone-id", "on"))
+    val output = zoneSettingsClient.updateSettings(zone)
 
-      output.compile.last.map { _ must beSome[ValidatedNel[Throwable, Unit]].like {
-        case Validated.Valid(u) => u must_==(())
-      }}
+    output.compile.last.map {
+      case Some(Validated.Valid(())) => assertEquals((), ())
+      case Some(Validated.Invalid(e)) => fail(e.toList.mkString(", "))
+      case None => fail("Expected Some result")
     }
+  }
 
-    "apply waf to the given domain" in new Setup {
-      val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, Option(CloudflareWaf.On))
+  test("Zone Settings client should ignore optional settings if they're not set (indicating a custom setting)") {
+    val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, None)
 
-      private val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setWafService("fake-zone-id", "on"))
-      private val output = zoneSettingsClient.updateSettings(zone)
+    def testOptionalSetting(cloudflareSettingFunction: CloudflareSettingFunction) = {
+      val zoneSettingsClient = client(cloudflareSettingFunction)(getZoneId)
+      val output = zoneSettingsClient.updateSettings(zone)
 
-      output.compile.last.map { _ must beSome[ValidatedNel[Throwable, Unit]].like {
-        case Validated.Valid(u) => u must_==(())
-      }}
-    }
-
-    "ignore optional settings if they're not set (indicating a custom setting)" in new Setup {
-      val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, None)
-
-      def testOptionalSetting(cloudflareSettingFunction: CloudflareSettingFunction) = {
-        val zoneSettingsClient = client(cloudflareSettingFunction)(getZoneId)
-        val output = zoneSettingsClient.updateSettings(zone)
-
-        output.compile.last.map { _ must beSome[ValidatedNel[Throwable, Unit]].like {
-          case Validated.Valid(u) => u must_==(())
-        }}
+      output.compile.last.map {
+        case Some(Validated.Valid(())) => assertEquals((), ())
+        case Some(Validated.Invalid(e)) => fail(e.toList.mkString(", "))
+        case None => fail("Expected Some result")
       }
-
-      private val settingsUnderTest = List(setSecurityLevel, setWaf)
-      settingsUnderTest.foreach(testOptionalSetting)
     }
 
-    "contain the default rules for all zone settings" in new Setup {
-      private val zoneSettingsClient = new ZoneSettingsClientImpl(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(HttpRoutes.empty[IO].orNotFound), authorization), 1)
+    val settingsUnderTest = List(setSecurityLevel, setWaf)
+    settingsUnderTest.traverse_(fn => testOptionalSetting(fn))
+  }
 
-      zoneSettingsClient.settings must_==(Set(setSecurityLevel, setTlsLevel, setWaf))
+  test("Zone Settings client should contain the default rules for all zone settings") {
+    val zoneSettingsClient = new ZoneSettingsClientImpl(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(HttpRoutes.empty[IO].orNotFound), authorization), 1)
+    assertEquals(zoneSettingsClient.settings, Set(setSecurityLevel, setTlsLevel, setWaf))
+  }
+
+  test("Zone Settings client should accumulate multiple errors, should they occur when updating settings") {
+    val zoneSettingsClient = ZoneSettingsClient(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(getZoneId.orNotFound), authorization))
+    val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, Option(CloudflareSecurityLevel.High), None)
+
+    val output = zoneSettingsClient.updateSettings(zone)
+
+    output.compile.last.map {
+      case Some(Validated.Invalid(nel)) => assert(nel.toList.size >= 2)
+      case Some(Validated.Valid(_)) => fail("Expected errors but got valid result")
+      case None => fail("Expected Some result")
     }
-
-    "accumulate multiple errors, should they occur when updating settings" in new Setup {
-      private val zoneSettingsClient = ZoneSettingsClient(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(getZoneId.orNotFound), authorization))
-      private val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, Option(CloudflareSecurityLevel.High), None)
-
-      private val output = zoneSettingsClient.updateSettings(zone)
-
-      output.compile.last.map { _ should beSome[ValidatedNel[Throwable, Unit]].like {
-        case Validated.Invalid(nel) => nel.toList should have size greaterThanOrEqualTo(2)
-      }}
-    }
-
   }
 
   private object SampleResponses {
@@ -141,5 +138,4 @@ class ZoneSettingsClientSpec
     }
 
   }
-
 }

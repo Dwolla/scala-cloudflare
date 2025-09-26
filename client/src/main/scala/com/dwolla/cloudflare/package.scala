@@ -1,7 +1,7 @@
 package com.dwolla
 
 import cats._
-import cats.implicits._
+import cats.syntax.all.*
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import fs2.Stream
 import org.http4s._

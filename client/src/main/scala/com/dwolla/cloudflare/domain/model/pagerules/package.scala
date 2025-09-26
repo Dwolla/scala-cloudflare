@@ -77,6 +77,16 @@ package pagerules {
   sealed trait ForwardingStatusCode
   case object PermanentRedirect extends ForwardingStatusCode
   case object TemporaryRedirect extends ForwardingStatusCode
+  object ForwardingStatusCode {
+    implicit val forwardingStatusCodeEncoder: Encoder[ForwardingStatusCode] = Encoder[Int].contramap {
+      case PermanentRedirect => 301
+      case TemporaryRedirect => 302
+    }
+    implicit val forwardingStatusCodeDecoder: Decoder[ForwardingStatusCode] = Decoder[Int].map {
+      case 301 => PermanentRedirect
+      case 302 => TemporaryRedirect
+    }
+  }
 
   sealed trait PageRuleActionEnabled
   object PageRuleActionEnabled {
@@ -191,15 +201,8 @@ package pagerules {
       case "cache_everything" => CacheEverything
     }
 
-    implicit val redirectEncoder: Encoder[ForwardingStatusCode] = Encoder[Int].contramap {
-      case PermanentRedirect => 301
-      case TemporaryRedirect => 302
-    }
-
-    implicit val redirectDecoder: Decoder[ForwardingStatusCode] = Decoder[Int].map {
-      case 301 => PermanentRedirect
-      case 302 => TemporaryRedirect
-    }
+    private[model] implicit val redirectEncoder: Encoder[ForwardingStatusCode] = ForwardingStatusCode.forwardingStatusCodeEncoder
+    private[model] implicit val redirectDecoder: Decoder[ForwardingStatusCode] = ForwardingStatusCode.forwardingStatusCodeDecoder
   }
 
   object PageRuleAction extends PageRuleActionCodec {

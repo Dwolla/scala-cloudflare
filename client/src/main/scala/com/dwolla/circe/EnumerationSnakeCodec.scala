@@ -1,9 +1,9 @@
 package com.dwolla.circe
 
-import io.circe._
+import io.circe.*
 import io.circe.generic.extras.Configuration
 import io.circe.{ DecodingFailure, Json }
-import shapeless._
+import shapeless.*
 import shapeless.labelled.{ field, FieldType }
 
 object EnumerationSnakeCodec extends EnumerationSnakeCodec

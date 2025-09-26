@@ -1,7 +1,7 @@
 package com.dwolla.circe
 
-import cats.implicits._
-import io.circe._
+import cats.syntax.all.*
+import io.circe.*
 
 object StringAsBooleanCodec extends StringAsBooleanCodec
 
