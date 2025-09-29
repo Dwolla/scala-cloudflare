@@ -21,7 +21,6 @@ ThisBuild / startYear := Option(2016)
 ThisBuild / tlBaseVersion := "4.0"
 ThisBuild / tlJdkRelease := Option(8)
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
-ThisBuild / tlMimaPreviousVersions ++= Set("4.0.0-M15", "4.0.0-M16")
 ThisBuild / tlCiReleaseBranches := Seq("main")
 ThisBuild / mergifyStewardConfig ~= { _.map {
   _.withAuthor("dwolla-oss-scala-steward[bot]")
@@ -65,6 +64,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
           "org.typelevel" %%% "cats-effect" % "3.6.3",
           "com.chuusai" %%% "shapeless" % "2.3.13",
           "io.monix" %%% "newtypes-core" % "0.3.0",
+          "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
         ) ++
         Seq(
           "com.github.alexarchambault" %%% "scalacheck-shapeless_1.15" % "1.3.0",

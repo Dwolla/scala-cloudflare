@@ -168,7 +168,7 @@ package ratelimits {
     }
   }
 
-  object RateLimitAction extends EnumerationSnakeCodec with DurationAsSecondsCodec {
+  object RateLimitAction extends DurationAsSecondsCodec {
     import io.circe.generic.extras.Configuration
 
     private implicit val genDevConfig: Configuration =
