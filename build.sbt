@@ -34,9 +34,9 @@ lazy val dto = crossProject(JVMPlatform, JSPlatform)
   .settings(
     name := "cloudflare-api-dto",
     libraryDependencies ++= Seq(
-      "io.circe" %% "circe-generic" % "0.14.14",
-      "io.circe" %% "circe-literal" % "0.14.14",
-      "io.circe" %% "circe-parser" % "0.14.14",
+      "io.circe" %% "circe-generic" % "0.14.15",
+      "io.circe" %% "circe-literal" % "0.14.15",
+      "io.circe" %% "circe-parser" % "0.14.15",
       "io.circe" %% "circe-generic-extras" % "0.14.4",
       "io.circe" %% "circe-optics" % "0.14.1",
     ),
