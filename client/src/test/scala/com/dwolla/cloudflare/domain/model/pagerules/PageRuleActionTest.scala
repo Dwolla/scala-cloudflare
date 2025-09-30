@@ -14,7 +14,7 @@ import org.http4s.syntax.all.*
 import org.scalacheck.*
 import org.scalacheck.Prop.forAll
 
-class PageRuleActionTest extends ScalaCheckSuite with ScalacheckShapeless {
+class PageRuleActionTest extends ScalaCheckSuite {
 
   // Arbitrary instances for property testing
   implicit val arbPageRuleActionEnabled: Arbitrary[PageRuleActionEnabled] =

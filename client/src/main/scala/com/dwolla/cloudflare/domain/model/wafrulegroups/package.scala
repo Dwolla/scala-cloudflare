@@ -1,7 +1,6 @@
 package com.dwolla.cloudflare.domain.model
 
-import com.dwolla.circe._
-import io.circe._
+import io.circe.*
 import io.circe.generic.semiauto
 
 package wafrulegroups {

@@ -25,7 +25,7 @@ trait RateLimitClient[F[_]] {
   def delete(zoneId: ZoneId, rateLimitId: String): Stream[F, RateLimitId]
 
   def getByUri(uri: String): Stream[F, RateLimit] = parseUri(uri).fold(Stream.empty.covaryAll[F, RateLimit]) {
-    case (zoneId, rateLimitId) => getById(zoneId, rateLimitId)
+    case (zoneId, RateLimitId(rateLimitId)) => getById(zoneId, rateLimitId)
   }
 
   def parseUri(uri: String): Option[(ZoneId, RateLimitId)] = uri match {

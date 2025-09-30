@@ -9,7 +9,6 @@ import com.dwolla.cloudflare.domain.model.response.Implicits
 import com.dwolla.fs2utils.Pagination
 import fs2.{Chunk, Stream}
 import io.circe.*
-import monix.newtypes.NewtypeWrapped
 import org.http4s.*
 import org.http4s.Header.Single
 import org.http4s.circe.*
@@ -22,12 +21,12 @@ case class CloudflareAuthorization(email: String, key: String)
 
 object StreamingCloudflareApiExecutor {
   type `X-Auth-Email` = `X-Auth-Email`.Type
-  object `X-Auth-Email` extends NewtypeWrapped[String] {
+  object `X-Auth-Email` extends CloudflareNewtype[String] {
     implicit val header: Header[`X-Auth-Email`, Single] = Header.create[`X-Auth-Email`, Single](ci"X-Auth-Email", _.value, `X-Auth-Email`(_).asRight)
   }
 
   type `X-Auth-Key` = `X-Auth-Key`.Type
-  object `X-Auth-Key` extends NewtypeWrapped[String] {
+  object `X-Auth-Key` extends CloudflareNewtype[String] {
     implicit val header: Header[`X-Auth-Key`, Single] = Header.create[`X-Auth-Key`, Single](ci"X-Auth-Key", _.value, `X-Auth-Key`(_).asRight)
   }
 }
@@ -38,14 +37,14 @@ class StreamingCloudflareApiExecutor[F[_] : Concurrent](client: Client[F], autho
     client.run(setupRequest(request)).use(f)
 
   def fetch[T: Decoder](req: Request[F]): Stream[F, T] =
-    Pagination.offsetUnfoldChunkEval[F, Int, T] { maybePageNumber: Option[Int] =>
+    Pagination.offsetUnfoldChunkEval[F, Int, T] { (maybePageNumber: Option[Int]) =>
       val pagedRequest = maybePageNumber.fold(req) { pageNumber =>
         req.withUri(req.uri.withQueryParam("page", pageNumber))
       }
 
       for {
         pageData <- raw(pagedRequest)(responseToJson[T])
-        case (chunk, nextPage) <- pageData match {
+        tuple <- pageData match {
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == Option(81057)) =>
             RecordAlreadyExists.raiseError
           case BaseResponseDTO(false, Some(errors), _) if errors.exists(cloudflareAuthorizationFormatError) =>
@@ -62,6 +61,7 @@ class StreamingCloudflareApiExecutor[F[_] : Concurrent](client: Client[F], autho
 
             UnexpectedCloudflareErrorException(errors, messages).raiseError
         }
+        (chunk, nextPage) = tuple
       } yield (chunk, nextPage)
     }
 

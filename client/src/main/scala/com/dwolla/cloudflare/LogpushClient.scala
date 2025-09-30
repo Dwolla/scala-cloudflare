@@ -56,14 +56,14 @@ class LogpushClientImpl[F[_]](executor: StreamingCloudflareApiExecutor[F]) exten
       valid = dto.valid
     )
 
-  private def toDto(destination: LogpushDestination) = CreateOwnershipDTO(destination)
+  private def toDto(destination: LogpushDestination) = CreateOwnershipDTO(destination.value)
 
   private def toDto(model: CreateJob) =
     CreateJobDTO(
-      destination_conf = model.destinationConf,
+      destination_conf = model.destinationConf.value,
       ownership_challenge = model.ownershipChallenge,
       name = model.name,
       enabled = model.enabled,
-      logpull_options = model.logpullOptions
+      logpull_options = model.logpullOptions.map(_.value)
     )
 }

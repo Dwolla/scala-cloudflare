@@ -25,7 +25,7 @@ trait PageRuleClient[F[_]] {
   def delete(zoneId: ZoneId, pageRuleId: String): Stream[F, PageRuleId]
 
   def getByUri(uri: String): Stream[F, PageRule] = parseUri(uri).fold(Stream.empty.covaryAll[F, PageRule]) {
-    case (zoneId, pageRuleId) => getById(zoneId, pageRuleId)
+    case (zoneId, PageRuleId(pageRuleId)) => getById(zoneId, pageRuleId)
   }
 
   def parseUri(uri: String): Option[(ZoneId, PageRuleId)] = uri match {

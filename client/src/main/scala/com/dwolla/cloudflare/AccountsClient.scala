@@ -18,7 +18,7 @@ trait AccountsClient[F[_]] {
   def getByName(name: String): Stream[F, Account]
   def listRoles(accountId: AccountId): Stream[F, AccountRole]
 
-  def getByUri(uri: String): Stream[F, Account] = parseUri(uri).fold(Stream.empty.covaryAll[F, Account])(getById)
+  def getByUri(uri: String): Stream[F, Account] = parseUri(uri).map(_.value).fold(Stream.empty.covaryAll[F, Account])(getById)
 
   def parseUri(uri: String): Option[AccountId] = uri match {
     case AccountsClient.uriRegex(accountId) => Option(tagAccountId(accountId))

@@ -25,7 +25,7 @@ trait FirewallRuleClient[F[_]] {
   def delete(zoneId: ZoneId, firewallRuleId: String): Stream[F, FirewallRuleId]
 
   def getByUri(uri: String): Stream[F, FirewallRule] = parseUri(uri).fold(Stream.empty.covaryAll[F, FirewallRule]) {
-    case (zoneId, firewallRuleId) => getById(zoneId, firewallRuleId)
+    case (zoneId, FirewallRuleId(firewallRuleId)) => getById(zoneId, firewallRuleId)
   }
 
   def parseUri(uri: String): Option[(ZoneId, FirewallRuleId)] = uri match {

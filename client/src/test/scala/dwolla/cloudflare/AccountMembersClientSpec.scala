@@ -9,21 +9,18 @@ import io.circe.literal.*
 import munit.CatsEffectSuite
 import org.http4s.*
 import org.http4s.client.Client
-import shapeless.tag.@@
 
 class AccountMembersClientSpec extends CatsEffectSuite {
-
-  private def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
 
   // Common setup
   private val authorization = CloudflareAuthorization("email", "key")
   private val fakeService = new FakeCloudflareService(authorization)
 
-  private val fakeAccountId1 = tagString[AccountIdTag]("fake-account-id1")
+  private val fakeAccountId1 = AccountId("fake-account-id1")
 
   test("getMember should get account member by id and account id") {
     val accountId = fakeAccountId1
-    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+    val accountMemberId = AccountMemberId("fake-account-member-id")
 
     val http4sClient = fakeService.client(fakeService.getAccountMember(SampleResponses.Successes.accountMember, accountId, accountMemberId))
     val client = buildAccountMembersClient(http4sClient, authorization)
@@ -34,7 +31,7 @@ class AccountMembersClientSpec extends CatsEffectSuite {
       AccountMember(
         id = accountMemberId,
         user = User(
-          id = tagString[UserIdTag]("fake-user-id"),
+          id = UserId("fake-user-id"),
           firstName = None,
           lastName = None,
           emailAddress = "myemail@test.com",
@@ -66,20 +63,20 @@ class AccountMembersClientSpec extends CatsEffectSuite {
 
   test("getMember should return None if not found") {
     val accountId = fakeAccountId1
-    val accountMemberId = tagString[AccountMemberIdTag]("missing-account-member-id")
+    val accountMemberId = AccountMemberId("missing-account-member-id")
 
     val failure = SampleResponses.Failures.accountMemberDoesNotExist
     val http4sClient = fakeService.client(fakeService.getAccountMember(failure.json, accountId, accountMemberId, failure.status))
     val client = buildAccountMembersClient(http4sClient, authorization)
 
-    val output = client.getById(accountId, accountMemberId).compile.last
+    val output = client.getById(accountId, accountMemberId.value).compile.last
 
     assertIO(output, None)
   }
 
   test("addMember should add new member") {
     val accountId = fakeAccountId1
-    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+    val accountMemberId = AccountMemberId("fake-account-member-id")
     val email = "myemail@test.com"
     val roleIds = List("1111", "2222")
 
@@ -91,7 +88,7 @@ class AccountMembersClientSpec extends CatsEffectSuite {
     val expectedMember = AccountMember(
       id = accountMemberId,
       user = User(
-        id = tagString[UserIdTag]("fake-user-id"),
+        id = UserId("fake-user-id"),
         firstName = None,
         lastName = None,
         emailAddress = email,
@@ -143,12 +140,12 @@ class AccountMembersClientSpec extends CatsEffectSuite {
   test("updateMember should update existing member") {
     val email = "myemail@test.com"
     val accountId = fakeAccountId1
-    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+    val accountMemberId = AccountMemberId("fake-account-member-id")
 
     val updatedAccountMember = AccountMember(
       id = accountMemberId,
       user = User(
-        id = tagString[UserIdTag]("fake-user-id"),
+        id = UserId("fake-user-id"),
         firstName = Some("Joe"),
         lastName = Some("Smith"),
         emailAddress = email,
@@ -192,12 +189,12 @@ class AccountMembersClientSpec extends CatsEffectSuite {
 
   test("updateMember should throw unexpected exception if error updating existing member") {
     val accountId = fakeAccountId1
-    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+    val accountMemberId = AccountMemberId("fake-account-member-id")
 
     val updatedAccountMember = AccountMember(
       id = accountMemberId,
       user = User(
-        id = tagString[UserIdTag]("fake-user-id"),
+        id = UserId("fake-user-id"),
         firstName = Some("Joe"),
         lastName = Some("Smith"),
         emailAddress = "myemail@test.com",
@@ -248,25 +245,25 @@ class AccountMembersClientSpec extends CatsEffectSuite {
 
   test("removeMember should remove member from account") {
     val accountId = fakeAccountId1
-    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+    val accountMemberId = AccountMemberId("fake-account-member-id")
 
     val http4sClient = fakeService.client(fakeService.removeAccountMember(SampleResponses.Successes.removedAccountMember, accountId, accountMemberId))
     val client = buildAccountMembersClient(http4sClient, authorization)
 
-    val output = client.removeMember(accountId, accountMemberId).compile.last
+    val output = client.removeMember(accountId, accountMemberId.value).compile.last
 
     assertIO(output, Some(accountMemberId))
   }
 
   test("removeMember should throw unexpected exception if error removing member") {
     val accountId = fakeAccountId1
-    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+    val accountMemberId = AccountMemberId("fake-account-member-id")
 
     val failure = SampleResponses.Failures.accountMemberRemovalError
     val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
     val client = buildAccountMembersClient(http4sClient, authorization)
 
-    val io = client.removeMember(accountId, accountMemberId).compile.toList
+    val io = client.removeMember(accountId, accountMemberId.value).compile.toList
 
     interceptIO[UnexpectedCloudflareErrorException](io).map { ex =>
       assertEquals(ex.getMessage,
@@ -280,13 +277,13 @@ class AccountMembersClientSpec extends CatsEffectSuite {
 
   test("removeMember should throw not found exception if member not in account") {
     val accountId = fakeAccountId1
-    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+    val accountMemberId = AccountMemberId("fake-account-member-id")
 
     val failure = SampleResponses.Failures.accountDoesNotExist
     val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
     val client = buildAccountMembersClient(http4sClient, authorization)
 
-    val io = client.removeMember(accountId, accountMemberId).compile.toList
+    val io = client.removeMember(accountId, accountMemberId.value).compile.toList
 
     interceptIO[AccountMemberDoesNotExistException](io).map { ex =>
       assertEquals(ex.getMessage, "The account member fake-account-member-id not found for account fake-account-id1.")
@@ -299,7 +296,7 @@ class AccountMembersClientSpec extends CatsEffectSuite {
   private object SampleResponses {
     object Successes {
       val accountMember =
-    json"""{
+        json"""{
              "success": true,
              "errors": [],
              "messages": [],
@@ -352,7 +349,7 @@ class AccountMembersClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val updatedAccountMember =
-    json"""{
+        json"""{
              "success": true,
              "errors": [],
              "messages": [],
@@ -418,7 +415,7 @@ class AccountMembersClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val removedAccountMember =
-    json"""
+        json"""
            {
              "result": {
                "id": "fake-account-member-id"
@@ -431,10 +428,8 @@ class AccountMembersClientSpec extends CatsEffectSuite {
     }
 
     object Failures {
-      case class Failure(status: Status, json: String)
-
       val accountMemberRemovalError = Failure(Status.BadRequest,
-    json"""{
+        json"""{
              "success": false,
              "errors": [
                {
@@ -450,9 +445,8 @@ class AccountMembersClientSpec extends CatsEffectSuite {
              "result": null
            }
         """.noSpaces)
-
       val accountMemberUpdateError = Failure(Status.BadRequest,
-    json"""{
+        json"""{
              "success": false,
              "errors": [
                {
@@ -464,9 +458,8 @@ class AccountMembersClientSpec extends CatsEffectSuite {
              "result": null
            }
         """.noSpaces)
-
       val accountMemberCreationError = Failure(Status.BadRequest,
-    json"""{
+        json"""{
              "success": false,
              "errors": [
                {
@@ -478,9 +471,8 @@ class AccountMembersClientSpec extends CatsEffectSuite {
              "result": null
            }
         """.noSpaces)
-
       val accountMemberDoesNotExist = Failure(Status.NotFound,
-    json"""
+        json"""
            {
              "success": false,
              "errors": [
@@ -493,9 +485,8 @@ class AccountMembersClientSpec extends CatsEffectSuite {
              "result": null
            }
         """.noSpaces)
-
       val accountDoesNotExist = Failure(Status.NotFound,
-    json"""{
+        json"""{
              "success": false,
              "errors": [
                {
@@ -507,6 +498,8 @@ class AccountMembersClientSpec extends CatsEffectSuite {
              "result": null
            }
         """.noSpaces)
+
+      case class Failure(status: Status, json: String)
     }
   }
 

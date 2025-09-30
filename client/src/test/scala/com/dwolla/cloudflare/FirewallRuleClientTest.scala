@@ -69,7 +69,7 @@ class FirewallRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("get by id should return the firewall rule with the given id") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildFirewallRuleClient(fakeService.getFirewallRuleById(zoneId, firewallRuleId))
-    val output = client.getById(zoneId, firewallRuleId: String)
+    val output = client.getById(zoneId, firewallRuleId.value)
 
     val expected = List(FirewallRule(
       id = Option("ccbfa4a0b26b4ffa8a006e8b11557397").map(tagFirewallRuleId),
@@ -176,7 +176,7 @@ class FirewallRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should delete the given firewall rule") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildFirewallRuleClient(fakeService.deleteFirewallRule(zoneId, firewallRuleId))
-    val output = client.delete(zoneId, firewallRuleId)
+    val output = client.delete(zoneId, firewallRuleId.value)
 
     val expected = List(firewallRuleId)
     assertIO(output.compile.toList, expected)
@@ -185,7 +185,7 @@ class FirewallRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the firewall rule id doesn't exist") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildFirewallRuleClient(fakeService.deleteFirewallRuleThatDoesNotExist(zoneId, firewallRuleId, true))
-    val output = client.delete(zoneId, firewallRuleId)
+    val output = client.delete(zoneId, firewallRuleId.value)
 
     val expected = List(firewallRuleId)
     assertIO(output.compile.toList, expected)
@@ -194,7 +194,7 @@ class FirewallRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the firewall rule id is invalid") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildFirewallRuleClient(fakeService.deleteFirewallRuleThatDoesNotExist(zoneId, firewallRuleId, false))
-    val output = client.delete(zoneId, firewallRuleId)
+    val output = client.delete(zoneId, firewallRuleId.value)
 
     val expected = List(firewallRuleId)
     assertIO(output.compile.toList, expected)
@@ -202,8 +202,8 @@ class FirewallRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   // property-based: buildUri and parseUri are inverses
   private val nonEmptyAlphaNumericString = Gen.identifier.suchThat(_.nonEmpty)
-  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
-  implicit private val arbitraryFirewallRuleId: Arbitrary[FirewallRuleId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[FirewallRuleIdTag][String]))
+  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(ZoneId(_)))
+  implicit private val arbitraryFirewallRuleId: Arbitrary[FirewallRuleId] = Arbitrary(nonEmptyAlphaNumericString.map(FirewallRuleId(_)))
 
   property("buildUri and parseUri should be inverses") {
     import org.scalacheck.Prop.forAll

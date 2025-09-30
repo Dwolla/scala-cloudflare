@@ -49,7 +49,7 @@ class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("get by id should return the filter with the given id") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildFilterClient(fakeService.getFilterById(zoneId, filterId))
-    val output = client.getById(zoneId, filterId: String)
+    val output = client.getById(zoneId, filterId.value)
 
     val expected = List(Filter(
       id = Option("97a013e8b34b4909bd454d84dccc6d02").map(tagFilterId),
@@ -130,7 +130,7 @@ class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should delete the given filter") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildFilterClient(fakeService.deleteFilter(zoneId, filterId))
-    val output = client.delete(zoneId, filterId)
+    val output = client.delete(zoneId, filterId.value)
 
     val expected = List(filterId)
     assertIO(output.compile.toList, expected)
@@ -139,7 +139,7 @@ class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the filter id doesn't exist") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildFilterClient(fakeService.deleteFilterThatDoesNotExist(zoneId, filterId, true))
-    val output = client.delete(zoneId, filterId)
+    val output = client.delete(zoneId, filterId.value)
 
     val expected = List(filterId)
     assertIO(output.compile.toList, expected)
@@ -148,7 +148,7 @@ class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the filter id is invalid") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildFilterClient(fakeService.deleteFilterThatDoesNotExist(zoneId, filterId, false))
-    val output = client.delete(zoneId, filterId)
+    val output = client.delete(zoneId, filterId.value)
 
     val expected = List(filterId)
     assertIO(output.compile.toList, expected)
@@ -156,8 +156,8 @@ class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   // property-based: buildUri and parseUri are inverses
   private val nonEmptyAlphaNumericString = Gen.identifier
-  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
-  implicit private val arbitraryFilterId: Arbitrary[FilterId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[FilterIdTag][String]))
+  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(ZoneId(_)))
+  implicit private val arbitraryFilterId: Arbitrary[FilterId] = Arbitrary(nonEmptyAlphaNumericString.map(FilterId(_)))
 
   property("buildUri and parseUri should be inverses") {
     import org.scalacheck.Prop.forAll

@@ -3,20 +3,16 @@ package dwolla.cloudflare
 import cats.data.*
 import cats.effect.*
 import cats.syntax.all.*
-import com.dwolla.cloudflare.*
+import com.dwolla.cloudflare.{*, given}
 import com.dwolla.cloudflare.domain.model.Exceptions.RecordAlreadyExists
 import com.dwolla.cloudflare.domain.model.*
 import io.circe.literal.*
 import org.http4s.*
 import org.http4s.client.Client
 import org.http4s.syntax.all.*
-import shapeless.tag.@@
 import munit.CatsEffectSuite
 
 class DnsRecordClientSpec extends CatsEffectSuite {
-
-  private def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
-
   private val authorization = CloudflareAuthorization("email", "key")
   private val getZoneId = new FakeCloudflareService(authorization).listZones("dwolla.com", SampleResponses.Successes.getZones)
 
@@ -25,16 +21,16 @@ class DnsRecordClientSpec extends CatsEffectSuite {
   } yield new DnsRecordClientImpl(fakeExecutor)
 
   test("Cloudflare API Client lookup should accept a domain name and return existing record") {
-    val getDnsRecordsForZone = new FakeCloudflareService(authorization).listRecordsForZone("fake-zone-id", "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithOneResult())
+    val getDnsRecordsForZone = new FakeCloudflareService(authorization).listRecordsForZone(ZoneId("fake-zone-id"), "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithOneResult())
     val output = client(getDnsRecordsForZone <+> getZoneId)
       .getExistingDnsRecords("example.dwolla.com")
       .compile
       .last
 
     val expected = Some(IdentifiedDnsRecord(
-      physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
-      zoneId = tagString[ZoneIdTag]("fake-zone-id"),
-      resourceId = tagString[ResourceIdTag]("fake-resource-id"),
+      physicalResourceId = PhysicalResourceId("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
+      zoneId = ZoneId("fake-zone-id"),
+      resourceId = ResourceId("fake-resource-id"),
       name = "example.dwolla.com",
       content = "example.dwollalabs.com",
       recordType = "CNAME",
@@ -49,7 +45,7 @@ class DnsRecordClientSpec extends CatsEffectSuite {
     val content = "different-example.dwollalabs.com"
     val getDnsRecordsForZone = new FakeCloudflareService(authorization)
       .listRecordsForZone(
-        "fake-zone-id",
+        ZoneId("fake-zone-id"),
         "example.dwolla.com",
         SampleResponses.Successes.listDnsRecordsWithOneResult(content = content),
         contentFilter = Option(content),
@@ -60,9 +56,9 @@ class DnsRecordClientSpec extends CatsEffectSuite {
       .last
 
     val expected = Some(IdentifiedDnsRecord(
-      physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
-      zoneId = tagString[ZoneIdTag]("fake-zone-id"),
-      resourceId = tagString[ResourceIdTag]("fake-resource-id"),
+      physicalResourceId = PhysicalResourceId("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
+      zoneId = ZoneId("fake-zone-id"),
+      resourceId = ResourceId("fake-resource-id"),
       name = "example.dwolla.com",
       content = content,
       recordType = "CNAME",
@@ -77,7 +73,7 @@ class DnsRecordClientSpec extends CatsEffectSuite {
     val recordType = "A"
     val getDnsRecordsForZone = new FakeCloudflareService(authorization)
       .listRecordsForZone(
-        "fake-zone-id",
+        ZoneId("fake-zone-id"),
         "example.dwolla.com",
         SampleResponses.Successes.listDnsRecordsWithOneResult(recordType = "A", content = "192.168.0.1"),
         recordTypeFilter = Option(recordType),
@@ -88,9 +84,9 @@ class DnsRecordClientSpec extends CatsEffectSuite {
       .last
 
     val expected = Some(IdentifiedDnsRecord(
-      physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
-      zoneId = tagString[ZoneIdTag]("fake-zone-id"),
-      resourceId = tagString[ResourceIdTag]("fake-resource-id"),
+      physicalResourceId = PhysicalResourceId("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-resource-id"),
+      zoneId = ZoneId("fake-zone-id"),
+      resourceId = ResourceId("fake-resource-id"),
       name = "example.dwolla.com",
       content = "192.168.0.1",
       recordType = "A",
@@ -102,22 +98,22 @@ class DnsRecordClientSpec extends CatsEffectSuite {
   }
 
   test("Cloudflare API Client lookup should accept a domain name and return None when no matching record exists") {
-    val getDnsRecordsForZone = new FakeCloudflareService(authorization).listRecordsForZone("fake-zone-id", "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithNoResults)
+    val getDnsRecordsForZone = new FakeCloudflareService(authorization).listRecordsForZone(ZoneId("fake-zone-id"), "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithNoResults)
     val output = client(getDnsRecordsForZone <+> getZoneId).getExistingDnsRecords("example.dwolla.com").compile.last
 
     assertIO(output, None)
   }
 
   test("Cloudflare API Client lookup should accept the URI of a DNS record and return it as an IdentifiedDnsRecord") {
-    val fakeZoneId = "fake-zone-id"
+    val fakeZoneId = ZoneId("fake-zone-id")
     val fakeRecordId = "fake-record-id"
     val getDnsRecord = new FakeCloudflareService(authorization).getDnsRecordByUri(fakeZoneId, fakeRecordId)
     val output = client(getDnsRecord).getByUri(physicalResourceId(fakeZoneId, fakeRecordId)).compile.toList
 
     val expected = List(IdentifiedDnsRecord(
-      physicalResourceId = tagString[PhysicalResourceIdTag](s"https://api.cloudflare.com/client/v4/zones/$fakeZoneId/dns_records/$fakeRecordId"),
-      zoneId = tagString[ZoneIdTag](fakeZoneId),
-      resourceId = tagString[ResourceIdTag](fakeRecordId),
+      physicalResourceId = PhysicalResourceId(s"https://api.cloudflare.com/client/v4/zones/$fakeZoneId/dns_records/$fakeRecordId"),
+      zoneId = fakeZoneId,
+      resourceId = ResourceId(fakeRecordId),
       name = "example.hydragents.xyz",
       content = "content.hydragents.xyz",
       recordType = "CNAME",
@@ -127,7 +123,7 @@ class DnsRecordClientSpec extends CatsEffectSuite {
   }
 
   test("Cloudflare API Client lookup should return an empty stream if the passed URI results in the dumb Cloudflare-equivalent of a 404") {
-    val fakeZoneId = "fake-zone-id"
+    val fakeZoneId = ZoneId("fake-zone-id")
     val fakeRecordId = "fake-record-id"
     val getDnsRecord = new FakeCloudflareService(authorization).getDnsRecordByUri(fakeZoneId, fakeRecordId)
     val output = client(getDnsRecord).getByUri(physicalResourceId(fakeZoneId, "different-fake-resource-id")).compile.toList
@@ -135,11 +131,11 @@ class DnsRecordClientSpec extends CatsEffectSuite {
     assertIO(output, Nil)
   }
 
-  private def physicalResourceId(zoneId: String, recordId: String): String =
+  private def physicalResourceId(zoneId: ZoneId, recordId: String): String =
     (uri"https://api.cloudflare.com" / "client" / "v4" / "zones" / zoneId / "dns_records" / recordId).toString
 
   test("Cloudflare API client record create should accept a DNS Record and return it with its new ID") {
-    val createDnsRecord = new FakeCloudflareService(authorization).createRecordInZone("fake-zone-id")
+    val createDnsRecord = new FakeCloudflareService(authorization).createRecordInZone(ZoneId("fake-zone-id"))
     val output = client(createDnsRecord <+> getZoneId)
       .createDnsRecord(UnidentifiedDnsRecord(
         name = "example.dwolla.com",
@@ -151,9 +147,9 @@ class DnsRecordClientSpec extends CatsEffectSuite {
       .toList
 
     val expected = List(IdentifiedDnsRecord(
-      physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id"),
-      zoneId = tagString[ZoneIdTag]("fake-zone-id"),
-      resourceId = tagString[ResourceIdTag]("fake-record-id"),
+      physicalResourceId = PhysicalResourceId("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id"),
+      zoneId = ZoneId("fake-zone-id"),
+      resourceId = ResourceId("fake-record-id"),
       name = "example.dwolla.com",
       content = "example.dwollalabs.com",
       recordType = "CNAME",
@@ -165,7 +161,7 @@ class DnsRecordClientSpec extends CatsEffectSuite {
   }
 
   test("Cloudflare API client record create should return a failed stream if the record already exists") {
-    val createDnsRecordFailure = new FakeCloudflareService(authorization).createRecordThatAlreadyExists("fake-zone-id")
+    val createDnsRecordFailure = new FakeCloudflareService(authorization).createRecordThatAlreadyExists(ZoneId("fake-zone-id"))
 
     val io = client(createDnsRecordFailure <+> getZoneId)
       .createDnsRecord(
@@ -181,26 +177,26 @@ class DnsRecordClientSpec extends CatsEffectSuite {
   }
 
   test("Cloudflare API client record update should accept a DNS Record and return it with its new ID (update)") {
-    val updateDnsRecord = new FakeCloudflareService(authorization).updateRecordInZone("fake-zone-id", "fake-record-id")
+    val updateDnsRecord = new FakeCloudflareService(authorization).updateRecordInZone(ZoneId("fake-zone-id"), "fake-record-id")
     val output = client(updateDnsRecord)
       .updateDnsRecord(IdentifiedDnsRecord(
-        physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id"),
+        physicalResourceId = PhysicalResourceId("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id"),
         name = "example.dwolla.com",
         content = "new-content.dwollalabs.com",
         recordType = "CNAME",
-        zoneId = tagString[ZoneIdTag]("fake-zone-id"),
-        resourceId = tagString[ResourceIdTag]("fake-record-id"),
+        zoneId = ZoneId("fake-zone-id"),
+        resourceId = ResourceId("fake-record-id"),
       ))
       .compile
       .toList
 
     val expected = List(IdentifiedDnsRecord(
-      physicalResourceId = tagString[PhysicalResourceIdTag]("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id"),
+      physicalResourceId = PhysicalResourceId("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id"),
       name = "example.dwolla.com",
       content = "new-content.dwollalabs.com",
       recordType = "CNAME",
-      zoneId = tagString[ZoneIdTag]("fake-zone-id"),
-      resourceId = tagString[ResourceIdTag]("fake-record-id"),
+      zoneId = ZoneId("fake-zone-id"),
+      resourceId = ResourceId("fake-record-id"),
       ttl = Option(1),
       proxied = Option(false)
     ))
@@ -209,15 +205,15 @@ class DnsRecordClientSpec extends CatsEffectSuite {
   }
 
   test("Cloudflare API client delegation records delete should accept a physical resource id and return the deleted ID") {
-    val deleteDnsRecord = new FakeCloudflareService(authorization).deleteRecordInZone("fake-zone-id", "fake-record-id")
+    val deleteDnsRecord = new FakeCloudflareService(authorization).deleteRecordInZone(ZoneId("fake-zone-id"), "fake-record-id")
 
     val output = client(deleteDnsRecord).deleteDnsRecord("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id").compile.last
 
-    assertIO(output, Some(tagString[PhysicalResourceIdTag]("fake-record-id")))
+    assertIO(output, Some(PhysicalResourceId("fake-record-id")))
   }
 
   test("Cloudflare API client delegation records delete should throw an exception if the Record ID does not exist") {
-    val deleteDnsRecord = new FakeCloudflareService(authorization).failedDeleteRecordInZone("fake-zone-id", "fake-record-id", SampleResponses.Failures.deleteDnsRecordButIdDoesNotExist.json)
+    val deleteDnsRecord = new FakeCloudflareService(authorization).failedDeleteRecordInZone(ZoneId("fake-zone-id"), "fake-record-id", SampleResponses.Failures.deleteDnsRecordButIdDoesNotExist.json)
 
     val io = client(deleteDnsRecord)
       .deleteDnsRecord("https://api.cloudflare.com/client/v4/zones/fake-zone-id/dns_records/fake-record-id")
@@ -261,43 +257,8 @@ class DnsRecordClientSpec extends CatsEffectSuite {
              "messages": []
            }
         """
-
-      def listDnsRecordsWithOneResult(content: String = "example.dwollalabs.com",
-                                      recordType: String = "CNAME") =
-     json"""{
-              "result": [
-                {
-                  "id": "fake-resource-id",
-                  "type": $recordType,
-                  "name": "example.dwolla.com",
-                  "content": $content,
-                  "proxiable": true,
-                  "proxied": true,
-                  "ttl": 1,
-                  "locked": false,
-                  "zone_id": "fake-zone-id",
-                  "zone_name": "dwolla.com",
-                  "modified_on": "2016-12-20T18:45:30.268036Z",
-                  "created_on": "2016-12-20T18:45:30.268036Z",
-                  "meta": {
-                    "auto_added": false
-                  }
-                }
-              ],
-              "result_info": {
-                "page": 1,
-                "per_page": 20,
-                "total_pages": 1,
-                "count": 1,
-                "total_count": 1
-              },
-              "success": true,
-              "errors": [],
-              "messages": []
-            }""".noSpaces
-
       val listDnsRecordsWithNoResults =
-    json"""{
+        json"""{
              "result": [],
              "result_info": {
                "page": 1,
@@ -311,9 +272,8 @@ class DnsRecordClientSpec extends CatsEffectSuite {
              "messages": []
            }
         """.noSpaces
-
       val listDnsRecordsWithManyResults =
-    json"""{
+        json"""{
              "result": [
                {
                  "id": "fake-dns-record-id-1",
@@ -362,9 +322,8 @@ class DnsRecordClientSpec extends CatsEffectSuite {
              "messages": []
            }
         """.noSpaces
-
       val createDnsRecord =
-    json"""{
+        json"""{
              "success": true,
              "errors": [],
              "messages": [],
@@ -385,9 +344,8 @@ class DnsRecordClientSpec extends CatsEffectSuite {
              }
            }
         """.noSpaces
-
       val updateDnsRecord =
-    json"""{
+        json"""{
              "success": true,
              "errors": [],
              "messages": [],
@@ -408,9 +366,8 @@ class DnsRecordClientSpec extends CatsEffectSuite {
              }
            }
         """.noSpaces
-
       val deleteDnsRecord =
-    json"""{
+        json"""{
              "success": true,
              "errors": [],
              "messages": [],
@@ -419,14 +376,46 @@ class DnsRecordClientSpec extends CatsEffectSuite {
              }
            }
         """.noSpaces
+
+      def listDnsRecordsWithOneResult(content: String = "example.dwollalabs.com",
+                                      recordType: String = "CNAME") =
+        json"""{
+              "result": [
+                {
+                  "id": "fake-resource-id",
+                  "type": $recordType,
+                  "name": "example.dwolla.com",
+                  "content": $content,
+                  "proxiable": true,
+                  "proxied": true,
+                  "ttl": 1,
+                  "locked": false,
+                  "zone_id": "fake-zone-id",
+                  "zone_name": "dwolla.com",
+                  "modified_on": "2016-12-20T18:45:30.268036Z",
+                  "created_on": "2016-12-20T18:45:30.268036Z",
+                  "meta": {
+                    "auto_added": false
+                  }
+                }
+              ],
+              "result_info": {
+                "page": 1,
+                "per_page": 20,
+                "total_pages": 1,
+                "count": 1,
+                "total_count": 1
+              },
+              "success": true,
+              "errors": [],
+              "messages": []
+            }""".noSpaces
     }
 
     object Failures {
 
-      case class Failure(statusCode: Int, json: String)
-
       val deleteDnsRecordButIdDoesNotExist = Failure(400,
-    json"""{
+        json"""{
              "success": false,
              "errors": [
                {
@@ -438,9 +427,8 @@ class DnsRecordClientSpec extends CatsEffectSuite {
              "result": null
            }
         """.noSpaces)
-
       val validationError = Failure(400,
-    json"""{
+        json"""{
                "success": false,
                "errors": [
                    {
@@ -458,6 +446,8 @@ class DnsRecordClientSpec extends CatsEffectSuite {
                "result": null
            }
         """.noSpaces)
+
+      case class Failure(statusCode: Int, json: String)
     }
 
   }

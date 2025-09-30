@@ -5,7 +5,6 @@ import com.dwolla.cloudflare.ZoneClientImpl.Status.active
 import com.dwolla.cloudflare.domain.dto.dns._
 import com.dwolla.cloudflare.domain.model._
 import fs2._
-import monix.newtypes.NewtypeWrapped
 import org.http4s._
 
 trait ZoneClient[F[_]] {
@@ -27,7 +26,7 @@ class ZoneClientImpl[F[_]](executor: StreamingCloudflareApiExecutor[F]) extends 
 
 object ZoneClientImpl {
   type Domain = Domain.Type
-  object Domain extends NewtypeWrapped[String] {
+  object Domain extends CloudflareNewtype[String] {
     implicit val queryParam: QueryParam[Domain] = new QueryParam[Domain] {
       override def key: QueryParameterKey = QueryParameterKey("name")
     }

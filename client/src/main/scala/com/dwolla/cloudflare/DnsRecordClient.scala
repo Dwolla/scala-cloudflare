@@ -10,7 +10,6 @@ import io.circe.{Error => _, _}
 import io.circe.optics.JsonPath._
 import io.circe.syntax._
 import fs2._
-import monix.newtypes.NewtypeWrapped
 import org.http4s.Method._
 import org.http4s._
 import org.http4s.circe._
@@ -47,21 +46,21 @@ object DnsRecordClientImpl {
   val notFoundCodes = List(1032)
   
   private[DnsRecordClientImpl] type DnsRecordName = DnsRecordName.Type
-  private[DnsRecordClientImpl] object DnsRecordName extends NewtypeWrapped[String] {
+  private[DnsRecordClientImpl] object DnsRecordName extends CloudflareNewtype[String] {
     implicit val queryParam: QueryParam[DnsRecordName] = new QueryParam[DnsRecordName] {
       override def key: QueryParameterKey = QueryParameterKey("name")
     }
     implicit val queryParamEncoder: QueryParamEncoder[DnsRecordName] = value => QueryParameterValue(value.value)
   }
   private[DnsRecordClientImpl] type DnsRecordContent = DnsRecordContent.Type
-  private[DnsRecordClientImpl] object DnsRecordContent extends NewtypeWrapped[String] {
+  private[DnsRecordClientImpl] object DnsRecordContent extends CloudflareNewtype[String] {
     implicit val queryParam: QueryParam[DnsRecordContent] = new QueryParam[DnsRecordContent] {
       override def key: QueryParameterKey = QueryParameterKey("content")
     }
     implicit val queryParamEncoder: QueryParamEncoder[DnsRecordContent] = value => QueryParameterValue(value.value)
   }
   private[DnsRecordClientImpl] type DnsRecordType = DnsRecordType.Type
-  private[DnsRecordClientImpl] object DnsRecordType extends NewtypeWrapped[String] {
+  private[DnsRecordClientImpl] object DnsRecordType extends CloudflareNewtype[String] {
     implicit val queryParam: QueryParam[DnsRecordType] = new QueryParam[DnsRecordType] {
       override def key: QueryParameterKey = QueryParameterKey("type")
     }
@@ -78,7 +77,8 @@ class DnsRecordClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflare
     for {
       zoneId <- zoneClient.getZoneId(domainNameToZoneName(record.name))
       record <- executor.fetch[DnsRecordDTO](POST(record.toDto.asJson, BaseUrl / "zones" / zoneId / "dns_records"))
-    } yield (record, zoneId)
+      out <- Stream.emits(fromDtoZoneId(record, zoneId).toSeq)
+    } yield out
 
   private def toUri(physicalResourceId: String): F[Uri] =
     Uri.fromString(physicalResourceId).liftTo[F]
@@ -87,7 +87,8 @@ class DnsRecordClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflare
     for {
       uri <- Stream.emit(toUri(record.zoneId, record.resourceId)).covary[F]
       updatedRecord <- executor.fetch[DnsRecordDTO](PUT(record.unidentify.toDto.asJson, uri))
-    } yield (updatedRecord, record.zoneId)
+      out <- Stream.emits(fromDtoZoneId(updatedRecord, record.zoneId).toSeq)
+    } yield out
 
   private def toUri(zoneId: ZoneId, resourceId: ResourceId): Uri =
     BaseUrl / "zones" / zoneId / "dns_records" / resourceId
@@ -99,13 +100,14 @@ class DnsRecordClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflare
     for {
       uri <- Stream.emit(toUri(zoneId, resourceId)).covary[F]
       dto <- getExistingDnsRecordDto(uri).returningEmptyOnErrorCodes(7000, 7003)
-    } yield dto.identifyAs(uri.toString())
+    } yield fromDto(dto).identifyAs(uri.toString())
 
   override def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord] =
     for {
       zoneId <- zoneClient.getZoneId(domainNameToZoneName(name))
       record <- executor.fetch[DnsRecordDTO](Request[F](uri = BaseUrl / "zones" / zoneId / "dns_records" +*? DnsRecordName(name) +?? content.map(DnsRecordContent(_)) +?? recordType.map(DnsRecordType(_))))
-    } yield (record, zoneId)
+      out <- Stream.emits(fromDtoZoneId(record, zoneId).toSeq)
+    } yield out
 
   override def deleteDnsRecord(physicalResourceId: String): Stream[F, PhysicalResourceId] =
     for {
