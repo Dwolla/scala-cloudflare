@@ -58,5 +58,5 @@ class WafRuleClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareAp
       }.flatMap(_.fold(getById(zoneId, wafRulePackageId, wafRuleId))(Stream.emit(_)))
     } yield res
 
-    private val alreadyEnabledOrDisabledCodes = List(1008, 1009)
+  private val alreadyEnabledOrDisabledCodes = List(1008, 1009)
 }

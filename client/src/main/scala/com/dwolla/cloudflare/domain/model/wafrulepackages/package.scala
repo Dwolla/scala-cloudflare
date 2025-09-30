@@ -1,14 +1,13 @@
 package com.dwolla.cloudflare.domain.model
 
-import com.dwolla.circe._
-import io.circe._
+import io.circe.*
 import io.circe.generic.semiauto
-import monix.newtypes.NewtypeWrapped
+import com.dwolla.cloudflare.CloudflareNewtype
 import org.http4s.{QueryParam, QueryParamEncoder, QueryParameterKey, QueryParameterValue}
 
 package object wafrulepackages {
   type WafRulePackageName = WafRulePackageName.Type
-  object WafRulePackageName extends NewtypeWrapped[String] {
+  object WafRulePackageName extends CloudflareNewtype[String] {
     implicit val queryParam: QueryParam[WafRulePackageName] = new QueryParam[WafRulePackageName] {
       override def key: QueryParameterKey = QueryParameterKey("name")
     }

@@ -1,7 +1,7 @@
-package com.dwolla.cloudflare.domain.model.accounts
+package com.dwolla.cloudflare
+package domain.model.accounts
 
-import com.dwolla.cloudflare.BaseUrl
-import com.dwolla.cloudflare.domain.model._
+import com.dwolla.cloudflare.domain.model.*
 import org.http4s.Uri
 
 case class AccountMember(id: AccountMemberId,

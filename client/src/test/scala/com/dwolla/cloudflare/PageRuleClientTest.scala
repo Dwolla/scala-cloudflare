@@ -64,7 +64,7 @@ class PageRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("get by id should return the page rule with the given id") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildPageRuleClient(fakeService.getPageRuleById(zoneId, pageRuleId))
-    val output = client.getById(zoneId, pageRuleId: String)
+    val output = client.getById(zoneId, pageRuleId.value)
 
     val expected = List(PageRule(
       id = Option(pageRuleId),
@@ -169,7 +169,7 @@ class PageRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should delete the given page rule") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildPageRuleClient(fakeService.deletePageRule(zoneId, pageRuleId))
-    val output = client.delete(zoneId, pageRuleId)
+    val output = client.delete(zoneId, pageRuleId.value)
 
     val expected = List(pageRuleId)
     assertIO(output.compile.toList, expected)
@@ -178,7 +178,7 @@ class PageRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the page rule id doesn't exist") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildPageRuleClient(fakeService.deletePageRuleThatDoesNotExist(zoneId, true))
-    val output = client.delete(zoneId, pageRuleId)
+    val output = client.delete(zoneId, pageRuleId.value)
 
     val expected = List(pageRuleId)
     assertIO(output.compile.toList, expected)
@@ -187,7 +187,7 @@ class PageRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the page rule id is invalid") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildPageRuleClient(fakeService.deletePageRuleThatDoesNotExist(zoneId, false))
-    val output = client.delete(zoneId, pageRuleId)
+    val output = client.delete(zoneId, pageRuleId.value)
 
     val expected = List(pageRuleId)
     assertIO(output.compile.toList, expected)
@@ -195,8 +195,8 @@ class PageRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   // property-based: buildUri and parseUri are inverses
   private val nonEmptyAlphaNumericString = Gen.identifier
-  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
-  implicit private val arbitraryPageRuleId: Arbitrary[PageRuleId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[PageRuleIdTag][String]))
+  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(ZoneId(_)))
+  implicit private val arbitraryPageRuleId: Arbitrary[PageRuleId] = Arbitrary(nonEmptyAlphaNumericString.map(PageRuleId(_)))
 
   property("buildUri and parseUri should be inverses") {
     import org.scalacheck.Prop.forAll

@@ -88,12 +88,12 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
         "messages": []
       }""")
 
-  def getDnsRecordByUri(fakeZoneId: String, fakeRecordId: String) = HttpRoutes.of[IO] {
-    case req@GET -> Root / "client" / "v4" / "zones" / zoneId / "dns_records" / recordId if zoneId == fakeZoneId && recordId == fakeRecordId =>
+  def getDnsRecordByUri(fakeZoneId: ZoneId, fakeRecordId: String) = HttpRoutes.of[IO] {
+    case req@GET -> Root / "client" / "v4" / "zones" / ZoneId(zoneId) / "dns_records" / recordId if zoneId == fakeZoneId && recordId == fakeRecordId =>
       val record: DnsRecord = IdentifiedDnsRecord(
-        physicalResourceId = shapeless.tag[PhysicalResourceIdTag][String](req.uri.toString()),
-        zoneId = shapeless.tag[ZoneIdTag][String](fakeZoneId),
-        resourceId = shapeless.tag[ResourceIdTag][String](fakeRecordId),
+        physicalResourceId = PhysicalResourceId(req.uri.toString()),
+        zoneId = fakeZoneId,
+        resourceId = ResourceId(fakeRecordId),
         name = "example.hydragents.xyz",
         content = "content.hydragents.xyz",
         recordType = "CNAME",
@@ -107,7 +107,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       )
 
       Ok(responseBody.asJson)
-    case GET -> Root / "client" / "v4" / "zones" / zoneId / "dns_records" / recordId if zoneId != fakeZoneId || recordId != fakeRecordId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zoneId) / "dns_records" / recordId if zoneId != fakeZoneId || recordId != fakeRecordId =>
       BadRequest(ResponseDTO[None.type](
         result = None,
         success = false,
@@ -119,7 +119,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       ).asJson)
   }
 
-  def listRecordsForZone(zoneId: String,
+  def listRecordsForZone(zoneId: ZoneId,
     recordName: String,
     responseBody: String,
     contentFilter: Option[String] = None,
@@ -127,7 +127,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   ) = {
     import ListRecordsForZoneQueryParameters.*
     HttpRoutes.of[IO] {
-      case GET -> Root / "client" / "v4" / "zones" / zone / "dns_records" :? NameQueryParamMatcher(name) +& contentParam(c) +& recordTypeParam(t)
+      case GET -> Root / "client" / "v4" / "zones" / ZoneId(zone) / "dns_records" :? NameQueryParamMatcher(name) +& contentParam(c) +& recordTypeParam(t)
         if zone == zoneId &&
           name == recordName &&
           c == contentFilter &&
@@ -137,8 +137,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
     }
   }
 
-  def createRecordInZone(zoneId: String) = HttpRoutes.of[IO] {
-    case req@POST -> Root / "client" / "v4" / "zones" / zone / "dns_records" if zone == zoneId =>
+  def createRecordInZone(zoneId: ZoneId) = HttpRoutes.of[IO] {
+    case req@POST -> Root / "client" / "v4" / "zones" / ZoneId(zone) / "dns_records" if zone == zoneId =>
       for {
         dnsRecordDTO <- req.decodeJson[DnsRecordDTO]
         res <-
@@ -154,8 +154,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       } yield res
   }
 
-  def createRecordThatAlreadyExists(zoneId: String) = HttpRoutes.of[IO] {
-    case POST -> Root / "client" / "v4" / "zones" / zone / "dns_records" if zone == zoneId =>
+  def createRecordThatAlreadyExists(zoneId: ZoneId) = HttpRoutes.of[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / ZoneId(zone) / "dns_records" if zone == zoneId =>
       BadRequest(ResponseDTO[DnsRecordDTO](
         result = None,
         success = false,
@@ -164,8 +164,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       ).asJson)
   }
 
-  def updateRecordInZone(zoneId: String, recordId: String) = HttpRoutes.of[IO] {
-    case req@PUT -> Root / "client" / "v4" / "zones" / zone / "dns_records" / record if zone == zoneId && record == recordId =>
+  def updateRecordInZone(zoneId: ZoneId, recordId: String) = HttpRoutes.of[IO] {
+    case req@PUT -> Root / "client" / "v4" / "zones" / ZoneId(zone) / "dns_records" / record if zone == zoneId && record == recordId =>
       for {
         dnsRecordDTO <- req.decodeJson[DnsRecordDTO]
         res <-
@@ -181,10 +181,10 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       } yield res
   }
 
-  def deleteRecordInZone(zoneId: String,
+  def deleteRecordInZone(zoneId: ZoneId,
     recordId: String,
   ) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zone / "dns_records" / record if zone == zoneId && record == recordId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zone) / "dns_records" / record if zone == zoneId && record == recordId =>
       Ok(ResponseDTO[DeleteResult](
         result = DeleteResult(id = recordId),
         success = true,
@@ -193,13 +193,13 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       ).asJson)
   }
 
-  def failedDeleteRecordInZone(zoneId: String, recordId: String, responseBody: String) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zone / "dns_records" / record if zone == zoneId && record == recordId =>
+  def failedDeleteRecordInZone(zoneId: ZoneId, recordId: String, responseBody: String) = HttpRoutes.of[IO] {
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zone) / "dns_records" / record if zone == zoneId && record == recordId =>
       BadRequest(parseJson(responseBody))
   }
 
   def listRateLimits(zoneId: ZoneId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / id / "rate_limits" if id == zoneId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(id) / "rate_limits" if id == zoneId =>
       Ok(
         json"""{
                  "result": [
@@ -275,7 +275,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getRateLimitById(zoneId: ZoneId, rateLimitId: RateLimitId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "rate_limits" / rid if zid == zoneId && rid == rateLimitId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "rate_limits" / RateLimitId(rid) if zid == zoneId && rid == rateLimitId =>
       Ok(
         json"""{
                 "result": {
@@ -319,7 +319,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def createRateLimit(zoneId: ZoneId, rateLimitId: RateLimitId) = HttpRoutes.of[IO] {
-    case req@POST -> Root / "client" / "v4" / "zones" / zid / "rate_limits" if zid == zoneId =>
+    case req@POST -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "rate_limits" if zid == zoneId =>
       for {
         input <- req.decodeJson[RateLimit]
         created = input.copy(
@@ -351,7 +351,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def updateRateLimit(zoneId: ZoneId, rateLimitId: RateLimitId) = HttpRoutes.of[IO] {
-    case req@PUT -> Root / "client" / "v4" / "zones" / zid / "rate_limits" / rid if zid == zoneId && rid == rateLimitId =>
+    case req@PUT -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "rate_limits" / RateLimitId(rid) if zid == zoneId && rid == rateLimitId =>
       for {
         input <- req.decodeJson[RateLimit]
         resp <- if (input.id.isEmpty)
@@ -367,11 +367,11 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deleteRateLimit(zoneId: ZoneId, rateLimitId: RateLimitId) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zid / "rate_limits" / rid if zid == zoneId && rid == rateLimitId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "rate_limits" / RateLimitId(rid) if zid == zoneId && rid == rateLimitId =>
       Ok(
         json"""{
                  "result": {
-                   "id": ${rateLimitId: String}
+                   "id": $rateLimitId
                  },
                  "success": true,
                  "errors": [],
@@ -380,7 +380,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deleteRateLimitThatDoesNotExist(zoneId: ZoneId, validId: Boolean) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zid / "rate_limits" / _ if zid == zoneId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "rate_limits" / _ if zid == zoneId =>
       if (validId)
         Ok(
           json"""{
@@ -415,7 +415,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listAccessControlRulesByAccount(accountId: AccountId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "accounts" / id / "firewall" / "access_rules" / "rules" if id == accountId =>
+    case GET -> Root / "client" / "v4" / "accounts" / AccountId(id) / "firewall" / "access_rules" / "rules" if id == accountId =>
       Ok(
         json"""{
                  "result": [
@@ -472,7 +472,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listAccessControlRulesByZone(zoneId: ZoneId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / id / "firewall" / "access_rules" / "rules" if id == zoneId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(id) / "firewall" / "access_rules" / "rules" if id == zoneId =>
       Ok(
         json"""{
                  "result": [
@@ -529,7 +529,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listAccessControlRulesByAccountFilteredByWhitelistMode(accountId: AccountId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "accounts" / id / "firewall" / "access_rules" / "rules" :? ListAccessControlRulesParameters.modeParam("whitelist") if id == accountId =>
+    case GET -> Root / "client" / "v4" / "accounts" / AccountId(id) / "firewall" / "access_rules" / "rules" :? ListAccessControlRulesParameters.modeParam("whitelist") if id == accountId =>
       Ok(
         json"""{
                  "result": [
@@ -564,7 +564,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listAccessControlRulesByZoneFilteredByWhitelistMode(zoneId: ZoneId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / id / "firewall" / "access_rules" / "rules" :? ListAccessControlRulesParameters.modeParam("whitelist") if id == zoneId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(id) / "firewall" / "access_rules" / "rules" :? ListAccessControlRulesParameters.modeParam("whitelist") if id == zoneId =>
       Ok(
         json"""{
                  "result": [
@@ -599,7 +599,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getAccessControlRuleByIdForAccount(accountId: AccountId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "accounts" / id / "firewall" / "access_rules" / "rules" / rid if id == accountId && rid == ruleId =>
+    case GET -> Root / "client" / "v4" / "accounts" / AccountId(id) / "firewall" / "access_rules" / "rules" / AccessControlRuleId(rid) if id == accountId && rid == ruleId =>
       Ok(
         json"""{
                  "result": [
@@ -634,7 +634,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getAccessControlRuleByIdForZone(zoneId: ZoneId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / id / "firewall" / "access_rules" / "rules" / rid if id == zoneId && rid == ruleId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(id) / "firewall" / "access_rules" / "rules" / AccessControlRuleId(rid) if id == zoneId && rid == ruleId =>
       Ok(
         json"""{
                  "result": [
@@ -669,7 +669,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def createAccessControlRuleForAccount(accountId: AccountId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
-    case req@POST -> Root / "client" / "v4" / "accounts" / id / "firewall" / "access_rules" / "rules" if id == accountId =>
+    case req@POST -> Root / "client" / "v4" / "accounts" / AccountId(id) / "firewall" / "access_rules" / "rules" if id == accountId =>
       for {
         input <- req.decodeJson[AccessControlRule]
         created = input.copy(
@@ -677,8 +677,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
           created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
           modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
           scope = Option(AccessControlRuleScope.Account(
-            id = shapeless.tag[AccessControlRuleScopeIdTag][String]("fake-rule-scope"),
-            name = Option(shapeless.tag[AccessControlRuleScopeNameTag][String]("Some Account"))
+            id = AccessControlRuleScopeId("fake-rule-scope"),
+            name = Option(AccessControlRuleScopeName("Some Account"))
           ))
         )
         resp <- Ok(ResponseDTO(
@@ -691,7 +691,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def createAccessControlRuleForZone(zoneId: ZoneId, ruleId: AccessControlRuleId) = HttpRoutes.of[IO] {
-    case req@POST -> Root / "client" / "v4" / "zones" / id / "firewall" / "access_rules" / "rules" if id == zoneId =>
+    case req@POST -> Root / "client" / "v4" / "zones" / ZoneId(id) / "firewall" / "access_rules" / "rules" if id == zoneId =>
       for {
         input <- req.decodeJson[AccessControlRule]
         created = input.copy(
@@ -699,8 +699,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
           created_on = Option("1983-09-10T21:33:59.000000Z").map(Instant.parse),
           modified_on = Option("2019-01-24T11:09:11.000000Z").map(Instant.parse),
           scope = Option(AccessControlRuleScope.Zone(
-            id = shapeless.tag[AccessControlRuleScopeIdTag][String]("fake-rule-scope"),
-            name = Option(shapeless.tag[AccessControlRuleScopeNameTag][String]("Some Zone"))
+            id = AccessControlRuleScopeId("fake-rule-scope"),
+            name = Option(AccessControlRuleScopeName("Some Zone"))
           ))
         )
         resp <- Ok(ResponseDTO(
@@ -731,18 +731,18 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
     } yield resp
 
     HttpRoutes.of[IO] {
-      case req@PATCH -> Root / "client" / "v4" / lev / id / "firewall" / "access_rules" / "rules" / rid if rid == ruleId =>
+      case req@PATCH -> Root / "client" / "v4" / lev / id / "firewall" / "access_rules" / "rules" / AccessControlRuleId(rid) if rid == ruleId =>
         (lev, level) match {
-          case ("accounts", Level.Account(aid)) if aid == id =>
+          case ("accounts", Level.Account(aid)) if aid == AccountId(id) =>
             val scope = AccessControlRuleScope.Account(
-              id = shapeless.tag[AccessControlRuleScopeIdTag][String]("fake-rule-scope"),
-              name = Option(shapeless.tag[AccessControlRuleScopeNameTag][String]("Some Account"))
+              id = AccessControlRuleScopeId("fake-rule-scope"),
+              name = Option(AccessControlRuleScopeName("Some Account"))
             )
             buildResponse(req, scope)
-          case ("zones", Level.Zone(zid)) if zid == id =>
+          case ("zones", Level.Zone(zid)) if zid == ZoneId(id) =>
             val scope = AccessControlRuleScope.Zone(
-              id = shapeless.tag[AccessControlRuleScopeIdTag][String]("fake-rule-scope"),
-              name = Option(shapeless.tag[AccessControlRuleScopeNameTag][String]("Some Zone"))
+              id = AccessControlRuleScopeId("fake-rule-scope"),
+              name = Option(AccessControlRuleScopeName("Some Zone"))
             )
             buildResponse(req, scope)
         }
@@ -753,7 +753,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
     val response = Ok(
       json"""{
                  "result": {
-                   "id": ${ruleId: String}
+                   "id": $ruleId
                  },
                  "success": true,
                  "errors": [],
@@ -761,10 +761,10 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
                }""")
 
     HttpRoutes.of[IO] {
-      case DELETE -> Root / "client" / "v4" / lev / id / "firewall" / "access_rules" / "rules" / rid if rid == ruleId =>
+      case DELETE -> Root / "client" / "v4" / lev / id / "firewall" / "access_rules" / "rules" / AccessControlRuleId(rid) if rid == ruleId =>
         (lev, level) match {
-          case ("accounts", Level.Account(aid)) if aid == id => response
-          case ("zones", Level.Zone(zid)) if zid == id => response
+          case ("accounts", Level.Account(aid)) if aid == AccountId(id) => response
+          case ("zones", Level.Zone(zid)) if zid == ZoneId(id) => response
         }
     }
   }
@@ -781,8 +781,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
     HttpRoutes.of[IO] {
       case DELETE -> Root / "client" / "v4" / lev / id / "firewall" / "access_rules" / "rules" / _ if List("accounts", "zones").contains(lev) =>
         (lev, level) match {
-          case ("accounts", Level.Account(aid)) if aid == id => response
-          case ("zones", Level.Zone(zid)) if zid == id => response
+          case ("accounts", Level.Account(aid)) if aid == AccountId(id) => response
+          case ("zones", Level.Zone(zid)) if zid == ZoneId(id) => response
         }
     }
   }
@@ -797,16 +797,16 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       }
   }
 
-  def accountById(responseBody: String, accountId: String, status: Status = Status.Ok) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "accounts" / account =>
+  def accountById(responseBody: String, accountId: AccountId, status: Status = Status.Ok) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / AccountId(account) =>
       if (account != accountId) BadRequest("Invalid account id")
       else {
         IO(Response(status).withEntity(parseJson(responseBody)))
       }
   }
 
-  def listAccountRoles(pages: Map[Int, String], accountId: String) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "accounts" / account / "roles" :? OptionalPageQueryParamMatcher(pageQuery) =>
+  def listAccountRoles(pages: Map[Int, String], accountId: AccountId) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / AccountId(account) / "roles" :? OptionalPageQueryParamMatcher(pageQuery) =>
       if (account != accountId) BadRequest()
       else {
         pages.get(pageQuery.getOrElse(1)).fold(BadRequest()) { pageBody =>
@@ -815,40 +815,40 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       }
   }
 
-  def getAccountMember(responseBody: String, accountId: String, accountMemberId: String, status: Status = Status.Ok) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "accounts" / account / "members" / accountMember =>
+  def getAccountMember(responseBody: String, accountId: AccountId, accountMemberId: AccountMemberId, status: Status = Status.Ok) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "accounts" / AccountId(account) / "members" / AccountMemberId(accountMember) =>
       if (account != accountId || accountMember != accountMemberId) BadRequest()
       else {
         IO(Response(status).withEntity(parseJson(responseBody)))
       }
   }
 
-  def addAccountMember(responseBody: String, accountId: String, status: Status = Status.Ok) = HttpRoutes.of[IO] {
-    case POST -> Root / "client" / "v4" / "accounts" / account / "members" =>
+  def addAccountMember(responseBody: String, accountId: AccountId, status: Status = Status.Ok) = HttpRoutes.of[IO] {
+    case POST -> Root / "client" / "v4" / "accounts" / AccountId(account) / "members" =>
       if (account != accountId) BadRequest()
       else {
         IO(Response(status).withEntity(parseJson(responseBody)))
       }
   }
 
-  def updateAccountMember(responseBody: String, accountId: String, accountMemberId: String, status: Status = Status.Ok) = HttpRoutes.of[IO] {
-    case PUT -> Root / "client" / "v4" / "accounts" / account / "members" / accountMember =>
+  def updateAccountMember(responseBody: String, accountId: AccountId, accountMemberId: AccountMemberId, status: Status = Status.Ok) = HttpRoutes.of[IO] {
+    case PUT -> Root / "client" / "v4" / "accounts" / AccountId(account) / "members" / AccountMemberId(accountMember) =>
       if (account != accountId || accountMember != accountMemberId) BadRequest()
       else {
         IO(Response(status).withEntity(parseJson(responseBody)))
       }
   }
 
-  def removeAccountMember(responseBody: String, accountId: String, accountMemberId: String, status: Status = Status.Ok) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "accounts" / account / "members" / accountMember =>
+  def removeAccountMember(responseBody: String, accountId: AccountId, accountMemberId: AccountMemberId, status: Status = Status.Ok) = HttpRoutes.of[IO] {
+    case DELETE -> Root / "client" / "v4" / "accounts" / AccountId(account) / "members" / AccountMemberId(accountMember) =>
       if (account != accountId || accountMember != accountMemberId) BadRequest()
       else {
         IO(Response(status).withEntity(parseJson(responseBody)))
       }
   }
 
-  def setTlsLevelService(zoneId: String, expectedValue: String) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "zones" / id / "settings" / "ssl" if id == zoneId =>
+  def setTlsLevelService(zoneId: ZoneId, expectedValue: String) = HttpRoutes.of[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / ZoneId(id) / "settings" / "ssl" if id == zoneId =>
       for {
         input <- req.decodeJson[CloudflareSettingValue]
         _ <- if (input.value != expectedValue) IO.raiseError(new RuntimeException(s"Expected $expectedValue but got ${input.value}")) else IO.unit
@@ -868,8 +868,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       } yield res
   }
 
-  def setSecurityLevelService(zoneId: String, expectedValue: String) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "zones" / id / "settings" / "security_level" if id == zoneId =>
+  def setSecurityLevelService(zoneId: ZoneId, expectedValue: String) = HttpRoutes.of[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / ZoneId(id) / "settings" / "security_level" if id == zoneId =>
       for {
         input <- req.decodeJson[CloudflareSettingValue]
         _ <- if (input.value != expectedValue) IO.raiseError(new RuntimeException(s"Expected $expectedValue but got ${input.value}")) else IO.unit
@@ -889,8 +889,8 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       } yield res
   }
 
-  def setWafService(zoneId: String, expectedValue: String) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "zones" / id / "settings" / "waf" if id == zoneId =>
+  def setWafService(zoneId: ZoneId, expectedValue: String) = HttpRoutes.of[IO] {
+    case req@PATCH -> Root / "client" / "v4" / "zones" / ZoneId(id) / "settings" / "waf" if id == zoneId =>
       for {
         input <- req.decodeJson[CloudflareSettingValue]
         _ <- if (input.value != expectedValue) IO.raiseError(new RuntimeException(s"Expected $expectedValue but got ${input.value}")) else IO.unit
@@ -910,23 +910,23 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
       } yield res
   }
 
-  def listLogpushJobs(zoneId: String, responseBody: Json) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / id / "logpush" / "jobs" if id == zoneId =>
+  def listLogpushJobs(zoneId: ZoneId, responseBody: Json) = HttpRoutes.of[IO] {
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(id) / "logpush" / "jobs" if id == zoneId =>
       Ok(responseBody)
   }
 
-  def createLogpushOwnership(zoneId: String, responseBody: Json) = HttpRoutes.of[IO] {
-    case POST -> Root / "client" / "v4" / "zones" / id / "logpush" / "ownership" if id == zoneId =>
+  def createLogpushOwnership(zoneId: ZoneId, responseBody: Json) = HttpRoutes.of[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / ZoneId(id) / "logpush" / "ownership" if id == zoneId =>
       Ok(responseBody)
   }
 
-  def createLogpushJob(zoneId: String, responseBody: Json) = HttpRoutes.of[IO] {
-    case POST -> Root / "client" / "v4" / "zones" / id / "logpush" / "jobs" if id == zoneId =>
+  def createLogpushJob(zoneId: ZoneId, responseBody: Json) = HttpRoutes.of[IO] {
+    case POST -> Root / "client" / "v4" / "zones" / ZoneId(id) / "logpush" / "jobs" if id == zoneId =>
       Ok(responseBody)
   }
 
   def listPageRules(zoneId: ZoneId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / id / "pagerules" if id == zoneId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(id) / "pagerules" if id == zoneId =>
       Ok(
         json"""{
                  "result": [
@@ -985,7 +985,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getPageRuleById(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "pagerules" / pid if zid == zoneId && pid == pageRuleId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "pagerules" / PageRuleId(pid) if zid == zoneId && pid == pageRuleId =>
       Ok(
         json"""{
                  "result": {
@@ -1021,7 +1021,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def createPageRule(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpRoutes.of[IO] {
-    case req@POST -> Root / "client" / "v4" / "zones" / zid / "pagerules" if zid == zoneId =>
+    case req@POST -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "pagerules" if zid == zoneId =>
       for {
         input <- req.decodeJson[PageRule]
         created = input.copy(
@@ -1062,7 +1062,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def updatePageRule(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpRoutes.of[IO] {
-    case req@PUT -> Root / "client" / "v4" / "zones" / zid / "pagerules" / pid if zid == zoneId && pid == pageRuleId =>
+    case req@PUT -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "pagerules" / PageRuleId(pid) if zid == zoneId && pid == pageRuleId =>
       for {
         input <- req.decodeJson[PageRule]
         resp <- if (input.id.isEmpty)
@@ -1078,11 +1078,11 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deletePageRule(zoneId: ZoneId, pageRuleId: PageRuleId) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zid / "pagerules" / pid if zid == zoneId && pid == pageRuleId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "pagerules" / PageRuleId(pid) if zid == zoneId && pid == pageRuleId =>
       Ok(
         json"""{
                  "result": {
-                   "id": ${pageRuleId: String}
+                   "id": $pageRuleId
                  },
                  "success": true,
                  "errors": [],
@@ -1091,7 +1091,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deletePageRuleThatDoesNotExist(zoneId: ZoneId, validId: Boolean) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zid / "pagerules" / _ if zid == zoneId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "pagerules" / _ if zid == zoneId =>
       if (validId)
         Ok(
           json"""{
@@ -1126,7 +1126,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listFirewallRules(zoneId: ZoneId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / id / "firewall" / "rules" if id == zoneId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(id) / "firewall" / "rules" if id == zoneId =>
       Ok(
         json"""{
                   "result": [
@@ -1174,7 +1174,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getFirewallRuleById(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules"/ fid if zid == zoneId && fid == firewallRuleId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "rules"/ FirewallRuleId(fid) if zid == zoneId && fid == firewallRuleId =>
       Ok(
         json"""{
                   "result": {
@@ -1199,7 +1199,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def createFirewallRule(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
-    case req@POST -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" if zid == zoneId =>
+    case req@POST -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "rules" if zid == zoneId =>
       for {
         input <- req.decodeJson[List[FirewallRule]](implicitly, Decoder.decodeList[FirewallRule])
         created = input.map(_.copy(
@@ -1207,7 +1207,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
           created_on = Option("2019-12-14T01:38:21Z").map(Instant.parse),
           modified_on = Option("2019-12-14T01:38:21Z").map(Instant.parse),
         ))
-        resp <- Ok(ResponseDTO(
+        resp <- Ok(ResponseDTO[List[FirewallRule]](
           result = created,
           success = true,
           errors = None,
@@ -1235,7 +1235,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def updateFirewallRule(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
-    case req@PUT -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" / fid if zid == zoneId && fid == firewallRuleId =>
+    case req@PUT -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "rules" / FirewallRuleId(fid) if zid == zoneId && fid == firewallRuleId =>
       for {
         input <- req.decodeJson[FirewallRule]
         resp <- if (input.id.isEmpty)
@@ -1254,11 +1254,11 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deleteFirewallRule(zoneId: ZoneId, firewallRuleId: FirewallRuleId) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" / fid if zid == zoneId && fid == firewallRuleId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "rules" / FirewallRuleId(fid) if zid == zoneId && fid == firewallRuleId =>
       Ok(
         json"""{
                  "result": {
-                   "id": ${firewallRuleId: String}
+                   "id": $firewallRuleId
                  },
                  "success": true,
                  "errors": [],
@@ -1267,12 +1267,12 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deleteFirewallRuleThatDoesNotExist(zoneId: ZoneId, firewallRuleId: FirewallRuleId, validId: Boolean) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zid / "firewall" / "rules" / _ if zid == zoneId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "rules" / _ if zid == zoneId =>
       if (validId)
         Ok(
           json"""{
                     "result": {
-                      "id": ${firewallRuleId: String}
+                      "id": $firewallRuleId
                     },
                     "success": true,
                     "errors": [],
@@ -1299,7 +1299,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listFilters(zoneId: ZoneId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / id / "filters" if id == zoneId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(id) / "filters" if id == zoneId =>
       Ok(
         json"""{
                  "result": [
@@ -1324,7 +1324,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getFilterById(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "filters" / fid if zid == zoneId && fid == filterId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "filters" / FilterId(fid) if zid == zoneId && fid == filterId =>
       Ok(
         json"""{
                  "result": {
@@ -1342,13 +1342,13 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def createFilter(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
-    case req@POST -> Root / "client" / "v4" / "zones" / zid / "filters" if zid == zoneId =>
+    case req@POST -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "filters" if zid == zoneId =>
       for {
         input <- req.decodeJson[List[Filter]](implicitly, Decoder.decodeList[Filter])
         created = input.map(_.copy(
           id = Option(filterId)
         ))
-        resp <- Ok(ResponseDTO(
+        resp <- Ok(ResponseDTO[List[Filter]](
           result = created,
           success = true,
           errors = None,
@@ -1376,7 +1376,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def updateFilter(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
-    case req@PUT -> Root / "client" / "v4" / "zones" / zid / "filters" / fid if zid == zoneId && fid == filterId =>
+    case req@PUT -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "filters" / FilterId(fid) if zid == zoneId && fid == filterId =>
       for {
         input <- req.decodeJson[Filter]
         resp <- if (input.id.isEmpty)
@@ -1394,11 +1394,11 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deleteFilter(zoneId: ZoneId, filterId: FilterId) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zid / "filters" / fid if zid == zoneId && fid == filterId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "filters" / FilterId(fid) if zid == zoneId && fid == filterId =>
       Ok(
         json"""{
                  "result": {
-                   "id": ${filterId: String}
+                   "id": $filterId
                  },
                  "success": true,
                  "errors": [],
@@ -1407,12 +1407,12 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def deleteFilterThatDoesNotExist(zoneId: ZoneId, filterId: FilterId, validId: Boolean) = HttpRoutes.of[IO] {
-    case DELETE -> Root / "client" / "v4" / "zones" / zid / "filters" / _ if zid == zoneId =>
+    case DELETE -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "filters" / _ if zid == zoneId =>
       if (validId)
         Ok(
           json"""{
                     "result": {
-                      "id": ${filterId: String}
+                      "id": $filterId
                     },
                     "success": true,
                     "errors": [],
@@ -1435,7 +1435,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listWafRules(zoneId: ZoneId, packageId: WafRulePackageId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" if zid == zoneId && pid == packageId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "rules" if zid == zoneId && pid == packageId =>
       Ok(
         json"""{
                  "result": [
@@ -1478,7 +1478,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getWafRuleById(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleId: WafRuleId, mode: wafrules.Mode) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" / rid if zid == zoneId && pid == packageId && rid == wafRuleId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "rules" / WafRuleId(rid) if zid == zoneId && pid == packageId && rid == wafRuleId =>
       Ok(
         json"""{
                  "result": {
@@ -1504,7 +1504,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def setModeForWafRuleToOn(zoneId: ZoneId, wafRule: WafRule) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" / rid if zid == zoneId && pid == wafRule.package_id && rid == wafRule.id =>
+    case req@PATCH -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "rules" / WafRuleId(rid) if zid == zoneId && pid == wafRule.package_id && rid == wafRule.id =>
       for {
         input <- req.decodeJson[Map[String, String]]
         resp <- if (input.get("mode") == Option("on"))
@@ -1520,7 +1520,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def setModeForWafRuleThatAlreadyHasTheSpecifiedModeValue(zoneId: ZoneId, wafRule: WafRule) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "rules" / rid if zid == zoneId && pid == wafRule.package_id && rid == wafRule.id =>
+    case req@PATCH -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "rules" / WafRuleId(rid) if zid == zoneId && pid == wafRule.package_id && rid == wafRule.id =>
       for {
         input <- req.decodeJson[Map[String, String]]
         resp <- if (input.get("mode") == Option("on"))
@@ -1555,7 +1555,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listWafRuleGroups(zoneId: ZoneId, packageId: WafRulePackageId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" if zid == zoneId && pid == packageId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "groups" if zid == zoneId && pid == packageId =>
       Ok(
         json"""{
                  "result": [
@@ -1586,7 +1586,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getWafRuleGroupById(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleGroupId: WafRuleGroupId, mode: wafrulegroups.Mode) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" / gid if zid == zoneId && pid == packageId && gid == wafRuleGroupId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "groups" / WafRuleGroupId(gid) if zid == zoneId && pid == packageId && gid == wafRuleGroupId =>
       Ok(
         json"""{
                  "result": {
@@ -1606,7 +1606,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def setModeForWafRuleGroupToOn(zoneId: ZoneId, wafRuleGroup: WafRuleGroup) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" / gid if zid == zoneId && pid == wafRuleGroup.package_id && gid == wafRuleGroup.id =>
+    case req@PATCH -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "groups" / WafRuleGroupId(gid) if zid == zoneId && pid == wafRuleGroup.package_id && gid == wafRuleGroup.id =>
       for {
         input <- req.decodeJson[Map[String, String]]
         resp <- if (input == Map("mode" -> "on"))
@@ -1622,7 +1622,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listWafRuleGroupsByName(zoneId: ZoneId, packageId: WafRulePackageId, wafRuleGroup: WafRuleGroup) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" :? NameQueryParamMatcher(gname) if zid == zoneId && pid == packageId && gname == wafRuleGroup.name.asInstanceOf[String] =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "groups" :? NameQueryParamMatcher(gname) if zid == zoneId && pid == packageId && gname == wafRuleGroup.name.asInstanceOf[String] =>
       Ok(ResponseDTO(
         result = wafRuleGroup,
         success = true,
@@ -1632,7 +1632,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def setModeForWafRuleGroupThatAlreadyHasTheSpecifiedModeValue(zoneId: ZoneId, wafRuleGroup: WafRuleGroup) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid / "groups" / gid if zid == zoneId && pid == wafRuleGroup.package_id && gid == wafRuleGroup.id =>
+    case req@PATCH -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) / "groups" / WafRuleGroupId(gid) if zid == zoneId && pid == wafRuleGroup.package_id && gid == wafRuleGroup.id =>
       for {
         input <- req.decodeJson[Map[String, String]]
         resp <- if (input.get("mode") == Option("on"))
@@ -1667,7 +1667,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listWafRulePackages(zoneId: ZoneId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" if zid == zoneId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" if zid == zoneId =>
       Ok(
         json"""{
                  "result": [
@@ -1696,7 +1696,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def getWafRulePackageById(zoneId: ZoneId, packageId: WafRulePackageId) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid if zid == zoneId && pid == packageId =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) if zid == zoneId && pid == packageId =>
       Ok(
         json"""{
                  "result": {
@@ -1714,7 +1714,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def editWafRulePackage(zoneId: ZoneId, wafRulePackage: WafRulePackage, sensitivity: wafrulepackages.Sensitivity, actionMode: wafrulepackages.ActionMode) = HttpRoutes.of[IO] {
-    case req@PATCH -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" / pid if zid == zoneId && pid == wafRulePackage.id =>
+    case req@PATCH -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" / WafRulePackageId(pid) if zid == zoneId && pid == wafRulePackage.id =>
       for {
         input <- req.decodeJson[Map[String, String]]
         resp <- if (input == Map("sensitivity" -> sensitivity.asJson.asString.get, "action_mode" -> actionMode.asJson.asString.get))
@@ -1730,7 +1730,7 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def listWafRulePackagesByName(zoneId: ZoneId, wafRulePackage: WafRulePackage) = HttpRoutes.of[IO] {
-    case GET -> Root / "client" / "v4" / "zones" / zid / "firewall" / "waf" / "packages" :? NameQueryParamMatcher(pname) if zid == zoneId && pname == wafRulePackage.name.asInstanceOf[String] =>
+    case GET -> Root / "client" / "v4" / "zones" / ZoneId(zid) / "firewall" / "waf" / "packages" :? NameQueryParamMatcher(pname) if zid == zoneId && pname == wafRulePackage.name.asInstanceOf[String] =>
       Ok(ResponseDTO(
         result = wafRulePackage,
         success = true,

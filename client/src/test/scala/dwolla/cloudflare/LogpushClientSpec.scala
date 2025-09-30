@@ -2,31 +2,26 @@ package dwolla.cloudflare
 
 import cats.effect.*
 import com.dwolla.cloudflare.*
+import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.logpush.{CreateJob, LogpushJob, LogpushOwnership}
-import com.dwolla.cloudflare.domain.model.{LogpullOptionsTag, LogpushDestinationTag, LogpushIdTag, ZoneIdTag}
 import io.circe.literal.*
 import munit.CatsEffectSuite
 import org.http4s.client.Client
-import shapeless.tag.@@
 
 import java.time.Instant
 
 class LogpushClientSpec extends CatsEffectSuite {
-
-  def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
-  def tagInt[T](i: Int): Int @@ T = shapeless.tag[T][Int](i)
-
   // Common setup
   private val authorization = CloudflareAuthorization("email", "key")
   private val fakeService = new FakeCloudflareService(authorization)
 
-  private val zoneId = tagString[ZoneIdTag]("fake-zone-id")
-  private val logpushId1 = tagInt[LogpushIdTag](1)
-  private val logpushId2 = tagInt[LogpushIdTag](2)
-  private val destination1 = tagString[LogpushDestinationTag]("s3://cloudflare/logs/{DATE}?region=us-west-2&sse=AES256")
-  private val destination2 = tagString[LogpushDestinationTag]("s3://cloudflare")
-  private val options = tagString[LogpullOptionsTag]("fields=ClientIP&timestamps=rfc3339")
+  private val zoneId = ZoneId("fake-zone-id")
+  private val logpushId1 = LogpushId(1)
+  private val logpushId2 = LogpushId(2)
+  private val destination1 = LogpushDestination("s3://cloudflare/logs/{DATE}?region=us-west-2&sse=AES256")
+  private val destination2 = LogpushDestination("s3://cloudflare")
+  private val options = LogpullOptions("fields=ClientIP&timestamps=rfc3339")
   private val ts = Instant.parse("2018-11-27T19:10:00Z")
 
   test("list should return all jobs") {

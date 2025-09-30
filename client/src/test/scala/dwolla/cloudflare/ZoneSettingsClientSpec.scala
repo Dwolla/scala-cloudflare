@@ -30,7 +30,7 @@ class ZoneSettingsClientSpec extends CatsEffectSuite with Http4sDsl[IO] {
   test("Zone Settings client should apply the TLS setting to the given domain") {
     val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, None)
 
-    val zoneSettingsClient = client(setTlsLevel)(getZoneId <+> fakeCloudflareService.setTlsLevelService("fake-zone-id", "strict"))
+    val zoneSettingsClient = client(setTlsLevel)(getZoneId <+> fakeCloudflareService.setTlsLevelService(ZoneId("fake-zone-id"), "strict"))
     val output = zoneSettingsClient.updateSettings(zone)
 
     output.compile.last.map {
@@ -43,7 +43,7 @@ class ZoneSettingsClientSpec extends CatsEffectSuite with Http4sDsl[IO] {
   test("Zone Settings client should apply the security level to the given domain") {
     val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, Option(CloudflareSecurityLevel.High), None)
 
-    val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setSecurityLevelService("fake-zone-id", "high"))
+    val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setSecurityLevelService(ZoneId("fake-zone-id"), "high"))
     val output = zoneSettingsClient.updateSettings(zone)
 
     output.compile.last.map {
@@ -56,7 +56,7 @@ class ZoneSettingsClientSpec extends CatsEffectSuite with Http4sDsl[IO] {
   test("Zone Settings client should apply waf to the given domain") {
     val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, Option(CloudflareWaf.On))
 
-    val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setWafService("fake-zone-id", "on"))
+    val zoneSettingsClient = client(setSecurityLevel)(getZoneId <+> fakeCloudflareService.setWafService(ZoneId("fake-zone-id"), "on"))
     val output = zoneSettingsClient.updateSettings(zone)
 
     output.compile.last.map {

@@ -167,7 +167,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("get by id should return the access control rule with the given id for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.getAccessControlRuleByIdForAccount(accountId, ruleId))
-    val output = client.getById(Level.Account(accountId), ruleId: String)
+    val output = client.getById(Level.Account(accountId), ruleId.value)
 
     val expected = List(
       AccessControlRule(
@@ -194,7 +194,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("get by id should return the access control rule with the given id for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.getAccessControlRuleByIdForZone(zoneId, ruleId))
-    val output = client.getById(Level.Zone(zoneId), ruleId: String)
+    val output = client.getById(Level.Zone(zoneId), ruleId.value)
 
     val expected = List(
       AccessControlRule(
@@ -331,7 +331,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should delete the given access control rule for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.deleteAccessControlRule(Level.Account(accountId), ruleId))
-    val output = client.delete(Level.Account(accountId), ruleId)
+    val output = client.delete(Level.Account(accountId), ruleId.value)
 
     val expected = List(ruleId)
     assertIO(output.compile.toList, expected)
@@ -340,7 +340,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should delete the given access control rule for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.deleteAccessControlRule(Level.Zone(zoneId), ruleId))
-    val output = client.delete(Level.Zone(zoneId), ruleId)
+    val output = client.delete(Level.Zone(zoneId), ruleId.value)
 
     val expected = List(ruleId)
     assertIO(output.compile.toList, expected)
@@ -349,7 +349,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the access control rule id doesn't exist for an account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.deleteAccessControlThatDoesNotExist(Level.Account(accountId)))
-    val output = client.delete(Level.Account(accountId), ruleId)
+    val output = client.delete(Level.Account(accountId), ruleId.value)
 
     val expected = List(ruleId)
     assertIO(output.compile.toList, expected)
@@ -358,7 +358,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the access control rule id doesn't exist for a zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.deleteAccessControlThatDoesNotExist(Level.Zone(zoneId)))
-    val output = client.delete(Level.Zone(zoneId), ruleId)
+    val output = client.delete(Level.Zone(zoneId), ruleId.value)
 
     val expected = List(ruleId)
     assertIO(output.compile.toList, expected)
@@ -366,10 +366,10 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   // property-based: buildUri and parseUri are inverses
   private val nonEmptyAlphaNumericString = Gen.identifier.suchThat(_.nonEmpty)
-  private val genAccountLevel = nonEmptyAlphaNumericString.map(shapeless.tag[AccountIdTag][String]).map(Level.Account(_))
-  private val genZoneLevel = nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]).map(Level.Zone(_))
+  private val genAccountLevel = nonEmptyAlphaNumericString.map(AccountId(_)).map(Level.Account(_))
+  private val genZoneLevel = nonEmptyAlphaNumericString.map(ZoneId(_)).map(Level.Zone(_))
   implicit private val arbitraryLevel: Arbitrary[Level] = Arbitrary(Gen.oneOf(genAccountLevel, genZoneLevel))
-  implicit private val arbitraryRuleId: Arbitrary[AccessControlRuleId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[AccessControlRuleIdTag][String]))
+  implicit private val arbitraryRuleId: Arbitrary[AccessControlRuleId] = Arbitrary(nonEmptyAlphaNumericString.map(AccessControlRuleId(_)))
 
   property("buildUri and parseUri should be inverses") {
     import org.scalacheck.Prop.forAll

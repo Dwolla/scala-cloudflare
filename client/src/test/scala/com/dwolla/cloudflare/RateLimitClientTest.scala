@@ -59,7 +59,7 @@ class RateLimitClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("get by id should return the rate limit with the given id") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildRateLimitClient(fakeService.getRateLimitById(zoneId, rateLimitId))
-    val output = client.getById(zoneId, rateLimitId: String)
+    val output = client.getById(zoneId, rateLimitId.value)
 
     val expected = List(RateLimit(
       id = Option("ec794f8d14e2407084de98f4a39e6387").map(tagRateLimitId),
@@ -183,7 +183,7 @@ class RateLimitClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should delete the given rate limit") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildRateLimitClient(fakeService.deleteRateLimit(zoneId, rateLimitId))
-    val output = client.delete(zoneId, rateLimitId)
+    val output = client.delete(zoneId, rateLimitId.value)
 
     val expected = List(rateLimitId)
     assertIO(output.compile.toList, expected)
@@ -192,7 +192,7 @@ class RateLimitClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the rate limit id doesn't exist") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildRateLimitClient(fakeService.deleteRateLimitThatDoesNotExist(zoneId, validId = true))
-    val output = client.delete(zoneId, rateLimitId)
+    val output = client.delete(zoneId, rateLimitId.value)
 
     val expected = List(rateLimitId)
     assertIO(output.compile.toList, expected)
@@ -201,7 +201,7 @@ class RateLimitClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("delete should return success if the rate limit id is invalid") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildRateLimitClient(fakeService.deleteRateLimitThatDoesNotExist(zoneId, validId = false))
-    val output = client.delete(zoneId, rateLimitId)
+    val output = client.delete(zoneId, rateLimitId.value)
 
     val expected = List(rateLimitId)
     assertIO(output.compile.toList, expected)
@@ -209,8 +209,8 @@ class RateLimitClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   // property-based: buildUri and parseUri are inverses
   private val nonEmptyAlphaNumericString = Gen.identifier
-  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
-  implicit private val arbitraryRateLimitId: Arbitrary[RateLimitId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[RateLimitIdTag][String]))
+  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(ZoneId(_)))
+  implicit private val arbitraryRateLimitId: Arbitrary[RateLimitId] = Arbitrary(nonEmptyAlphaNumericString.map(RateLimitId(_)))
 
   property("buildUri and parseUri should be inverses") {
     import org.scalacheck.Prop.forAll
