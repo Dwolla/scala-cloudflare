@@ -1,6 +1,6 @@
 package com.dwolla.cloudflare.domain.dto
 
-import cats.implicits.*
+import cats.syntax.all.*
 import io.circe.*
 import io.circe.generic.semiauto.*
 

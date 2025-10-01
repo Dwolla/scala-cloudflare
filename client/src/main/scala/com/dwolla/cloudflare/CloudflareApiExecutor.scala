@@ -74,7 +74,14 @@ class StreamingCloudflareApiExecutor[F[_] : Concurrent](client: Client[F], autho
 
   private def responseToJson[T: Decoder](resp: Response[F]): F[BaseResponseDTO[T]] =
     resp match {
-      case Status.Successful(_) | Status.NotFound(_) | Status.BadRequest(_) => resp.decodeJson[BaseResponseDTO[T]]
+      case Status.Successful(_) | Status.NotFound(_) | Status.BadRequest(_) =>
+        resp.as[Json]
+          .flatMap {
+            _.asAccumulating[BaseResponseDTO[T]]
+              .toEither
+              .leftMap(io.circe.Errors(_))
+              .liftTo[F]
+          }
       case Status.Forbidden(_) => AccessDenied().raiseError
       case _ => UnexpectedCloudflareResponseStatus(resp.status).raiseError
     }

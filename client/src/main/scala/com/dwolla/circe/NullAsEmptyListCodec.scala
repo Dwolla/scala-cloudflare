@@ -1,6 +1,7 @@
 package com.dwolla.circe
 
-import io.circe.Decoder.Result
+import cats.syntax.all.*
+import io.circe.Decoder.{AccumulatingResult, Result}
 import io.circe.*
 
 object NullAsEmptyListCodec extends NullAsEmptyListCodec
@@ -17,5 +18,15 @@ trait NullAsEmptyListCodec {
         if (!c.incorrectFocus) Right(List.empty) else Left(DecodingFailure("List[A]", c.history))
       case _ => super.tryDecode(c)
     }
+
+    override def tryDecodeAccumulating(c: ACursor): AccumulatingResult[List[A]] = c match {
+      case c: HCursor =>
+        if (c.value.isNull) List.empty.validNel
+        else Decoder.decodeList[A].tryDecodeAccumulating(c)
+      case c: FailedCursor =>
+        if (!c.incorrectFocus) List.empty.validNel else DecodingFailure("List[A]", c.history).invalidNel
+      case _ => super.tryDecodeAccumulating(c)
+    }
+
   }
 }
