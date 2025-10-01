@@ -1,5 +1,7 @@
 package com.dwolla.cloudflare.domain.model
 
+import cats.data.NonEmptyList
+import cats.syntax.all.*
 import io.circe.*
 import io.circe.generic.extras.Configuration
 import io.circe.generic.extras.semiauto.*
@@ -20,7 +22,6 @@ package object pagerules {
 }
 
 package pagerules {
-
   case class PageRule(id: Option[PageRuleId] = None,
                       targets: List[PageRuleTarget],
                       actions: List[PageRuleAction],
@@ -60,21 +61,19 @@ package pagerules {
                }
              }"""
 
-    implicit val minifyDecoder: Decoder[Minify] = c => {
-      val value = c.downField("value")
-
-      for {
-        html <- value.downField("html").as[PageRuleActionEnabled]
-        css <- value.downField("css").as[PageRuleActionEnabled]
-        js <- value.downField("js").as[PageRuleActionEnabled]
-        _ <- {
-          val a = c.downField("id")
-          a.as[String].flatMap {
-            case "minify" => Right(())
-            case _ => Left(DecodingFailure("id must be `minify`", a.history))
+    implicit val minifyDecoder: Decoder[Minify] = {
+      (Decoder.accumulatingInstance { a =>
+        a.asAcc[String]
+          .withEither {
+            _.filterOrElse(_ == "minify", NonEmptyList.of(DecodingFailure("id must be `minify`", a.history)))
           }
-        }
-      } yield Minify(html, css, js)
+      }.prepare(_.downField("id")),
+        Decoder.accumulatingInstance { c =>
+          (c.downField("html").asAcc[PageRuleActionEnabled],
+            c.downField("css").asAcc[PageRuleActionEnabled],
+            c.downField("js").asAcc[PageRuleActionEnabled]).mapN(Minify.apply)
+        }.prepare(_.downField("value")),
+      ).mapN((_, m) => m)
     }
   }
 
@@ -102,19 +101,17 @@ package pagerules {
                }
              }"""
 
-    implicit val forwardingUrlDecoder: Decoder[ForwardingUrl] = c =>
-      for {
-        _ <- {
-          val a = c.downField("id")
-          a.as[String].flatMap {
-            case "forwarding_url" => Right(())
-            case _ => Left(DecodingFailure("id must be `forwarding_url`", a.history))
-          }
+    implicit val forwardingUrlDecoder: Decoder[ForwardingUrl] = Decoder.accumulatingInstance { c =>
+      ( {
+        val a = c.downField("id")
+        a.asAcc[String].withEither {
+          _.filterOrElse(_ == "forwarding_url", NonEmptyList.of(DecodingFailure("id must be `forwarding_url`", a.history)))
         }
-        value = c.downField("value")
-        url <- value.downField("url").as[Uri]
-        statusCode <- value.downField("status_code").as[ForwardingStatusCode]
-      } yield ForwardingUrl(url, statusCode)
+      },
+        c.downField("value").downField("url").asAcc[Uri],
+        c.downField("value").downField("status_code").asAcc[ForwardingStatusCode],
+      ).mapN((_, url, statusCode) => ForwardingUrl(url, statusCode))
+    }
   }
 
   case class HostHeaderOverride(value: String) extends PageRuleAction
