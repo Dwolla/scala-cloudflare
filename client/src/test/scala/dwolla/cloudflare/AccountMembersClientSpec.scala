@@ -1,215 +1,42 @@
 package dwolla.cloudflare
 
-import cats.effect._
-import cats.effect.testing.specs2.CatsEffect
-import com.dwolla.cloudflare._
+import cats.effect.*
+import com.dwolla.cloudflare.*
+import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
-import com.dwolla.cloudflare.domain.model._
-import com.dwolla.cloudflare.domain.model.accounts._
-import org.http4s._
+import com.dwolla.cloudflare.domain.model.accounts.*
+import io.circe.literal.*
+import munit.CatsEffectSuite
+import org.http4s.*
 import org.http4s.client.Client
-import org.specs2.mutable.Specification
-import org.specs2.specification.Scope
 import shapeless.tag.@@
-import io.circe.literal._
 
-class AccountMembersClientSpec
-  extends Specification
-    with CatsEffect {
+class AccountMembersClientSpec extends CatsEffectSuite {
 
-  def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
+  private def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
 
-  trait Setup extends Scope {
-    val authorization = CloudflareAuthorization("email", "key")
-    val fakeService = new FakeCloudflareService(authorization)
+  // Common setup
+  private val authorization = CloudflareAuthorization("email", "key")
+  private val fakeService = new FakeCloudflareService(authorization)
 
-    val fakeAccountId1 = tagString[AccountIdTag]("fake-account-id1")
-    val fakeAccountId2 = tagString[AccountIdTag]("fake-account-id2")
-    val fakeAccountId3 = tagString[AccountIdTag]("fake-account-id3")
-  }
+  private val fakeAccountId1 = tagString[AccountIdTag]("fake-account-id1")
 
-  "getMember" should {
-    "get account member by id and account id" in new Setup {
-      val accountId = fakeAccountId1
-      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+  test("getMember should get account member by id and account id") {
+    val accountId = fakeAccountId1
+    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
-      val http4sClient = fakeService.client(fakeService.getAccountMember(SampleResponses.Successes.accountMember, accountId, accountMemberId))
-      val client = buildAccountMembersClient(http4sClient, authorization)
+    val http4sClient = fakeService.client(fakeService.getAccountMember(SampleResponses.Successes.accountMember, accountId, accountMemberId))
+    val client = buildAccountMembersClient(http4sClient, authorization)
 
-      private val output = client.getByUri(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId")
+    val output = client.getByUri(s"https://api.cloudflare.com/client/v4/accounts/$accountId/members/$accountMemberId").compile.last
 
-      output.compile.last.map(_ must beSome(
-        AccountMember(
-          id = accountMemberId,
-          user = User(
-            id = tagString[UserIdTag]("fake-user-id"),
-            firstName = None,
-            lastName = None,
-            emailAddress = "myemail@test.com",
-            twoFactorEnabled = false
-          ),
-          status = "pending",
-          roles = List(
-            AccountRole(
-              id = "1111",
-              name = "Fake Role 1",
-              description = "this is the first fake role",
-              permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
-            ),
-            AccountRole(
-              id = "2222",
-              name = "Fake Role 2",
-              description = "second fake role",
-              permissions = Map[String, AccountRolePermissions](
-                "zone" -> AccountRolePermissions(read = true, edit = false),
-                "logs" -> AccountRolePermissions(read = true, edit = false)
-              )
-            )
-          )
-        )
-      ))
-    }
-
-    "return None if not found" in new Setup {
-      val accountId = fakeAccountId1
-      val accountMemberId = tagString[AccountMemberIdTag]("missing-account-member-id")
-
-      val failure = SampleResponses.Failures.accountMemberDoesNotExist
-      val http4sClient = fakeService.client(fakeService.getAccountMember(failure.json, accountId, accountMemberId, failure.status))
-      val client = buildAccountMembersClient(http4sClient, authorization)
-
-      private val output = client.getById(accountId, accountMemberId)
-
-      output.compile.last.map(_ must beNone)
-    }
-  }
-
-  "addMember" should {
-    "add new member" in new Setup {
-      val accountId = fakeAccountId1
-      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
-      val email = "myemail@test.com"
-      val roleIds = List("1111", "2222")
-
-      val http4sClient = fakeService.client(fakeService.addAccountMember(SampleResponses.Successes.accountMember, accountId))
-      val client = buildAccountMembersClient(http4sClient, authorization)
-
-      private val output = client.addMember(accountId, email, roleIds)
-
-      output.compile.toList.map(_ must contain(
-        AccountMember(
-          id = accountMemberId,
-          user = User(
-            id = tagString[UserIdTag]("fake-user-id"),
-            firstName = None,
-            lastName = None,
-            emailAddress = email,
-            twoFactorEnabled = false
-          ),
-          status = "pending",
-          roles = List(
-            AccountRole(
-              id = "1111",
-              name = "Fake Role 1",
-              description = "this is the first fake role",
-              permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
-            ),
-            AccountRole(
-              id = "2222",
-              name = "Fake Role 2",
-              description = "second fake role",
-              permissions = Map[String, AccountRolePermissions](
-                "zone" -> AccountRolePermissions(read = true, edit = false),
-                "logs" -> AccountRolePermissions(read = true, edit = false)
-              )
-            )
-          )
-        )
-      ))
-    }
-
-    "throw unexpected exception if error adding new member" in new Setup {
-      val accountId = fakeAccountId1
-      val email = "me@abc123test.com"
-      val roleIds = List("1111", "2222")
-
-      val failure = SampleResponses.Failures.accountMemberCreationError
-      val http4sClient = fakeService.client(fakeService.addAccountMember(failure.json, accountId, failure.status))
-      val client = buildAccountMembersClient(http4sClient, authorization)
-
-      private val output = client.addMember(accountId, email, roleIds)
-
-      output.compile.last.attempt.map(_ must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
-          """An unexpected Cloudflare error occurred. Errors:
-            |
-            | - Error(Some(1001),Invalid request: Value required for parameter 'email'.)
-            |     """.stripMargin
-      })
-    }
-  }
-
-  "updateMember" should {
-    "update existing member" in new Setup {
-      val email = "myemail@test.com"
-      val accountId = fakeAccountId1
-      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
-
-      val updatedAccountMember = AccountMember(
+    val expected = Some(
+      AccountMember(
         id = accountMemberId,
         user = User(
           id = tagString[UserIdTag]("fake-user-id"),
-          firstName = Some("Joe"),
-          lastName = Some("Smith"),
-          emailAddress = email,
-          twoFactorEnabled = false
-        ),
-        status = "pending",
-        roles = List(
-          AccountRole(
-            id = "1111",
-            name = "Fake Role 1",
-            description = "this is the first fake role",
-            permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
-          ),
-          AccountRole(
-            id = "2222",
-            name = "Fake Role 2",
-            description = "second fake role",
-            permissions = Map[String, AccountRolePermissions](
-              "zone" -> AccountRolePermissions(read = true, edit = false),
-              "logs" -> AccountRolePermissions(read = true, edit = false)
-            )
-          ),
-          AccountRole(
-            id = "3333",
-            name = "Fake Role 3",
-            description = "third fake role",
-            permissions = Map[String, AccountRolePermissions](
-              "crypto" -> AccountRolePermissions(read = true, edit = false)
-            )
-          )
-        )
-      )
-
-      val http4sClient = fakeService.client(fakeService.updateAccountMember(SampleResponses.Successes.updatedAccountMember, accountId, updatedAccountMember.id))
-      val client = buildAccountMembersClient(http4sClient, authorization)
-
-      private val output = client.updateMember(accountId, updatedAccountMember)
-
-      output.compile.toList.map(_ must contain(updatedAccountMember))
-    }
-
-    "throw unexpected exception if error updating existing member" in new Setup {
-      val accountId = fakeAccountId1
-      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
-
-      val updatedAccountMember = AccountMember(
-        id = accountMemberId,
-        user = User(
-          id = tagString[UserIdTag]("fake-user-id"),
-          firstName = Some("Joe"),
-          lastName = Some("Smith"),
+          firstName = None,
+          lastName = None,
           emailAddress = "myemail@test.com",
           twoFactorEnabled = false
         ),
@@ -229,81 +56,240 @@ class AccountMembersClientSpec
               "zone" -> AccountRolePermissions(read = true, edit = false),
               "logs" -> AccountRolePermissions(read = true, edit = false)
             )
-          ),
-          AccountRole(
-            id = "3333",
-            name = "Fake Role 3",
-            description = "third fake role",
-            permissions = Map[String, AccountRolePermissions](
-              "crypto" -> AccountRolePermissions(read = true, edit = false)
-            )
           )
         )
       )
+    )
 
-      val failure = SampleResponses.Failures.accountMemberUpdateError
-      val http4sClient = fakeService.client(fakeService.updateAccountMember(failure.json, accountId, updatedAccountMember.id, failure.status))
-      val client = buildAccountMembersClient(http4sClient, authorization)
+    assertIO(output, expected)
+  }
 
-      private val output = client.updateMember(accountId, updatedAccountMember)
+  test("getMember should return None if not found") {
+    val accountId = fakeAccountId1
+    val accountMemberId = tagString[AccountMemberIdTag]("missing-account-member-id")
 
-      output.compile.last.attempt.map(_ must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
-          """An unexpected Cloudflare error occurred. Errors:
-            |
-            | - Error(Some(1001),Invalid request: Invalid roles)
-            |     """.stripMargin
-      })
+    val failure = SampleResponses.Failures.accountMemberDoesNotExist
+    val http4sClient = fakeService.client(fakeService.getAccountMember(failure.json, accountId, accountMemberId, failure.status))
+    val client = buildAccountMembersClient(http4sClient, authorization)
+
+    val output = client.getById(accountId, accountMemberId).compile.last
+
+    assertIO(output, None)
+  }
+
+  test("addMember should add new member") {
+    val accountId = fakeAccountId1
+    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+    val email = "myemail@test.com"
+    val roleIds = List("1111", "2222")
+
+    val http4sClient = fakeService.client(fakeService.addAccountMember(SampleResponses.Successes.accountMember, accountId))
+    val client = buildAccountMembersClient(http4sClient, authorization)
+
+    val output = client.addMember(accountId, email, roleIds).compile.toList
+
+    val expectedMember = AccountMember(
+      id = accountMemberId,
+      user = User(
+        id = tagString[UserIdTag]("fake-user-id"),
+        firstName = None,
+        lastName = None,
+        emailAddress = email,
+        twoFactorEnabled = false
+      ),
+      status = "pending",
+      roles = List(
+        AccountRole(
+          id = "1111",
+          name = "Fake Role 1",
+          description = "this is the first fake role",
+          permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
+        ),
+        AccountRole(
+          id = "2222",
+          name = "Fake Role 2",
+          description = "second fake role",
+          permissions = Map[String, AccountRolePermissions](
+            "zone" -> AccountRolePermissions(read = true, edit = false),
+            "logs" -> AccountRolePermissions(read = true, edit = false)
+          )
+        )
+      )
+    )
+
+    assertIO(output.map(_.contains(expectedMember)), true)
+  }
+
+  test("addMember should throw unexpected exception if error adding new member") {
+    val accountId = fakeAccountId1
+    val email = "me@abc123test.com"
+    val roleIds = List("1111", "2222")
+
+    val failure = SampleResponses.Failures.accountMemberCreationError
+    val http4sClient = fakeService.client(fakeService.addAccountMember(failure.json, accountId, failure.status))
+    val client = buildAccountMembersClient(http4sClient, authorization)
+
+    val io = client.addMember(accountId, email, roleIds).compile.toList
+
+    interceptIO[UnexpectedCloudflareErrorException](io).map { ex =>
+      assertEquals(ex.getMessage,
+        """An unexpected Cloudflare error occurred. Errors:
+          |
+          | - Error(Some(1001),Invalid request: Value required for parameter 'email'.)
+          |     """.stripMargin)
     }
   }
 
-  "removeMember" should {
-    "remove member from account" in new Setup {
-      val accountId = fakeAccountId1
-      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+  test("updateMember should update existing member") {
+    val email = "myemail@test.com"
+    val accountId = fakeAccountId1
+    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
-      val http4sClient = fakeService.client(fakeService.removeAccountMember(SampleResponses.Successes.removedAccountMember, accountId, accountMemberId))
-      val client = buildAccountMembersClient(http4sClient, authorization)
+    val updatedAccountMember = AccountMember(
+      id = accountMemberId,
+      user = User(
+        id = tagString[UserIdTag]("fake-user-id"),
+        firstName = Some("Joe"),
+        lastName = Some("Smith"),
+        emailAddress = email,
+        twoFactorEnabled = false
+      ),
+      status = "pending",
+      roles = List(
+        AccountRole(
+          id = "1111",
+          name = "Fake Role 1",
+          description = "this is the first fake role",
+          permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
+        ),
+        AccountRole(
+          id = "2222",
+          name = "Fake Role 2",
+          description = "second fake role",
+          permissions = Map[String, AccountRolePermissions](
+            "zone" -> AccountRolePermissions(read = true, edit = false),
+            "logs" -> AccountRolePermissions(read = true, edit = false)
+          )
+        ),
+        AccountRole(
+          id = "3333",
+          name = "Fake Role 3",
+          description = "third fake role",
+          permissions = Map[String, AccountRolePermissions](
+            "crypto" -> AccountRolePermissions(read = true, edit = false)
+          )
+        )
+      )
+    )
 
-      private val output = client.removeMember(accountId, accountMemberId)
+    val http4sClient = fakeService.client(fakeService.updateAccountMember(SampleResponses.Successes.updatedAccountMember, accountId, updatedAccountMember.id))
+    val client = buildAccountMembersClient(http4sClient, authorization)
 
-      output.compile.last.map(_ must beSome(accountMemberId))
+    val output = client.updateMember(accountId, updatedAccountMember).compile.toList
+
+    assertIO(output.map(_.contains(updatedAccountMember)), true)
+  }
+
+  test("updateMember should throw unexpected exception if error updating existing member") {
+    val accountId = fakeAccountId1
+    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+
+    val updatedAccountMember = AccountMember(
+      id = accountMemberId,
+      user = User(
+        id = tagString[UserIdTag]("fake-user-id"),
+        firstName = Some("Joe"),
+        lastName = Some("Smith"),
+        emailAddress = "myemail@test.com",
+        twoFactorEnabled = false
+      ),
+      status = "pending",
+      roles = List(
+        AccountRole(
+          id = "1111",
+          name = "Fake Role 1",
+          description = "this is the first fake role",
+          permissions = Map[String, AccountRolePermissions]("analytics" -> AccountRolePermissions(read = true, edit = false))
+        ),
+        AccountRole(
+          id = "2222",
+          name = "Fake Role 2",
+          description = "second fake role",
+          permissions = Map[String, AccountRolePermissions](
+            "zone" -> AccountRolePermissions(read = true, edit = false),
+            "logs" -> AccountRolePermissions(read = true, edit = false)
+          )
+        ),
+        AccountRole(
+          id = "3333",
+          name = "Fake Role 3",
+          description = "third fake role",
+          permissions = Map[String, AccountRolePermissions](
+            "crypto" -> AccountRolePermissions(read = true, edit = false)
+          )
+        )
+      )
+    )
+
+    val failure = SampleResponses.Failures.accountMemberUpdateError
+    val http4sClient = fakeService.client(fakeService.updateAccountMember(failure.json, accountId, updatedAccountMember.id, failure.status))
+    val client = buildAccountMembersClient(http4sClient, authorization)
+
+    val io = client.updateMember(accountId, updatedAccountMember).compile.toList
+
+    interceptIO[UnexpectedCloudflareErrorException](io).map { ex =>
+      assertEquals(ex.getMessage,
+        """An unexpected Cloudflare error occurred. Errors:
+          |
+          | - Error(Some(1001),Invalid request: Invalid roles)
+          |     """.stripMargin)
     }
+  }
 
-    "throw unexpected exception if error removing member" in new Setup {
-      val accountId = fakeAccountId1
-      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+  test("removeMember should remove member from account") {
+    val accountId = fakeAccountId1
+    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
-      val failure = SampleResponses.Failures.accountMemberRemovalError
-      val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
-      val client = buildAccountMembersClient(http4sClient, authorization)
+    val http4sClient = fakeService.client(fakeService.removeAccountMember(SampleResponses.Successes.removedAccountMember, accountId, accountMemberId))
+    val client = buildAccountMembersClient(http4sClient, authorization)
 
-      private val output = client.removeMember(accountId, accountMemberId)
+    val output = client.removeMember(accountId, accountMemberId).compile.last
 
-      output.compile.last.attempt.map(_ must beLeft[Throwable].like {
-        case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
-          """An unexpected Cloudflare error occurred. Errors:
-            |
-            | - Error(Some(7003),Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?)
-            | - Error(Some(7000),No route for that URI)
-            |     """.stripMargin
-      })
+    assertIO(output, Some(accountMemberId))
+  }
+
+  test("removeMember should throw unexpected exception if error removing member") {
+    val accountId = fakeAccountId1
+    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+
+    val failure = SampleResponses.Failures.accountMemberRemovalError
+    val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
+    val client = buildAccountMembersClient(http4sClient, authorization)
+
+    val io = client.removeMember(accountId, accountMemberId).compile.toList
+
+    interceptIO[UnexpectedCloudflareErrorException](io).map { ex =>
+      assertEquals(ex.getMessage,
+        """An unexpected Cloudflare error occurred. Errors:
+          |
+          | - Error(Some(7003),Could not route to /accounts/fake-account-id1/members/fake-account-member-id, perhaps your object identifier is invalid?)
+          | - Error(Some(7000),No route for that URI)
+          |     """.stripMargin)
     }
+  }
 
-    "throw not found exception if member not in account" in new Setup {
-      val accountId = fakeAccountId1
-      val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
+  test("removeMember should throw not found exception if member not in account") {
+    val accountId = fakeAccountId1
+    val accountMemberId = tagString[AccountMemberIdTag]("fake-account-member-id")
 
-      val failure = SampleResponses.Failures.accountDoesNotExist
-      val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
-      val client = buildAccountMembersClient(http4sClient, authorization)
+    val failure = SampleResponses.Failures.accountDoesNotExist
+    val http4sClient = fakeService.client(fakeService.removeAccountMember(failure.json, accountId, accountMemberId, failure.status))
+    val client = buildAccountMembersClient(http4sClient, authorization)
 
-      private val output = client.removeMember(accountId, accountMemberId)
+    val io = client.removeMember(accountId, accountMemberId).compile.toList
 
-      output.compile.last.attempt.map(_ must beLeft[Throwable].like {
-        case ex: AccountMemberDoesNotExistException => ex.getMessage must_==
-          "The account member fake-account-member-id not found for account fake-account-id1."
-      })
+    interceptIO[AccountMemberDoesNotExistException](io).map { ex =>
+      assertEquals(ex.getMessage, "The account member fake-account-member-id not found for account fake-account-id1.")
     }
   }
 

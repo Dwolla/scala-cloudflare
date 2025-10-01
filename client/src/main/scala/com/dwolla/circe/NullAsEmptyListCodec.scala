@@ -1,7 +1,7 @@
 package com.dwolla.circe
 
 import io.circe.Decoder.Result
-import io.circe.{ACursor, Decoder, DecodingFailure, FailedCursor, HCursor}
+import io.circe.*
 
 object NullAsEmptyListCodec extends NullAsEmptyListCodec
 

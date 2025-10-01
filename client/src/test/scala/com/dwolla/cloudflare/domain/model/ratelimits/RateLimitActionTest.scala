@@ -1,43 +1,40 @@
 package com.dwolla.cloudflare.domain.model.ratelimits
 
+import io.circe.DecodingFailure
+import io.circe.literal.*
+import io.circe.syntax.*
+import munit.FunSuite
+
 import java.time.Duration
 
-import io.circe.DecodingFailure
-import org.specs2.mutable.Specification
-import io.circe.literal._
-import io.circe.syntax._
-import org.scalacheck._
-import org.specs2.ScalaCheck
+class RateLimitActionTest extends FunSuite {
 
-class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckShapeless {
+  // RateLimit encode/decode tests
+  test("RateLimit encode") {
+    val output = RateLimit(
+      id = Option("rate-limit-id").map(tagRateLimitId),
+      disabled = Option(false),
+      description = Option("my description"),
+      `match` = RateLimitMatch(
+        RateLimitMatchRequest(
+          methods = List(Method.Get),
+          schemes = List(Scheme.Http),
+          url = "http://l@:1"
+        ),
+        Option(RateLimitMatchResponse(
+          origin_traffic = Option(true),
+          headers = List(RateLimitMatchResponseHeader(
+            name = "Cf-Cache-Status",
+            op = Op.NotEqual,
+            value = "HIT"
+          ))))),
+      bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
+      threshold = 0,
+      period = Duration.ofSeconds(0),
+      action = Challenge
+    ).asJson
 
-  "RateLimit" should {
-    "encode" >> {
-      val output = RateLimit(
-        id = Option("rate-limit-id").map(tagRateLimitId),
-        disabled = Option(false),
-        description = Option("my description"),
-        `match` = RateLimitMatch(
-          RateLimitMatchRequest(
-            methods = List(Method.Get),
-            schemes = List(Scheme.Http),
-            url = "http://l@:1"
-          ),
-          Option(RateLimitMatchResponse(
-            origin_traffic = Option(true),
-            headers = List(RateLimitMatchResponseHeader(
-              name = "Cf-Cache-Status",
-              op = Op.NotEqual,
-              value = "HIT"
-            ))))),
-        bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
-        threshold = 0,
-        period = Duration.ofSeconds(0),
-        action = Challenge
-      ).asJson
-
-      output must_==
-        json"""{
+    val expected = json"""{
                  "id": "rate-limit-id",
                  "disabled": false,
                  "description": "my description",
@@ -72,34 +69,35 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                    "mode": "challenge"
                  }
                }"""
-    }
 
-    "encode without ID" >> {
-      val output = RateLimit(
-        id = None,
-        disabled = Option(false),
-        description = Option("my description"),
-        `match` = RateLimitMatch(
-          RateLimitMatchRequest(
-            methods = List(Method.Get),
-            schemes = List(Scheme.Http),
-            url = "http://l@:1"
-          ),
-          Option(RateLimitMatchResponse(
-            origin_traffic = Option(true),
-            headers = List(RateLimitMatchResponseHeader(
-              name = "Cf-Cache-Status",
-              op = Op.NotEqual,
-              value = "HIT"
-            ))))),
-        bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
-        threshold = 0,
-        period = Duration.ofSeconds(0),
-        action = Challenge
-      ).asJson
+    assertEquals(output, expected)
+  }
 
-      output must_==
-        json"""{
+  test("RateLimit encode without ID") {
+    val output = RateLimit(
+      id = None,
+      disabled = Option(false),
+      description = Option("my description"),
+      `match` = RateLimitMatch(
+        RateLimitMatchRequest(
+          methods = List(Method.Get),
+          schemes = List(Scheme.Http),
+          url = "http://l@:1"
+        ),
+        Option(RateLimitMatchResponse(
+          origin_traffic = Option(true),
+          headers = List(RateLimitMatchResponseHeader(
+            name = "Cf-Cache-Status",
+            op = Op.NotEqual,
+            value = "HIT"
+          ))))),
+      bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
+      threshold = 0,
+      period = Duration.ofSeconds(0),
+      action = Challenge
+    ).asJson
+
+    val expected = json"""{
                  "id": null,
                  "disabled": false,
                  "description": "my description",
@@ -134,11 +132,13 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                    "mode": "challenge"
                  }
                }"""
-    }
 
-    "decode" >> {
-      val output =
-        json"""{
+    assertEquals(output, expected)
+  }
+
+  test("RateLimit decode") {
+    val output =
+      json"""{
                  "id": "rate-limit-id",
                  "disabled": false,
                  "description": "my description",
@@ -172,33 +172,35 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                  }
                }""".as[RateLimit]
 
-      output must beRight(RateLimit(
-        id = Option("rate-limit-id").map(tagRateLimitId),
-        disabled = Option(false),
-        description = Option("my description"),
-        `match` = RateLimitMatch(
-          RateLimitMatchRequest(
-            methods = List(Method.Get),
-            schemes = List(Scheme.Http),
-            url = "http://l@:1"
-          ),
-          Option(RateLimitMatchResponse(
-            origin_traffic = Option(true),
-            headers = List(RateLimitMatchResponseHeader(
-              name = "Cf-Cache-Status",
-              op = Op.NotEqual,
-              value = "HIT"
-            ))))),
-        bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
-        threshold = 0,
-        period = Duration.ofSeconds(0),
-        action = Challenge
-      ))
-    }
+    val expected = Right(RateLimit(
+      id = Option("rate-limit-id").map(tagRateLimitId),
+      disabled = Option(false),
+      description = Option("my description"),
+      `match` = RateLimitMatch(
+        RateLimitMatchRequest(
+          methods = List(Method.Get),
+          schemes = List(Scheme.Http),
+          url = "http://l@:1"
+        ),
+        Option(RateLimitMatchResponse(
+          origin_traffic = Option(true),
+          headers = List(RateLimitMatchResponseHeader(
+            name = "Cf-Cache-Status",
+            op = Op.NotEqual,
+            value = "HIT"
+          ))))),
+      bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
+      threshold = 0,
+      period = Duration.ofSeconds(0),
+      action = Challenge
+    ))
 
-    "decode with correlation and status" >> {
-      val output =
-        json"""{
+    assertEquals(output, expected)
+  }
+
+  test("RateLimit decode with correlation and status") {
+    val output =
+      json"""{
                  "id": "rate-limit-id",
                  "disabled": false,
                  "description": "my description",
@@ -236,38 +238,39 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                  }
                }""".as[RateLimit]
 
-      output must beRight(RateLimit(
-        id = Option("rate-limit-id").map(tagRateLimitId),
-        disabled = Option(false),
-        description = Option("my description"),
-        `match` = RateLimitMatch(
-          RateLimitMatchRequest(
-            methods = List(Method.Get),
-            schemes = List(Scheme.Http),
-            url = "http://l@:1"
-          ),
-          Option(RateLimitMatchResponse(
-            origin_traffic = Option(true),
-            headers = List(RateLimitMatchResponseHeader(
-              name = "Cf-Cache-Status",
-              op = Op.NotEqual,
-              value = "HIT"
-            )),
-            status = List(403),
-          ))),
-        bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
-        correlate = Option(RateLimitCorrelation("nat")),
-        threshold = 0,
-        period = Duration.ofSeconds(0),
-        action = Challenge
-      ))
-    }
+    val expected = Right(RateLimit(
+      id = Option("rate-limit-id").map(tagRateLimitId),
+      disabled = Option(false),
+      description = Option("my description"),
+      `match` = RateLimitMatch(
+        RateLimitMatchRequest(
+          methods = List(Method.Get),
+          schemes = List(Scheme.Http),
+          url = "http://l@:1"
+        ),
+        Option(RateLimitMatchResponse(
+          origin_traffic = Option(true),
+          headers = List(RateLimitMatchResponseHeader(
+            name = "Cf-Cache-Status",
+            op = Op.NotEqual,
+            value = "HIT"
+          )),
+          status = List(403),
+        ))),
+      bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
+      correlate = Option(RateLimitCorrelation("nat")),
+      threshold = 0,
+      period = Duration.ofSeconds(0),
+      action = Challenge
+    ))
+
+    assertEquals(output, expected)
   }
 
-  "RateLimitAction" should {
-    "decode simulate" >> {
-      val output =
-        json"""{
+  // RateLimitAction encode/decode tests
+  test("RateLimitAction decode simulate") {
+    val output =
+      json"""{
                  "mode": "simulate",
                  "timeout": 60,
                  "response": {
@@ -276,20 +279,22 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                  }
                }""".as[RateLimitAction]
 
-      output must beRight(
-        Simulate(
-          Duration.ofSeconds(60),
-          Option(RateLimitActionResponse(ContentType.Xml, "<xml></xml>")
-          )))
-    }
-
-    "encode Simulate" >> {
-      val output = (Simulate(
+    val expected: Either[DecodingFailure, RateLimitAction] = Right(
+      Simulate(
         Duration.ofSeconds(60),
         Option(RateLimitActionResponse(ContentType.Xml, "<xml></xml>")
-        )): RateLimitAction).asJson
+        )))
 
-      output must_== json"""{
+    assertEquals(output, expected)
+  }
+
+  test("RateLimitAction encode Simulate") {
+    val output = (Simulate(
+      Duration.ofSeconds(60),
+      Option(RateLimitActionResponse(ContentType.Xml, "<xml></xml>")
+      )): RateLimitAction).asJson
+
+    val expected = json"""{
                  "mode": "simulate",
                  "timeout": 60,
                  "response": {
@@ -297,11 +302,13 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                    "body": "<xml></xml>"
                  }
                }"""
-    }
 
-    "decode ban" >> {
-      val output =
-        json"""{
+    assertEquals(output, expected)
+  }
+
+  test("RateLimitAction decode ban") {
+    val output =
+      json"""{
                  "mode": "ban",
                  "timeout": 60,
                  "response": {
@@ -310,20 +317,22 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                  }
                }""".as[RateLimitAction]
 
-      output must beRight(
-        Ban(
-          Duration.ofSeconds(60),
-          Option(RateLimitActionResponse(ContentType.Xml, "<xml></xml>")
-          )))
-    }
-
-    "encode Ban" >> {
-      val output = (Ban(
+    val expected: Either[DecodingFailure, RateLimitAction] = Right(
+      Ban(
         Duration.ofSeconds(60),
         Option(RateLimitActionResponse(ContentType.Xml, "<xml></xml>")
-        )): RateLimitAction).asJson
+        )))
 
-      output must_== json"""{
+    assertEquals(output, expected)
+  }
+
+  test("RateLimitAction encode Ban") {
+    val output = (Ban(
+      Duration.ofSeconds(60),
+      Option(RateLimitActionResponse(ContentType.Xml, "<xml></xml>")
+      )): RateLimitAction).asJson
+
+    val expected = json"""{
                  "mode": "ban",
                  "timeout": 60,
                  "response": {
@@ -331,41 +340,47 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                    "body": "<xml></xml>"
                  }
                }"""
-    }
 
-    "decode challenge" >> {
-      val output: Either[DecodingFailure, RateLimitAction] =
-        json"""{
+    assertEquals(output, expected)
+  }
+
+  test("RateLimitAction decode challenge") {
+    val output: Either[DecodingFailure, RateLimitAction] =
+      json"""{
                  "mode": "challenge"
                }""".as[RateLimitAction]
 
-      output must beRight(Challenge: RateLimitAction)
-    }
+    val expected: Either[DecodingFailure, RateLimitAction] = Right(Challenge: RateLimitAction)
 
-    "encode Challenge" >> {
-      val output = (Challenge: RateLimitAction).asJson
+    assertEquals(output, expected)
+  }
 
-      output must_== json"""{"mode": "challenge"}"""
-    }
+  test("RateLimitAction encode Challenge") {
+    val output = (Challenge: RateLimitAction).asJson
+    val expected = json"""{"mode": "challenge"}"""
+    assertEquals(output, expected)
+  }
 
-    "decode js_challenge" >> {
-      val output: Either[DecodingFailure, RateLimitAction] =
-        json"""{
+  test("RateLimitAction decode js_challenge") {
+    val output: Either[DecodingFailure, RateLimitAction] =
+      json"""{
                  "mode": "js_challenge"
                }""".as[RateLimitAction]
 
-      output must beRight(JsChallenge: RateLimitAction)
-    }
+    val expected: Either[DecodingFailure, RateLimitAction] = Right(JsChallenge: RateLimitAction)
 
-    "encode JsChallenge" >> {
-      val output = (JsChallenge: RateLimitAction).asJson
+    assertEquals(output, expected)
+  }
 
-      output must_== json"""{"mode": "js_challenge"}"""
-    }
+  test("RateLimitAction encode JsChallenge") {
+    val output = (JsChallenge: RateLimitAction).asJson
+    val expected = json"""{"mode": "js_challenge"}"""
+    assertEquals(output, expected)
+  }
 
-    "decode null list field" >> {
-      val output: Either[DecodingFailure, RateLimit] =
-        json"""{
+  test("RateLimit decode null list field") {
+    val output: Either[DecodingFailure, RateLimit] =
+      json"""{
                  "id": "rate-limit-id",
                  "disabled": false,
                  "description": "my description",
@@ -399,33 +414,35 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                  }
                }""".as[RateLimit]
 
-      output must beRight(RateLimit(
-        id = Option("rate-limit-id").map(tagRateLimitId),
-        disabled = Option(false),
-        description = Option("my description"),
-        `match` = RateLimitMatch(
-          RateLimitMatchRequest(
-            methods = List.empty,
-            schemes = List(Scheme.Http),
-            url = "http://l@:1"
-          ),
-          Option(RateLimitMatchResponse(
-            origin_traffic = Option(true),
-            headers = List(RateLimitMatchResponseHeader(
-              name = "Cf-Cache-Status",
-              op = Op.NotEqual,
-              value = "HIT"
-            ))))),
-        bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
-        threshold = 0,
-        period = Duration.ofSeconds(0),
-        action = Challenge
-      ))
-    }
+    val expected = Right(RateLimit(
+      id = Option("rate-limit-id").map(tagRateLimitId),
+      disabled = Option(false),
+      description = Option("my description"),
+      `match` = RateLimitMatch(
+        RateLimitMatchRequest(
+          methods = List.empty,
+          schemes = List(Scheme.Http),
+          url = "http://l@:1"
+        ),
+        Option(RateLimitMatchResponse(
+          origin_traffic = Option(true),
+          headers = List(RateLimitMatchResponseHeader(
+            name = "Cf-Cache-Status",
+            op = Op.NotEqual,
+            value = "HIT"
+          ))))),
+      bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
+      threshold = 0,
+      period = Duration.ofSeconds(0),
+      action = Challenge
+    ))
 
-    "decode non-existent list field" >> {
-      val output =
-        json"""{
+    assertEquals(output, expected)
+  }
+
+  test("RateLimit decode non-existent list field") {
+    val output =
+      json"""{
                  "id": "rate-limit-id",
                  "disabled": false,
                  "description": "my description",
@@ -458,33 +475,35 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                  }
                }""".as[RateLimit]
 
-      output must beRight(RateLimit(
-        id = Option("rate-limit-id").map(tagRateLimitId),
-        disabled = Option(false),
-        description = Option("my description"),
-        `match` = RateLimitMatch(
-          RateLimitMatchRequest(
-            methods = List.empty,
-            schemes = List(Scheme.Http),
-            url = "http://l@:1"
-          ),
-          Option(RateLimitMatchResponse(
-            origin_traffic = Option(true),
-            headers = List(RateLimitMatchResponseHeader(
-              name = "Cf-Cache-Status",
-              op = Op.NotEqual,
-              value = "HIT"
-            ))))),
-        bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
-        threshold = 0,
-        period = Duration.ofSeconds(0),
-        action = Challenge
-      ))
-    }
+    val expected = Right(RateLimit(
+      id = Option("rate-limit-id").map(tagRateLimitId),
+      disabled = Option(false),
+      description = Option("my description"),
+      `match` = RateLimitMatch(
+        RateLimitMatchRequest(
+          methods = List.empty,
+          schemes = List(Scheme.Http),
+          url = "http://l@:1"
+        ),
+        Option(RateLimitMatchResponse(
+          origin_traffic = Option(true),
+          headers = List(RateLimitMatchResponseHeader(
+            name = "Cf-Cache-Status",
+            op = Op.NotEqual,
+            value = "HIT"
+          ))))),
+      bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
+      threshold = 0,
+      period = Duration.ofSeconds(0),
+      action = Challenge
+    ))
 
-    "decode booleans sent as strings" >> {
-      val output =
-        json"""{
+    assertEquals(output, expected)
+  }
+
+  test("RateLimit decode booleans sent as strings") {
+    val output =
+      json"""{
                  "id": "rate-limit-id",
                  "disabled": "false",
                  "description": "my description",
@@ -518,28 +537,29 @@ class RateLimitActionTest extends Specification with ScalaCheck with ScalacheckS
                  }
                }""".as[RateLimit]
 
-      output must beRight(RateLimit(
-        id = Option("rate-limit-id").map(tagRateLimitId),
-        disabled = Option(false),
-        description = Option("my description"),
-        `match` = RateLimitMatch(
-          RateLimitMatchRequest(
-            methods = List.empty,
-            schemes = List(Scheme.Http),
-            url = "http://l@:1"
-          ),
-          Option(RateLimitMatchResponse(
-            origin_traffic = Option(true),
-            headers = List(RateLimitMatchResponseHeader(
-              name = "Cf-Cache-Status",
-              op = Op.NotEqual,
-              value = "HIT"
-            ))))),
-        bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
-        threshold = 0,
-        period = Duration.ofSeconds(0),
-        action = Challenge
-      ))
-    }
+    val expected = Right(RateLimit(
+      id = Option("rate-limit-id").map(tagRateLimitId),
+      disabled = Option(false),
+      description = Option("my description"),
+      `match` = RateLimitMatch(
+        RateLimitMatchRequest(
+          methods = List.empty,
+          schemes = List(Scheme.Http),
+          url = "http://l@:1"
+        ),
+        Option(RateLimitMatchResponse(
+          origin_traffic = Option(true),
+          headers = List(RateLimitMatchResponseHeader(
+            name = "Cf-Cache-Status",
+            op = Op.NotEqual,
+            value = "HIT"
+          ))))),
+      bypass = List(RateLimitBypass(name = "url", value = "http://l@:1")),
+      threshold = 0,
+      period = Duration.ofSeconds(0),
+      action = Challenge
+    ))
+
+    assertEquals(output, expected)
   }
 }

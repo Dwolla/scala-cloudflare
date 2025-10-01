@@ -1,163 +1,144 @@
 package dwolla.cloudflare
 
-import java.time.Instant
-import cats.effect._
-import cats.effect.testing.specs2.CatsEffect
-import com.dwolla.cloudflare._
+import cats.effect.*
+import com.dwolla.cloudflare.*
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.logpush.{CreateJob, LogpushJob, LogpushOwnership}
 import com.dwolla.cloudflare.domain.model.{LogpullOptionsTag, LogpushDestinationTag, LogpushIdTag, ZoneIdTag}
-import io.circe.literal._
+import io.circe.literal.*
+import munit.CatsEffectSuite
 import org.http4s.client.Client
-import org.specs2.mutable.Specification
-import org.specs2.specification.Scope
 import shapeless.tag.@@
 
-class LogpushClientSpec
-  extends Specification
-    with CatsEffect {
+import java.time.Instant
+
+class LogpushClientSpec extends CatsEffectSuite {
 
   def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
-
   def tagInt[T](i: Int): Int @@ T = shapeless.tag[T][Int](i)
 
-  trait Setup extends Scope {
-    val authorization = CloudflareAuthorization("email", "key")
-    val fakeService = new FakeCloudflareService(authorization)
+  // Common setup
+  private val authorization = CloudflareAuthorization("email", "key")
+  private val fakeService = new FakeCloudflareService(authorization)
 
-    val zoneId = tagString[ZoneIdTag]("fake-zone-id")
-    val logpushId1 = tagInt[LogpushIdTag](1)
-    val logpushId2 = tagInt[LogpushIdTag](2)
-    val destination1 = tagString[LogpushDestinationTag]("s3://cloudflare/logs/{DATE}?region=us-west-2&sse=AES256")
-    val destination2 = tagString[LogpushDestinationTag]("s3://cloudflare")
-    val options = tagString[LogpullOptionsTag]("fields=ClientIP&timestamps=rfc3339")
-    val ts = Instant.parse("2018-11-27T19:10:00Z")
+  private val zoneId = tagString[ZoneIdTag]("fake-zone-id")
+  private val logpushId1 = tagInt[LogpushIdTag](1)
+  private val logpushId2 = tagInt[LogpushIdTag](2)
+  private val destination1 = tagString[LogpushDestinationTag]("s3://cloudflare/logs/{DATE}?region=us-west-2&sse=AES256")
+  private val destination2 = tagString[LogpushDestinationTag]("s3://cloudflare")
+  private val options = tagString[LogpullOptionsTag]("fields=ClientIP&timestamps=rfc3339")
+  private val ts = Instant.parse("2018-11-27T19:10:00Z")
+
+  test("list should return all jobs") {
+    val http4sClient = fakeService.client(fakeService.listLogpushJobs(zoneId, SampleResponses.Successes.list))
+    val client = buildClient(http4sClient, authorization)
+
+    val output = client
+      .list(zoneId)
+      .compile
+      .toList
+
+    val expected = List(
+      LogpushJob(
+        id = logpushId1,
+        enabled = true,
+        name = Some("Job 1"),
+        logpullOptions = Some(options),
+        destinationConf = destination1,
+        lastComplete = Some(ts),
+        lastError = None,
+        errorMessage = None
+      ),
+      LogpushJob(
+        id = logpushId2,
+        enabled = false,
+        name = None,
+        logpullOptions = None,
+        destinationConf = destination2,
+        lastComplete = None,
+        lastError = Some(ts),
+        errorMessage = Some("error")
+      )
+    )
+
+    assertIO(output, expected)
   }
 
-  "list" should {
-    "return all jobs" in new Setup {
-      val http4sClient = fakeService.client(fakeService.listLogpushJobs(zoneId, SampleResponses.Successes.list))
-      val client = buildClient(http4sClient, authorization)
+  test("createOwnership should create new ownership") {
+    val http4sClient = fakeService.client(fakeService.createLogpushOwnership(zoneId, SampleResponses.Successes.createOwnership))
+    val client = buildClient(http4sClient, authorization)
 
-      client
-        .list(zoneId)
-        .compile
-        .toList
-        .map {
-          _ must be_==(
-            List(
-              LogpushJob(
-                id = logpushId1,
-                enabled = true,
-                name = Some("Job 1"),
-                logpullOptions = Some(options),
-                destinationConf = destination1,
-                lastComplete = Some(ts),
-                lastError = None,
-                errorMessage = None
-              ),
-              LogpushJob(
-                id = logpushId2,
-                enabled = false,
-                name = None,
-                logpullOptions = None,
-                destinationConf = destination2,
-                lastComplete = None,
-                lastError = Some(ts),
-                errorMessage = Some("error")
-              )
-            )
-          )
-        }
-    }
+    val output = client
+      .createOwnership(zoneId, destination1)
+      .compile
+      .toList
+
+    val expected = LogpushOwnership(
+      filename = "logs/20180101/cloudflare-ownership-challenge-11111111.txt",
+      message = "",
+      valid = true
+    )
+
+    assertIO(output.map(_.contains(expected)), true)
   }
 
-  "createOwnership" should {
-    "create new ownership" in new Setup {
-      val http4sClient = fakeService.client(fakeService.createLogpushOwnership(zoneId, SampleResponses.Successes.createOwnership))
-      val client = buildClient(http4sClient, authorization)
+  test("createOwnership should throw unexpected exception if error") {
+    val http4sClient = fakeService.client(fakeService.createLogpushOwnership(zoneId, SampleResponses.Failures.createOwnershipError))
+    val client = buildClient(http4sClient, authorization)
 
-      client
-        .createOwnership(zoneId, destination1)
-        .compile
-        .toList
-        .map {
-          _ must contain(
-            LogpushOwnership(
-              filename = "logs/20180101/cloudflare-ownership-challenge-11111111.txt",
-              message = "",
-              valid = true
-            )
-          )
-        }
-    }
+    val io = client.createOwnership(zoneId, destination1)
+      .compile
+      .toList
 
-    "throw unexpected exception if error" in new Setup {
-      val http4sClient = fakeService.client(fakeService.createLogpushOwnership(zoneId, SampleResponses.Failures.createOwnershipError))
-      val client = buildClient(http4sClient, authorization)
-
-      client.createOwnership(zoneId, destination1)
-        .compile
-        .toList
-        .attempt
-        .map {
-          _ must beLeft[Throwable].like {
-            case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
-              """An unexpected Cloudflare error occurred. Errors:
-                |
-                | - Error(Some(400),error parsing input: invalid json)
-                |     """.stripMargin
-          }
-        }
-
+    interceptIO[UnexpectedCloudflareErrorException](io).map { ex =>
+      assertEquals(ex.getMessage,
+        """An unexpected Cloudflare error occurred. Errors:
+          |
+          | - Error(Some(400),error parsing input: invalid json)
+          |     """.stripMargin)
     }
   }
 
-  "createJob" should {
-    "create new job" in new Setup {
-      val job = CreateJob(destination1, "challenge", None, None, None)
-      val http4sClient = fakeService.client(fakeService.createLogpushJob(zoneId, SampleResponses.Successes.createJob))
-      val client = buildClient(http4sClient, authorization)
+  test("createJob should create new job") {
+    val job = CreateJob(destination1, "challenge", None, None, None)
+    val http4sClient = fakeService.client(fakeService.createLogpushJob(zoneId, SampleResponses.Successes.createJob))
+    val client = buildClient(http4sClient, authorization)
 
-      client
-        .createJob(zoneId, job)
-        .compile
-        .toList
-        .map {
-          _ must contain(
-            LogpushJob(
-              id = logpushId1,
-              enabled = true,
-              name = None,
-              logpullOptions = Some(options),
-              destinationConf = destination1,
-              lastComplete = None,
-              lastError = None,
-              errorMessage = None
-            )
-          )
-        }
-    }
+    val output = client
+      .createJob(zoneId, job)
+      .compile
+      .toList
 
-    "throw unexpected exception if error" in new Setup {
-      val job = CreateJob(destination1, "challenge", None, None, None)
-      val http4sClient = fakeService.client(fakeService.createLogpushJob(zoneId, SampleResponses.Failures.createJobError))
-      val client = buildClient(http4sClient, authorization)
+    val expected = LogpushJob(
+      id = logpushId1,
+      enabled = true,
+      name = None,
+      logpullOptions = Some(options),
+      destinationConf = destination1,
+      lastComplete = None,
+      lastError = None,
+      errorMessage = None
+    )
 
-      client
-        .createJob(zoneId, job)
-        .compile
-        .toList
-        .attempt
-        .map {
-          _ must beLeft[Throwable].like {
-            case ex: UnexpectedCloudflareErrorException => ex.getMessage must_==
-              """An unexpected Cloudflare error occurred. Errors:
-                |
-                | - Error(Some(400),new job not allowed)
-                |     """.stripMargin
-          }
-        }
+    assertIO(output.map(_.contains(expected)), true)
+  }
+
+  test("createJob should throw unexpected exception if error") {
+    val job = CreateJob(destination1, "challenge", None, None, None)
+    val http4sClient = fakeService.client(fakeService.createLogpushJob(zoneId, SampleResponses.Failures.createJobError))
+    val client = buildClient(http4sClient, authorization)
+
+    val io = client
+      .createJob(zoneId, job)
+      .compile
+      .toList
+
+    interceptIO[UnexpectedCloudflareErrorException](io).map { ex =>
+      assertEquals(ex.getMessage,
+        """An unexpected Cloudflare error occurred. Errors:
+          |
+          | - Error(Some(400),new job not allowed)
+          |     """.stripMargin)
     }
   }
 

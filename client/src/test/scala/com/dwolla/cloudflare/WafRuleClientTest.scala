@@ -1,81 +1,36 @@
 package com.dwolla.cloudflare
 
-import cats.effect._
-import com.dwolla.cloudflare.domain.model._
-import com.dwolla.cloudflare.domain.model.wafrules._
+import cats.effect.*
+import com.dwolla.cloudflare.domain.model.*
+import com.dwolla.cloudflare.domain.model.wafrules.*
 import dwolla.cloudflare.FakeCloudflareService
 import org.http4s.HttpRoutes
 import org.http4s.server.Router
 import org.scalacheck.{Arbitrary, Gen}
-import org.specs2.ScalaCheck
-import org.specs2.matcher.{IOMatchers, Matchers}
-import org.specs2.mutable.Specification
-import org.specs2.specification.Scope
+import munit.CatsEffectSuite
+import munit.ScalaCheckSuite
 
-class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers with Matchers {
+class WafRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
-  trait Setup extends Scope {
-    val zoneId: ZoneId = tagZoneId("zone-id")
-    val wafRulePackageId: WafRulePackageId = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb")
-    val wafRuleId = tagWafRuleId("958019")
+  // Common setup values and helper
+  val zoneId: ZoneId = tagZoneId("zone-id")
+  val wafRulePackageId: WafRulePackageId = tagWafRulePackageId("c504870194831cd12c3fc0284f294abb")
+  val wafRuleId: WafRuleId = tagWafRuleId("958019")
 
-    val authorization = CloudflareAuthorization("email", "key")
+  val authorization = CloudflareAuthorization("email", "key")
+
+  private def buildWafRuleClient(service: HttpRoutes[IO]): WafRuleClient[IO] = {
     val fakeService = new FakeCloudflareService(authorization)
-
-    protected def buildWafRuleClient(service: HttpRoutes[IO]): WafRuleClient[IO] =
-      WafRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
-
+    WafRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
-  "list" should {
+  test("list should list the waf rules for the given zone") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildWafRuleClient(fakeService.listWafRules(zoneId, wafRulePackageId))
+    val output = client.list(zoneId, wafRulePackageId)
 
-    "list the waf rules for the given zone" in new Setup {
-      private val client = buildWafRuleClient(fakeService.listWafRules(zoneId, wafRulePackageId))
-      private val output = client.list(zoneId, wafRulePackageId)
-
-      output.compile.toList must returnValue(containTheSameElementsAs(List(
-        WafRule(
-          id = tagWafRuleId("958019"),
-          description = "Cross-site Scripting (XSS) Attack",
-          priority = tagWafRulePriority("14"),
-          package_id = wafRulePackageId,
-          group = WafRuleGroup(
-            id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-            name = WafRuleGroupName("OWASP XSS Attacks")
-          ),
-          mode = Mode.On,
-          allowed_modes = List(
-            Mode.On,
-            Mode.Off
-          )
-        ),
-        WafRule(
-          id = tagWafRuleId("958020"),
-          description = "Cross-site Scripting (XSS) Attack",
-          priority = tagWafRulePriority("56"),
-          package_id = wafRulePackageId,
-          group = WafRuleGroup(
-            id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-            name = WafRuleGroupName("OWASP XSS Attacks")
-          ),
-          mode = Mode.On,
-          allowed_modes = List(
-            Mode.On,
-            Mode.Off
-          )
-        )
-      )))
-    }
-
-  }
-
-  "get by id" should {
-
-    "return the waf rule with the given id" in new Setup {
-      private val client = buildWafRuleClient(fakeService.getWafRuleById(zoneId, wafRulePackageId, wafRuleId, Mode.On))
-      private val output = client.getById(zoneId, wafRulePackageId, wafRuleId)
-
-      output.compile.toList must returnValue(List(WafRule(
+    val expected = List(
+      WafRule(
         id = tagWafRuleId("958019"),
         description = "Cross-site Scripting (XSS) Attack",
         priority = tagWafRulePriority("14"),
@@ -85,108 +40,140 @@ class WafRuleClientTest extends Specification with ScalaCheck with IOMatchers wi
           name = WafRuleGroupName("OWASP XSS Attacks")
         ),
         mode = Mode.On,
-        allowed_modes = List(
-          Mode.On,
-          Mode.Off
-        )
-      )))
-    }
-
-  }
-
-  "setMode" should {
-    "set the mode for the given waf rule" in new Setup {
-      private val input = WafRule(
-        id = tagWafRuleId("958019"),
+        allowed_modes = List(Mode.On, Mode.Off)
+      ),
+      WafRule(
+        id = tagWafRuleId("958020"),
         description = "Cross-site Scripting (XSS) Attack",
-        priority = tagWafRulePriority("14"),
-        package_id = wafRulePackageId,
-        group = WafRuleGroup(
-          id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-          name = WafRuleGroupName("OWASP XSS Attacks")
-        ),
-        mode = Mode.Off,
-        allowed_modes = List(
-          Mode.On,
-          Mode.Off
-        )
-      )
-
-      private val client = buildWafRuleClient(fakeService.setModeForWafRuleToOn(zoneId, input))
-      private val output = client.setMode(zoneId, input.package_id, input.id, Mode.On)
-
-      output.compile.toList must returnValue(List(input.copy(mode = Mode.On)))
-    }
-
-    "return success if waf rule is already on" in new Setup {
-      private val existingWafRule = WafRule(
-        id = tagWafRuleId("958019"),
-        description = "Cross-site Scripting (XSS) Attack",
-        priority = tagWafRulePriority("14"),
+        priority = tagWafRulePriority("56"),
         package_id = wafRulePackageId,
         group = WafRuleGroup(
           id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
           name = WafRuleGroupName("OWASP XSS Attacks")
         ),
         mode = Mode.On,
-        allowed_modes = List(
-          Mode.On,
-          Mode.Off
-        )
+        allowed_modes = List(Mode.On, Mode.Off)
       )
+    )
 
-      private val service = Router(
-        "" -> fakeService.setModeForWafRuleThatAlreadyHasTheSpecifiedModeValue(zoneId, existingWafRule),
-        "" -> fakeService.getWafRuleById(zoneId, existingWafRule.package_id, existingWafRule.id, existingWafRule.mode)
-      )
-      private val client = buildWafRuleClient(service)
-      private val output = client.setMode(zoneId, existingWafRule.package_id, existingWafRule.id, existingWafRule.mode)
-
-      output.compile.toList must returnValue(List(existingWafRule))
-    }
-
-    "return success if waf rule is already off" in new Setup {
-      private val input = WafRule(
-        id = tagWafRuleId("958019"),
-        description = "Cross-site Scripting (XSS) Attack",
-        priority = tagWafRulePriority("14"),
-        package_id = wafRulePackageId,
-        group = WafRuleGroup(
-          id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
-          name = WafRuleGroupName("OWASP XSS Attacks")
-        ),
-        mode = Mode.Off,
-        allowed_modes = List(
-          Mode.On,
-          Mode.Off
-        )
-      )
-
-      private val service = Router(
-        "" -> fakeService.setModeForWafRuleThatAlreadyHasTheSpecifiedModeValue(zoneId, input),
-        "" -> fakeService.getWafRuleById(zoneId, wafRulePackageId, input.id, input.mode)
-      )
-      private val client = buildWafRuleClient(service)
-      private val output = client.setMode(zoneId, input.package_id, input.id, Mode.Off)
-
-      output.compile.toList must returnValue(List(input.copy(mode = Mode.Off)))
-    }
+    assertIO(output.compile.toList.map(_.toSet), expected.toSet)
   }
 
-  "buildUri and parseUri" should {
-    val nonEmptyAlphaNumericString = Gen.identifier
-    implicit val arbitraryZoneId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
-    implicit val arbitraryWafRulePackageId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[WafRulePackageIdTag][String]))
-    implicit val arbitraryWafRuleId = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[WafRuleIdTag][String]))
+  test("get by id should return the waf rule with the given id") {
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildWafRuleClient(fakeService.getWafRuleById(zoneId, wafRulePackageId, wafRuleId, Mode.On))
+    val output = client.getById(zoneId, wafRulePackageId, wafRuleId)
 
-    "be the inverse of each other" >> { prop { (zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId) =>
+    val expected = List(WafRule(
+      id = tagWafRuleId("958019"),
+      description = "Cross-site Scripting (XSS) Attack",
+      priority = tagWafRulePriority("14"),
+      package_id = wafRulePackageId,
+      group = WafRuleGroup(
+        id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
+        name = WafRuleGroupName("OWASP XSS Attacks")
+      ),
+      mode = Mode.On,
+      allowed_modes = List(Mode.On, Mode.Off)
+    ))
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("setMode should set the mode for the given waf rule") {
+    val input = WafRule(
+      id = tagWafRuleId("958019"),
+      description = "Cross-site Scripting (XSS) Attack",
+      priority = tagWafRulePriority("14"),
+      package_id = wafRulePackageId,
+      group = WafRuleGroup(
+        id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
+        name = WafRuleGroupName("OWASP XSS Attacks")
+      ),
+      mode = Mode.Off,
+      allowed_modes = List(Mode.On, Mode.Off)
+    )
+
+    val fakeService = new FakeCloudflareService(authorization)
+    val client = buildWafRuleClient(fakeService.setModeForWafRuleToOn(zoneId, input))
+    val output = client.setMode(zoneId, input.package_id, input.id, Mode.On)
+
+    val expected = List(input.copy(mode = Mode.On))
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("setMode should return success if waf rule is already on") {
+    val existingWafRule = WafRule(
+      id = tagWafRuleId("958019"),
+      description = "Cross-site Scripting (XSS) Attack",
+      priority = tagWafRulePriority("14"),
+      package_id = wafRulePackageId,
+      group = WafRuleGroup(
+        id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
+        name = WafRuleGroupName("OWASP XSS Attacks")
+      ),
+      mode = Mode.On,
+      allowed_modes = List(Mode.On, Mode.Off)
+    )
+
+    val fakeService = new FakeCloudflareService(authorization)
+    val service = Router(
+      "" -> fakeService.setModeForWafRuleThatAlreadyHasTheSpecifiedModeValue(zoneId, existingWafRule),
+      "" -> fakeService.getWafRuleById(zoneId, existingWafRule.package_id, existingWafRule.id, existingWafRule.mode)
+    )
+    val client = buildWafRuleClient(service)
+    val output = client.setMode(zoneId, existingWafRule.package_id, existingWafRule.id, existingWafRule.mode)
+
+    val expected = List(existingWafRule)
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  test("setMode should return success if waf rule is already off") {
+    val input = WafRule(
+      id = tagWafRuleId("958019"),
+      description = "Cross-site Scripting (XSS) Attack",
+      priority = tagWafRulePriority("14"),
+      package_id = wafRulePackageId,
+      group = WafRuleGroup(
+        id = tagWafRuleGroupId("d508327aee37c147e03873f79288bb1d"),
+        name = WafRuleGroupName("OWASP XSS Attacks")
+      ),
+      mode = Mode.Off,
+      allowed_modes = List(Mode.On, Mode.Off)
+    )
+
+    val fakeService = new FakeCloudflareService(authorization)
+    val service = Router(
+      "" -> fakeService.setModeForWafRuleThatAlreadyHasTheSpecifiedModeValue(zoneId, input),
+      "" -> fakeService.getWafRuleById(zoneId, wafRulePackageId, input.id, input.mode)
+    )
+    val client = buildWafRuleClient(service)
+    val output = client.setMode(zoneId, input.package_id, input.id, Mode.Off)
+
+    val expected = List(input.copy(mode = Mode.Off))
+
+    assertIO(output.compile.toList, expected)
+  }
+
+  // property-based: buildUri and parseUri are inverses
+  private val nonEmptyAlphaNumericString = Gen.identifier
+  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
+  implicit private val arbitraryWafRulePackageId: Arbitrary[WafRulePackageId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[WafRulePackageIdTag][String]))
+  implicit private val arbitraryWafRuleId: Arbitrary[WafRuleId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[WafRuleIdTag][String]))
+
+  property("buildUri and parseUri should be inverses") {
+    import org.scalacheck.Prop.forAll
+
+    forAll { (zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId) =>
       val client = new WafRuleClient[IO] {
         override def list(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): fs2.Stream[IO, WafRule] = ???
         override def getById(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId): fs2.Stream[IO, WafRule] = ???
         override def setMode(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId, mode: Mode): fs2.Stream[IO, WafRule] = ???
       }
 
-      client.parseUri(client.buildUri(zoneId, wafRulePackageId, wafRuleId).renderString) must beSome((zoneId, wafRulePackageId, wafRuleId))
-    }}
+      assertEquals(client.parseUri(client.buildUri(zoneId, wafRulePackageId, wafRuleId).renderString), Some((zoneId, wafRulePackageId, wafRuleId)))
+    }
   }
 }

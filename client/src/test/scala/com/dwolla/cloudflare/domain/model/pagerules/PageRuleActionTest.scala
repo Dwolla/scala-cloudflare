@@ -1,41 +1,74 @@
 package com.dwolla.cloudflare.domain.model.pagerules
 
 import com.dwolla.cloudflare.domain.model.pagerules.CacheLevelValue.Standard
-import io.circe.generic.extras.Configuration
-import org.specs2.mutable.Specification
-import io.circe.literal._
-import io.circe.syntax._
-import org.scalacheck._
-import org.specs2.ScalaCheck
 import io.circe.CursorOp.DownField
 import io.circe.DecodingFailure
+import io.circe.generic.extras.Configuration
+import io.circe.literal.*
+import io.circe.syntax.*
+import munit.ScalaCheckSuite
+import org.http4s.circe.*
 import org.http4s.Uri
-import org.http4s.syntax.all._
-import org.http4s.laws.discipline.arbitrary._
-import org.http4s.circe._
+import org.http4s.laws.discipline.arbitrary.*
+import org.http4s.syntax.all.*
+import org.scalacheck.*
+import org.scalacheck.Prop.forAll
 
-class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckShapeless {
+class PageRuleActionTest extends ScalaCheckSuite with ScalacheckShapeless {
+
+  // Arbitrary instances for property testing
+  implicit val arbPageRuleActionEnabled: Arbitrary[PageRuleActionEnabled] =
+    Arbitrary(Gen.oneOf(PageRuleActionEnabled.On, PageRuleActionEnabled.Off))
+
+  implicit val arbSslSetting: Arbitrary[SslSetting] = Arbitrary(Gen.oneOf(
+    SslSetting.Off,
+    SslSetting.Flexible,
+    SslSetting.Full,
+    SslSetting.Strict,
+    SslSetting.OriginPull,
+  ))
+
+  implicit val arbSecurityLevelValue: Arbitrary[SecurityLevelValue] = Arbitrary(Gen.oneOf(
+    SecurityLevelValue.Off,
+    SecurityLevelValue.EssentiallyOff,
+    SecurityLevelValue.Low,
+    SecurityLevelValue.Medium,
+    SecurityLevelValue.High,
+    SecurityLevelValue.UnderAttack,
+  ))
+
+  implicit val arbCacheLevelValue: Arbitrary[CacheLevelValue] = Arbitrary(Gen.oneOf(
+    CacheLevelValue.Bypass,
+    CacheLevelValue.NoQueryString,
+    CacheLevelValue.IgnoreQueryString,
+    CacheLevelValue.Standard,
+    CacheLevelValue.CacheEverything,
+  ))
+
+  implicit val arbForwardingStatusCode: Arbitrary[ForwardingStatusCode] =
+    Arbitrary(Gen.oneOf(TemporaryRedirect, PermanentRedirect))
+
+  implicit val arbInt: Arbitrary[Int] = Arbitrary(Gen.chooseNum(Int.MinValue, Int.MaxValue))
 
   def transformName[T](t: T): String = Configuration.snakeCaseTransformation(String.valueOf(t))
 
-  "PageRule" should {
-    "encode" >> {
-      val output = PageRule(
-        id = Option("page-rule-id").map(tagPageRuleId),
-        targets = List.empty,
-        actions = List(
-          ForwardingUrl(uri"http://l@:1", PermanentRedirect),
-          DisableSecurity,
-          CacheLevel(Standard),
-        ),
-        priority = 0,
-        status = PageRuleStatus.Active,
-        modified_on = None,
-        created_on = None
-      ).asJson
+  // PageRule encode/decode
+  test("PageRule encode") {
+    val output = PageRule(
+      id = Option("page-rule-id").map(tagPageRuleId),
+      targets = List.empty,
+      actions = List(
+        ForwardingUrl(uri"http://l@:1", PermanentRedirect),
+        DisableSecurity,
+        CacheLevel(Standard),
+      ),
+      priority = 0,
+      status = PageRuleStatus.Active,
+      modified_on = None,
+      created_on = None
+    ).asJson
 
-      output must_==
-        json"""{
+    val expected = json"""{
                  "id": "page-rule-id",
                  "targets": [],
                  "actions": [
@@ -48,25 +81,26 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                  "modified_on": null,
                  "created_on": null
                }"""
-    }
 
-    "encode without ID" >> {
-      val output = PageRule(
-        id = None,
-        targets = List.empty,
-        actions = List(
-          ForwardingUrl(uri"http://l@:1", PermanentRedirect),
-          DisableSecurity,
-          CacheLevel(Standard),
-        ),
-        priority = 0,
-        status = PageRuleStatus.Active,
-        modified_on = None,
-        created_on = None
-      ).asJson
+    assertEquals(output, expected)
+  }
 
-      output must_==
-        json"""{
+  test("PageRule encode without ID") {
+    val output = PageRule(
+      id = None,
+      targets = List.empty,
+      actions = List(
+        ForwardingUrl(uri"http://l@:1", PermanentRedirect),
+        DisableSecurity,
+        CacheLevel(Standard),
+      ),
+      priority = 0,
+      status = PageRuleStatus.Active,
+      modified_on = None,
+      created_on = None
+    ).asJson
+
+    val expected = json"""{
                  "id": null,
                  "targets": [],
                  "actions": [
@@ -79,11 +113,13 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                  "modified_on": null,
                  "created_on": null
                }"""
-    }
 
-    "decode" >> {
-      val output =
-        json"""{
+    assertEquals(output, expected)
+  }
+
+  test("PageRule decode") {
+    val output =
+      json"""{
                  "id": "page-rule-id",
                  "targets": [],
                  "actions": [
@@ -96,73 +132,79 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                  "created_on": null
                }""".as[PageRule]
 
-      output must beRight(PageRule(
-        id = Option("page-rule-id").map(tagPageRuleId),
-        targets = List.empty,
-        actions = List(
-          AlwaysUseHttps,
-          CacheLevel(Standard),
-        ),
-        priority = 0,
-        status = PageRuleStatus.Active,
-        modified_on = None,
-        created_on = None
-      ))
-    }
+    val expected = Right(PageRule(
+      id = Option("page-rule-id").map(tagPageRuleId),
+      targets = List.empty,
+      actions = List(
+        AlwaysUseHttps,
+        CacheLevel(Standard),
+      ),
+      priority = 0,
+      status = PageRuleStatus.Active,
+      modified_on = None,
+      created_on = None
+    ))
+
+    assertEquals(output, expected)
   }
 
-  "PageRuleAction" should {
-    "decode disable_security" >> {
-      val output: Either[DecodingFailure, PageRuleAction] =
-        json"""{
+  // PageRuleAction encode/decode
+  test("PageRuleAction decode disable_security") {
+    val output: Either[DecodingFailure, PageRuleAction] =
+      json"""{
                  "id": "disable_security"
                }""".as[PageRuleAction]
 
-      output must beRight(DisableSecurity: PageRuleAction)
-    }
+    assertEquals(output, Right(DisableSecurity: PageRuleAction))
+  }
 
-    "encode DisableSecurity" >> {
-      val output = (DisableSecurity: PageRuleAction).asJson
+  test("PageRuleAction encode DisableSecurity") {
+    val output = (DisableSecurity: PageRuleAction).asJson
+    assertEquals(output, json"""{"id": "disable_security"}""")
+  }
 
-      output must_== json"""{"id": "disable_security"}"""
-    }
-
-    "decode browser_check" >> { prop { enabled: PageRuleActionEnabled =>
+  property("PageRuleAction decode browser_check") {
+    forAll { (enabled: PageRuleActionEnabled) =>
       val output =
         json"""{
                  "id": "browser_check",
                  "value": ${transformName(enabled)}
                }""".as[PageRuleAction]
 
-      output must beRight(BrowserCheck(enabled))
-    }}
+      assertEquals(output, Right(BrowserCheck(enabled)))
+    }
+  }
 
-    "encode BrowserCheck" >> { prop { enabled: PageRuleActionEnabled =>
+  property("PageRuleAction encode BrowserCheck") {
+    forAll { (enabled: PageRuleActionEnabled) =>
       val output = (BrowserCheck(enabled): PageRuleAction).asJson
+      assertEquals(output, json"""{"id": "browser_check", "value": ${transformName(enabled)}}""")
+    }
+  }
 
-      output must_== json"""{"id": "browser_check", "value": ${transformName(enabled)}}"""
-    }}
-
-    "decode ssl" >> { prop { ssl: SslSetting =>
+  property("PageRuleAction decode ssl") {
+    forAll { (ssl: SslSetting) =>
       val output =
         json"""{
                  "id": "ssl",
                  "value": ${transformName(ssl)}
                }""".as[PageRuleAction]
 
-      output must beRight(Ssl(ssl))
-    }}
+      assertEquals(output, Right(Ssl(ssl)))
+    }
+  }
 
-    "encode ssl" >> { prop  { ssl: SslSetting =>
+  property("PageRuleAction encode ssl") {
+    forAll { (ssl: SslSetting) =>
       val output = (Ssl(ssl): PageRuleAction).asJson
+      assertEquals(output, json"""{"id": "ssl", "value": ${transformName(ssl)}}""")
+    }
+  }
 
-      output must_== json"""{"id": "ssl", "value": ${transformName(ssl)}}"""
-    }}
-
-    "decode minify" >> {
-      import PageRuleActionEnabled._
-      val output =
-        json"""{
+  test("PageRuleAction decode minify") {
+    import PageRuleActionEnabled.*
+    val output =
+      json"""{
                  "id": "minify",
                  "value": {
                    "html": "on",
@@ -171,15 +213,14 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                  }
                }""".as[PageRuleAction]
 
-      output must beRight(Minify(On, On, Off))
-    }
+    assertEquals(output, Right(Minify(On, On, Off)))
+  }
 
-    "encode minify" >> {
-      import PageRuleActionEnabled._
-      val output = (Minify(On, On, Off): PageRuleAction).asJson
+  test("PageRuleAction encode minify") {
+    import PageRuleActionEnabled.*
+    val output = (Minify(On, On, Off): PageRuleAction).asJson
 
-      output must_==
-        json"""{
+    val expected = json"""{
                  "id": "minify",
                  "value": {
                    "html": "on",
@@ -187,70 +228,88 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                    "js": "off"
                  }
                }"""
-    }
 
-    "decode browser_cache_ttl" >> { prop { ttl: Int =>
+    assertEquals(output, expected)
+  }
+
+  property("PageRuleAction decode browser_cache_ttl") {
+    forAll { (ttl: Int) =>
       val output =
         json"""{
                  "id": "browser_cache_ttl",
                  "value": $ttl
                }""".as[PageRuleAction]
 
-      output must beRight(BrowserCacheTtl(ttl))
-    }}
+      assertEquals(output, Right(BrowserCacheTtl(ttl)))
+    }
+  }
 
-    "encode browser_cache_ttl" >> { prop { ttl: Int =>
+  property("PageRuleAction encode browser_cache_ttl") {
+    forAll { (ttl: Int) =>
       val output = (BrowserCacheTtl(ttl): PageRuleAction).asJson
 
-      output must_==
-        json"""{
+      val expected = json"""{
                  "id": "browser_cache_ttl",
                  "value": $ttl
                }"""
-    }}
 
-    "decode security_level" >> { prop { level: SecurityLevelValue =>
+      assertEquals(output, expected)
+    }
+  }
+
+  property("PageRuleAction decode security_level") {
+    forAll { (level: SecurityLevelValue) =>
       val output =
         json"""{
                  "id": "security_level",
                  "value": ${transformName(level)}
                }""".as[PageRuleAction]
 
-      output must beRight(SecurityLevel(level))
-    } }
+      assertEquals(output, Right(SecurityLevel(level)))
+    }
+  }
 
-    "encode security_level" >> { prop { level: SecurityLevelValue =>
+  property("PageRuleAction encode security_level") {
+    forAll { (level: SecurityLevelValue) =>
       val output = (SecurityLevel(level): PageRuleAction).asJson
 
-      output must_==
-        json"""{
+      val expected = json"""{
                  "id": "security_level",
                  "value": ${transformName(level)}
                }"""
-    }}
 
-    "decode cache_level" >> { prop { level: CacheLevelValue =>
+      assertEquals(output, expected)
+    }
+  }
+
+  property("PageRuleAction decode cache_level") {
+    forAll { (level: CacheLevelValue) =>
       val output =
         json"""{
                  "id": "cache_level",
                  "value": ${cacheLevelToString(level)}
                }""".as[PageRuleAction]
 
-      output must beRight(CacheLevel(level))
-    } }
+      assertEquals(output, Right(CacheLevel(level)))
+    }
+  }
 
-    "encode cache_level" >> { prop { level: CacheLevelValue =>
+  property("PageRuleAction encode cache_level") {
+    forAll { (level: CacheLevelValue) =>
       val output = (CacheLevel(level): PageRuleAction).asJson
 
-      output must_==
-        json"""{
+      val expected = json"""{
                  "id": "cache_level",
                  "value": ${cacheLevelToString(level)}
                }"""
-    }}
 
-    "decode forwarding url" >> { prop { input: ForwardingStatusCode =>
-      import PageRuleAction.redirectEncoder
+      assertEquals(output, expected)
+    }
+  }
+
+  property("PageRuleAction decode forwarding url") {
+    forAll { (input: ForwardingStatusCode) =>
+
       val output =
         json"""{
                  "id": "forwarding_url",
@@ -260,29 +319,31 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                  }
                }""".as[PageRuleAction]
 
-      output must beRight(ForwardingUrl(uri"https://hydragents.xyz", input))
-    }}
+      assertEquals(output, Right(ForwardingUrl(uri"https://hydragents.xyz", input)))
+    }
+  }
 
-    "encode forwarding url" >> { prop { (uri: Uri, code: ForwardingStatusCode) =>
-      import PageRuleAction.redirectEncoder
+  property("PageRuleAction encode forwarding url") {
+    forAll { (uri: Uri, code: ForwardingStatusCode) =>
+
       val output = (ForwardingUrl(uri, code): PageRuleAction).asJson
 
-      output must_==
-        json"""{
+      val expected = json"""{
                  "id": "forwarding_url",
                  "value": {
                    "url": $uri,
                    "status_code": $code
                  }
                }"""
-    }}
 
+      assertEquals(output, expected)
+    }
   }
 
-  "Custom decoders" should {
-    "fail to decode non-minify JSON" >> {
-      val input =
-        json"""{
+  // Custom decoders error cases
+  test("Custom decoders fail to decode non-minify JSON") {
+    val input =
+      json"""{
                  "id": "not-minify",
                  "value": {
                    "html": "on",
@@ -291,14 +352,14 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                  }
                }"""
 
-      val output = input.as[Minify]
+    val output = input.as[Minify]
 
-      output must beLeft(DecodingFailure("id must be `minify`", List(DownField("id"))))
-    }
+    assertEquals(output, Left(DecodingFailure("id must be `minify`", List(DownField("id")))))
+  }
 
-    "fail to decode non-forwarding-rule JSON" >> {
-      val input =
-        json"""{
+  test("Custom decoders fail to decode non-forwarding-rule JSON") {
+    val input =
+      json"""{
                  "id": "not-forwarding_url",
                  "value": {
                    "url": "https://hydragents.xyz",
@@ -306,14 +367,13 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
                  }
                }"""
 
-      val output = input.as[ForwardingUrl]
+    val output = input.as[ForwardingUrl]
 
-      output must beLeft(DecodingFailure("id must be `forwarding_url`", List(DownField("id"))))
-    }
+    assertEquals(output, Left(DecodingFailure("id must be `forwarding_url`", List(DownField("id")))))
   }
 
   private def cacheLevelToString(level: CacheLevelValue): String = {
-    import CacheLevelValue._
+    import CacheLevelValue.*
     level match {
       case Bypass => "bypass"
       case NoQueryString => "basic"
@@ -322,6 +382,4 @@ class PageRuleActionTest extends Specification with ScalaCheck with ScalacheckSh
       case CacheEverything => "cache_everything"
     }
   }
-
-
 }

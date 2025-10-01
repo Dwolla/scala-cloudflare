@@ -1,8 +1,8 @@
 package com.dwolla.circe
 
-import java.time.Duration
-
 import io.circe.{Decoder, Encoder}
+
+import java.time.Duration
 
 object DurationAsSecondsCodec extends DurationAsSecondsCodec
 

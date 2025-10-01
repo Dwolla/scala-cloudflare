@@ -1,22 +1,19 @@
 package com.dwolla.cloudflare
 
-import cats.effect._
-import cats.effect.testing.specs2.CatsEffect
-import com.dwolla.cloudflare.domain.dto._
-import com.dwolla.cloudflare.domain.model.Exceptions._
+import cats.effect.*
+import com.dwolla.cloudflare.domain.dto.*
+import com.dwolla.cloudflare.domain.model.Exceptions.*
 import dwolla.cloudflare.FakeCloudflareService
-import io.circe.syntax._
-import org.http4s._
-import org.http4s.syntax.all._
-import org.http4s.circe._
-import org.http4s.dsl.Http4sDsl
-import org.specs2.mutable.Specification
-import org.specs2.specification.Scope
+import io.circe.syntax.*
+import munit.CatsEffectSuite
+import org.http4s.*
+import org.http4s.circe.*
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.dsl.Http4sDsl
+import org.http4s.syntax.all.*
 
 class StreamingCloudflareApiExecutorSpec
-  extends Specification
-    with CatsEffect
+  extends CatsEffectSuite
     with Http4sDsl[IO]
     with Http4sClientDsl[IO] {
 
@@ -92,61 +89,58 @@ class StreamingCloudflareApiExecutorSpec
         messages = None).asJson)
   }
 
-  trait Setup extends Scope {
-    def client(service: HttpRoutes[IO]) = new StreamingCloudflareApiExecutor[IO](fakeCloudflareService.client(service), authorization)
+  // helper to build the executor client from a service
+  private def client(service: HttpRoutes[IO]) =
+    new StreamingCloudflareApiExecutor[IO](fakeCloudflareService.client(service), authorization)
+
+  test("fetch retrieves all the pages specified, once, and no more") {
+    val output = for {
+      res <- client(multiplePages).fetch[String](GET(uri"https://api.cloudflare.com/"))
+    } yield res
+
+    assertIO(output.compile.toList, List("page-1", "page-2", "page-3"))
   }
 
-  "fetch" should {
-    "retrieve all the pages specified, once, and no more" in new Setup {
-      private val output = for {
-        res <- client(multiplePages).fetch[String](GET(uri"https://api.cloudflare.com/"))
-      } yield res
+  test("fetch returns a single page if the response is paginated without result_info") {
+    val output = for {
+      res <- client(singlePage).fetch[String](GET(uri"https://api.cloudflare.com/"))
+    } yield res
 
-      output.compile.toList.map(_ must be_==(List("page-1", "page-2", "page-3")))
+    assertIO(output.compile.toList, List("single-page"))
+  }
+
+  test("fetch returns a single result if the response is not paginated") {
+    val output = for {
+      res <- client(singleResult).fetch[String](GET(uri"https://api.cloudflare.com/"))
+    } yield res
+
+    assertIO(output.compile.toList, List("single-result"))
+  }
+
+  test("fetch raises an exception if authorization fails with a 403 response") {
+    val output = for {
+      res <- client(authorizationFailure).fetch[String](GET(uri"https://api.cloudflare.com/forbidden"))
+    } yield res
+
+    interceptIO[AccessDenied](output.compile.toList).map { ex =>
+      assertEquals(ex.getMessage, "The given credentials were invalid")
     }
+  }
 
-    "return a single page if the response is paginated without result_info" in new Setup {
-      private val output = for {
-        res <- client(singlePage).fetch[String](GET(uri"https://api.cloudflare.com/"))
-      } yield res
+  test("fetch raises an exception if the authorization fails due to invalid headers") {
+    val output = for {
+      res <- client(authorizationFailure).fetch[String](GET(uri"https://api.cloudflare.com/invalid-headers"))
+    } yield res
 
-      output.compile.toList.map(_ must be_==(List("single-page")))
-    }
-
-    "return a single result if the response is not paginated" in new Setup {
-      private val output = for {
-        res <- client(singleResult).fetch[String](GET(uri"https://api.cloudflare.com/"))
-      } yield res
-
-      output.compile.toList.map(_ must be_==(List("single-result")))
-    }
-
-    "raise an exception if authorization fails with a 403 response" in new Setup {
-      private val output = for {
-        res <- client(authorizationFailure).fetch[String](GET(uri"https://api.cloudflare.com/forbidden"))
-      } yield res
-
-      output.compile.toList.map(_ should throwAn[AccessDenied].like {
-        case ex =>
-          ex.getMessage must_== "The given credentials were invalid"
-      })
-    }
-
-    "raise an exception if the authorization fails due to invalid headers" in new Setup {
-      private val output = for {
-        res <- client(authorizationFailure).fetch[String](GET(uri"https://api.cloudflare.com/invalid-headers"))
-      } yield res
-
-      output.compile.toList.map(_ should throwAn[AccessDenied].like {
-        case ex@AccessDenied(msg) =>
-          msg should contain(ResponseInfoDTO(Option(6102), "Invalid format for X-Auth-Email header"))
-          msg should contain(ResponseInfoDTO(Option(6103), "Invalid format for X-Auth-Key header"))
-          ex.getMessage must startWith(
-            """The given credentials were invalid
-              |
-              |  See the following errors:
-              |   -""".stripMargin)
-      })
+    interceptIO[AccessDenied](output.compile.toList).map { ex =>
+      val AccessDenied(msg) = ex
+      assert(msg.contains(ResponseInfoDTO(Option(6102), "Invalid format for X-Auth-Email header")))
+      assert(msg.contains(ResponseInfoDTO(Option(6103), "Invalid format for X-Auth-Key header")))
+      val expectedPrefix = """The given credentials were invalid
+        |
+        |  See the following errors:
+        |   -""".stripMargin
+      assert(ex.getMessage.startsWith(expectedPrefix))
     }
   }
 }
