@@ -6,6 +6,7 @@ import com.dwolla.cloudflare.domain.model.Exceptions.*
 import dwolla.cloudflare.FakeCloudflareService
 import io.circe.syntax.*
 import munit.CatsEffectSuite
+import natchez.Trace.Implicits.noop
 import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.client.dsl.Http4sClientDsl

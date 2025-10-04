@@ -1,32 +1,33 @@
 package com.dwolla.cloudflare
 
-import cats._
-import cats.syntax.all._
+import cats.*
+import cats.effect.{Trace as _, *}
+import cats.syntax.all.*
 import com.dwolla.cloudflare.DnsRecordClientImpl.{DnsRecordContent, DnsRecordName, DnsRecordType}
-import com.dwolla.cloudflare.domain.dto.dns._
+import com.dwolla.cloudflare.domain.dto.dns.*
+import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
-import com.dwolla.cloudflare.domain.model._
-import io.circe.{Error => _, _}
-import io.circe.optics.JsonPath._
-import io.circe.syntax._
-import fs2._
-import org.http4s.Method._
-import org.http4s._
-import org.http4s.circe._
+import com.dwolla.tagless.*
+import com.dwolla.tracing.syntax.*
+import io.circe.optics.JsonPath.*
+import io.circe.syntax.*
+import io.circe.{Error as _, *}
+import fs2.*
+import natchez.*
+import org.http4s.*
+import org.http4s.Method.*
+import org.http4s.circe.*
 import org.http4s.client.dsl.Http4sClientDsl
 
 import scala.util.matching.Regex
 
 trait DnsRecordClient[F[_]] {
-  def getById(zoneId: ZoneId, resourceId: ResourceId): Stream[F, IdentifiedDnsRecord]
-  def createDnsRecord(record: UnidentifiedDnsRecord): Stream[F, IdentifiedDnsRecord]
-  def updateDnsRecord(record: IdentifiedDnsRecord): Stream[F, IdentifiedDnsRecord]
-  def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord]
-  def deleteDnsRecord(physicalResourceId: String): Stream[F, PhysicalResourceId]
-
-  def getByUri(uri: String): Stream[F, IdentifiedDnsRecord] = parseUri(uri).fold(Stream.empty.covaryAll[F, IdentifiedDnsRecord]) {
-    case (zoneId, resourceId) => getById(zoneId, resourceId)
-  }
+  def getById(zoneId: ZoneId, resourceId: ResourceId): F[IdentifiedDnsRecord]
+  def createDnsRecord(record: UnidentifiedDnsRecord): F[IdentifiedDnsRecord]
+  def updateDnsRecord(record: IdentifiedDnsRecord): F[IdentifiedDnsRecord]
+  def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): F[IdentifiedDnsRecord]
+  def deleteDnsRecord(physicalResourceId: String): F[PhysicalResourceId]
+  def getByUri(uri: String): F[IdentifiedDnsRecord]
 
   def parseUri(uri: String): Option[(ZoneId, ResourceId)] = uri match {
     case DnsRecordClient.uriRegex(zoneId, resourceId) =>
@@ -36,13 +37,21 @@ trait DnsRecordClient[F[_]] {
   }
 }
 
-object DnsRecordClient {
-  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): DnsRecordClient[F] = new DnsRecordClientImpl[F](executor)
+object DnsRecordClient extends DnsRecordClientInstances {
+  def apply[F[_] : MonadCancelThrow : Trace](executor: StreamingCloudflareApiExecutor[F]): DnsRecordClient[Stream[F, *]] =
+    apply(executor, _.traceWithInputsAndOutputs)
+
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F],
+                                     transform: DnsRecordClient[Stream[F, *]] => DnsRecordClient[Stream[F, *]]): DnsRecordClient[Stream[F, *]] =
+    WeaveKnot(knot(executor))(transform)
+
+  private def knot[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): Eval[DnsRecordClient[Stream[F, *]]] => DnsRecordClient[Stream[F, *]] =
+    new DnsRecordClientImpl[F](executor, _)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/dns_records/(.+)""".r
 }
 
-object DnsRecordClientImpl {
+private object DnsRecordClientImpl {
   val notFoundCodes = List(1032)
   
   private[DnsRecordClientImpl] type DnsRecordName = DnsRecordName.Type
@@ -68,10 +77,19 @@ object DnsRecordClientImpl {
   }
 }
 
-class DnsRecordClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends DnsRecordClient[F] with Http4sClientDsl[F] {
-  import com.dwolla.cloudflare.domain.model.Implicits._
+private class DnsRecordClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F],
+                                                           self: Eval[DnsRecordClient[Stream[F, *]]])
+  extends DnsRecordClient[Stream[F, *]]
+    with Http4sClientDsl[F] {
+  import com.dwolla.cloudflare.domain.model.Implicits.*
 
-  private val zoneClient = ZoneClient(executor)
+  private val zoneClient = ZoneClient(executor) // TODO instrument
+
+  override def getByUri(uri: String): Stream[F, IdentifiedDnsRecord] =
+    self.value.parseUri(uri)
+      .fold(MonoidK[Stream[F, *]].empty[IdentifiedDnsRecord]) {
+        case (zoneId, resourceId) => self.value.getById(zoneId, resourceId)
+      }
 
   override def createDnsRecord(record: UnidentifiedDnsRecord): Stream[F, IdentifiedDnsRecord] =
     for {

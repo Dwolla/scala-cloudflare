@@ -9,6 +9,7 @@ import org.http4s.server.Router
 import org.scalacheck.{Arbitrary, Gen}
 import munit.CatsEffectSuite
 import munit.ScalaCheckSuite
+import natchez.Trace.Implicits.noop
 
 class WafRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 

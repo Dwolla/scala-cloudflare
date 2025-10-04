@@ -6,6 +6,7 @@ import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorEx
 import com.dwolla.cloudflare.domain.model.ratelimits.*
 import dwolla.cloudflare.FakeCloudflareService
 import munit.{CatsEffectSuite, ScalaCheckSuite}
+import natchez.Trace.Implicits.noop
 import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
 

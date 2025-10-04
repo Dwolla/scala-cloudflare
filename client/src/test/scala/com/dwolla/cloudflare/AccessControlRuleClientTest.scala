@@ -10,6 +10,7 @@ import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
 import munit.CatsEffectSuite
 import munit.ScalaCheckSuite
+import natchez.Trace.Implicits.noop
 
 class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   // Common setup values and helper

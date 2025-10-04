@@ -5,6 +5,7 @@ import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.wafrulegroups.*
 import dwolla.cloudflare.FakeCloudflareService
 import munit.{CatsEffectSuite, ScalaCheckSuite}
+import natchez.Trace.Implicits.noop
 import org.http4s.HttpRoutes
 import org.http4s.server.Router
 import org.scalacheck.{Arbitrary, Gen}

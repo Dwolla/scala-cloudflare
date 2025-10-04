@@ -9,6 +9,7 @@ import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
 import munit.CatsEffectSuite
 import munit.ScalaCheckSuite
+import natchez.Trace.Implicits.noop
 
 class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
 

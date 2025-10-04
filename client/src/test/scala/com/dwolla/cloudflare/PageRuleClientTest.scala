@@ -7,6 +7,7 @@ import com.dwolla.cloudflare.domain.model.pagerules.*
 import com.dwolla.cloudflare.domain.model.pagerules.PageRuleStatus.{Active, Disabled}
 import dwolla.cloudflare.FakeCloudflareService
 import munit.{CatsEffectSuite, ScalaCheckSuite}
+import natchez.Trace.Implicits.noop
 import org.http4s.HttpRoutes
 import org.http4s.syntax.all.*
 import org.scalacheck.{Arbitrary, Gen}

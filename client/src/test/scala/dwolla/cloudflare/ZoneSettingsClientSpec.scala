@@ -9,6 +9,7 @@ import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.ZoneSettings.{CloudflareSecurityLevel, CloudflareTlsLevel, CloudflareWaf}
 import io.circe.literal.*
 import munit.CatsEffectSuite
+import natchez.Trace.Implicits.noop
 import org.http4s.*
 import org.http4s.client.*
 import org.http4s.dsl.Http4sDsl

@@ -7,6 +7,7 @@ import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorEx
 import com.dwolla.cloudflare.domain.model.accounts.*
 import io.circe.literal.*
 import munit.CatsEffectSuite
+import natchez.Trace.Implicits.noop
 import org.http4s.*
 import org.http4s.client.Client
 

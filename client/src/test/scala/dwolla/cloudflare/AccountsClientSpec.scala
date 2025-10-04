@@ -8,6 +8,7 @@ import io.circe.literal.*
 import org.http4s.client.Client
 import org.http4s.{HttpRoutes, Status}
 import munit.CatsEffectSuite
+import natchez.Trace.Implicits.noop
 
 class AccountsClientSpec extends CatsEffectSuite {
   // Common setup
