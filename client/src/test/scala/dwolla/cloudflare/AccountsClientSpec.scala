@@ -8,6 +8,8 @@ import io.circe.literal.*
 import org.http4s.client.Client
 import org.http4s.{HttpRoutes, Status}
 import munit.CatsEffectSuite
+import natchez.Trace.Implicits.noop
+import fs2.Stream
 
 class AccountsClientSpec extends CatsEffectSuite {
   // Common setup
@@ -249,9 +251,9 @@ class AccountsClientSpec extends CatsEffectSuite {
     assertIO(output, expected)
   }
 
-  def buildAccountsClient[F[_]: Concurrent](http4sClient: Client[F], authorization: CloudflareAuthorization): AccountsClient[F] = {
-    val fakeHttp4sExecutor = new StreamingCloudflareApiExecutor(http4sClient, authorization)
-    AccountsClient(fakeHttp4sExecutor)
+  def buildAccountsClient(http4sClient: Client[IO], authorization: CloudflareAuthorization): AccountsClient[Stream[IO, *]] = {
+    val fakeHttp4sExecutor = new StreamingCloudflareApiExecutor[IO](http4sClient, authorization)
+    AccountsClient[IO](fakeHttp4sExecutor)
   }
 
   private object SampleResponses {

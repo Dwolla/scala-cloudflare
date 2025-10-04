@@ -1,32 +1,33 @@
 package com.dwolla.cloudflare
 
-import cats._
-import cats.syntax.all._
-import com.dwolla.cloudflare.domain.model.{ZoneId, tagZoneId}
-import com.dwolla.cloudflare.domain.model.filters._
-import io.circe.syntax._
-import io.circe._
-import io.circe.optics.JsonPath._
-import fs2._
+import cats.*
+import cats.effect.{Trace as _, *}
+import cats.syntax.all.*
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
-import org.http4s.Method._
-import org.http4s.{Request, Uri}
-import org.http4s.circe._
+import com.dwolla.cloudflare.domain.model.filters.*
+import com.dwolla.cloudflare.domain.model.{ZoneId, tagZoneId}
+import com.dwolla.tagless.*
+import com.dwolla.tracing.syntax.*
+import io.circe.*
+import io.circe.optics.JsonPath.*
+import io.circe.syntax.*
+import fs2.*
+import natchez.Trace
+import org.http4s.Method.*
+import org.http4s.circe.*
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.syntax.all._
+import org.http4s.syntax.all.*
+import org.http4s.{Request, Uri}
 
 import scala.util.matching.Regex
 
 trait FilterClient[F[_]] {
-  def list(zoneId: ZoneId): Stream[F, Filter]
-  def getById(zoneId: ZoneId, filterId: String): Stream[F, Filter]
-  def create(zoneId: ZoneId, filter: Filter): Stream[F, Filter]
-  def update(zoneId: ZoneId, filter: Filter): Stream[F, Filter]
-  def delete(zoneId: ZoneId, filterId: String): Stream[F, FilterId]
-
-  def getByUri(uri: String): Stream[F, Filter] = parseUri(uri).fold(Stream.empty.covaryAll[F, Filter]) {
-    case (zoneId, FilterId(filterId)) => getById(zoneId, filterId)
-  }
+  def list(zoneId: ZoneId): F[Filter]
+  def getById(zoneId: ZoneId, filterId: String): F[Filter]
+  def create(zoneId: ZoneId, filter: Filter): F[Filter]
+  def update(zoneId: ZoneId, filter: Filter): F[Filter]
+  def delete(zoneId: ZoneId, filterId: String): F[FilterId]
+  def getByUri(uri: String): F[Filter]
 
   def parseUri(uri: String): Option[(ZoneId, FilterId)] = uri match {
     case FilterClient.uriRegex(zoneId, filterId) => Option((tagZoneId(zoneId), tagFilterId(filterId)))
@@ -35,16 +36,27 @@ trait FilterClient[F[_]] {
 
   def buildUri(zoneId: ZoneId, filterId: FilterId): Uri =
     uri"https://api.cloudflare.com/client/v4/zones" / zoneId / "filters" / filterId
-
 }
 
-object FilterClient {
-  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): FilterClient[F] = new FilterClientImpl[F](executor)
+object FilterClient extends FilterClientInstances {
+  def apply[F[_] : MonadCancelThrow : Trace](executor: StreamingCloudflareApiExecutor[F]): FilterClient[Stream[F, *]] =
+    apply(executor, _.traceWithInputsAndOutputs)
+
+  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F],
+                                     transform: FilterClient[Stream[F, *]] => FilterClient[Stream[F, *]]): FilterClient[Stream[F, *]] =
+    WeaveKnot(knot(executor))(transform)
+
+  private def knot[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): Eval[FilterClient[Stream[F, *]]] => FilterClient[Stream[F, *]] =
+    new FilterClientImpl[F](executor, _)
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/filters/(.+)""".r
 }
 
-class FilterClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends FilterClient[F] with Http4sClientDsl[F] {
+private class FilterClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F],
+                                                        self: Eval[FilterClient[Stream[F, *]]])
+  extends FilterClient[Stream[F, *]]
+    with Http4sClientDsl[F] {
+
   private def fetch(req: Request[F]): Stream[F, Filter] =
     executor.fetch[Filter](req)
 
@@ -71,6 +83,11 @@ class FilterClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApi
           None
       }
     } yield tagFilterId(json.flatMap(deletedRecordLens).getOrElse(filterId))
+
+  override def getByUri(uri: String): Stream[F, Filter] =
+    parseUri(uri).fold(MonoidK[Stream[F, *]].empty[Filter]) {
+      case (zoneId, FilterId(filterId)) => self.value.getById(zoneId, filterId)
+    }
 
   private val deletedRecordLens: Json => Option[String] = root.id.string.getOption
   private val notFoundCodes = List(1000)

@@ -6,7 +6,7 @@ package accounts
 import com.dwolla.cloudflare.domain.dto.accounts.*
 
 object Implicits {
-  implicit def toModel(dto: AccountDTO): Account = {
+  def toModel(dto: AccountDTO): Account = {
     Account(
       id = tagAccountId(dto.id),
       name = dto.name,
@@ -14,22 +14,22 @@ object Implicits {
     )
   }
 
-  implicit def toModel(dto: AccountSettingsDTO): AccountSettings = {
+  def toModel(dto: AccountSettingsDTO): AccountSettings = {
     AccountSettings(
       enforceTwoFactor = dto.enforce_twofactor
     )
   }
 
-  implicit def toModel(dto: AccountMemberDTO): AccountMember = {
+  def toModel(dto: AccountMemberDTO): AccountMember = {
     AccountMember(
       id = tagAccountMemberId(dto.id),
-      user = dto.user,
+      user = toModel(dto.user),
       status = dto.status,
       roles = dto.roles.map(toModel)
     )
   }
 
-  implicit def toModel(dto: UserDTO): User = {
+  def toModel(dto: UserDTO): User = {
     User(
       id = tagUserId(dto.id),
       firstName = dto.first_name,
@@ -39,7 +39,7 @@ object Implicits {
     )
   }
 
-  implicit def toModel(dto: AccountRoleDTO): AccountRole = {
+  def toModel(dto: AccountRoleDTO): AccountRole = {
     AccountRole(
       id = dto.id,
       name = dto.name,
@@ -48,23 +48,23 @@ object Implicits {
     )
   }
 
-  implicit def toModel(dto: AccountRolePermissionsDTO): AccountRolePermissions = {
+  def toModel(dto: AccountRolePermissionsDTO): AccountRolePermissions = {
     AccountRolePermissions(
       read = dto.read,
       edit = dto.edit
     )
   }
 
-  implicit def toDto(model: AccountMember): AccountMemberDTO = {
+  def toDto(model: AccountMember): AccountMemberDTO = {
     AccountMemberDTO(
       id = model.id.value,
-      user = model.user,
+      user = toDto(model.user),
       status = model.status,
       roles = model.roles.map(toDto)
     )
   }
 
-  implicit def toDto(model: User): UserDTO = {
+  def toDto(model: User): UserDTO = {
     UserDTO(
       id = model.id.value,
       first_name = model.firstName,
@@ -74,7 +74,7 @@ object Implicits {
     )
   }
 
-  implicit def toDto(model: AccountRole): AccountRoleDTO = {
+  def toDto(model: AccountRole): AccountRoleDTO = {
     AccountRoleDTO(
       id = model.id,
       name = model.name,
@@ -83,7 +83,7 @@ object Implicits {
     )
   }
 
-  implicit def toDto(model: AccountRolePermissions): AccountRolePermissionsDTO = {
+  def toDto(model: AccountRolePermissions): AccountRolePermissionsDTO = {
     AccountRolePermissionsDTO(
       read = model.read,
       edit = model.edit

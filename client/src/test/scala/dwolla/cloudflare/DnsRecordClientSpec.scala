@@ -1,24 +1,24 @@
 package dwolla.cloudflare
 
-import cats.data.*
 import cats.effect.*
 import cats.syntax.all.*
 import com.dwolla.cloudflare.{*, given}
 import com.dwolla.cloudflare.domain.model.Exceptions.RecordAlreadyExists
 import com.dwolla.cloudflare.domain.model.*
+import fs2.Stream
 import io.circe.literal.*
 import org.http4s.*
 import org.http4s.client.Client
 import org.http4s.syntax.all.*
 import munit.CatsEffectSuite
+import natchez.Trace.Implicits.noop
 
 class DnsRecordClientSpec extends CatsEffectSuite {
   private val authorization = CloudflareAuthorization("email", "key")
   private val getZoneId = new FakeCloudflareService(authorization).listZones("dwolla.com", SampleResponses.Successes.getZones)
 
-  private def client: Reader[HttpRoutes[IO], DnsRecordClient[IO]] = for {
-    fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
-  } yield new DnsRecordClientImpl(fakeExecutor)
+  private def client(fakeService: HttpRoutes[IO]): DnsRecordClient[Stream[IO, *]] =
+    DnsRecordClient(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
 
   test("Cloudflare API Client lookup should accept a domain name and return existing record") {
     val getDnsRecordsForZone = new FakeCloudflareService(authorization).listRecordsForZone(ZoneId("fake-zone-id"), "example.dwolla.com", SampleResponses.Successes.listDnsRecordsWithOneResult())

@@ -26,6 +26,7 @@ ThisBuild / mergifyStewardConfig ~= { _.map {
   _.withAuthor("dwolla-oss-scala-steward[bot]")
     .withMergeMinors(true)
 }}
+ThisBuild / resolvers += Resolver.sonatypeCentralSnapshots
 
 lazy val dto = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
@@ -39,6 +40,7 @@ lazy val dto = crossProject(JVMPlatform, JSPlatform)
       "io.circe" %%% "circe-literal" % "0.14.15",
       "io.circe" %%% "circe-parser" % "0.14.15",
       "io.circe" %%% "circe-generic-extras" % "0.14.5-RC1",
+      "org.tpolecat" %%% "natchez-core" % "0.3.8",
     ),
     libraryDependencies ++= {
       if (scalaVersion.value.startsWith("2.12")) Seq(
@@ -69,12 +71,20 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
         Seq(
           "co.fs2" %%% "fs2-core" % "3.12.2",
           "com.dwolla" %%% "fs2-utils" % "3.0.0-RC2",
+          "com.dwolla" %%% "natchez-tagless" % "0.2.6-131-d6a1c7c-SNAPSHOT",
           "org.typelevel" %%% "cats-core" % "2.13.0",
           "org.typelevel" %%% "cats-effect" % "3.6.3",
+          "org.typelevel" %%% "cats-tagless-core" % "0.16.3",
           "io.monix" %%% "newtypes-core" % "0.3.0",
           "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
-        ) ++
-        Seq(
+        ) ++ {
+        if (scalaVersion.value.startsWith("2"))
+          Seq(
+            "org.typelevel" %%% "cats-tagless-macros" % "0.16.3",
+          )
+        else Seq.empty
+      } ++
+      Seq(
           "org.http4s" %%% "http4s-server" % http4sVersion,
           "org.http4s" %%% "http4s-laws" % http4sVersion,
           "org.typelevel" %%% "cats-effect-laws" % "3.6.3",

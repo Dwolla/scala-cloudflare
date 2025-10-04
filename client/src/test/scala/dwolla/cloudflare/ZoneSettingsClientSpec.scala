@@ -3,16 +3,29 @@ package dwolla.cloudflare
 import cats.data.*
 import cats.effect.*
 import cats.syntax.all.*
+import cats.tagless.aop.Aspect
+import cats.~>
 import com.dwolla.cloudflare.*
 import com.dwolla.cloudflare.CloudflareSettingFunctions.*
 import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.ZoneSettings.{CloudflareSecurityLevel, CloudflareTlsLevel, CloudflareWaf}
 import io.circe.literal.*
 import munit.CatsEffectSuite
+import natchez.*
+import natchez.Trace.Implicits.noop
 import org.http4s.*
 import org.http4s.client.*
 import org.http4s.dsl.Http4sDsl
 import org.http4s.syntax.all.*
+import fs2.Stream
+
+class Unweave[F[_], Dom[_], Cod[_]] extends (Aspect.Weave[F, Dom, Cod, *] ~> F) {
+  override def apply[A](fa: Aspect.Weave[F, Dom, Cod, A]): F[A] = fa.codomain.target
+}
+
+object Unweave {
+  def apply[F[_], Dom[_], Cod[_]]: Aspect.Weave[F, Dom, Cod, *] ~> F = new Unweave[F, Dom, Cod]
+}
 
 class ZoneSettingsClientSpec extends CatsEffectSuite with Http4sDsl[IO] {
 
@@ -23,9 +36,7 @@ class ZoneSettingsClientSpec extends CatsEffectSuite with Http4sDsl[IO] {
   private def client(csfs: CloudflareSettingFunction*) =
     for {
       fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
-    } yield new ZoneSettingsClientImpl(fakeExecutor, 1) {
-      override val settings = csfs.toSet
-    }
+    } yield ZoneSettingsClient(fakeExecutor, 1, Unweave[Stream[IO, *], TraceableValue, TraceableValue], csfs.toSet)
 
   test("Zone Settings client should apply the TLS setting to the given domain") {
     val zone = Zone("hydragents.xyz", CloudflareTlsLevel.FullTlsStrict, None, None)
@@ -85,7 +96,7 @@ class ZoneSettingsClientSpec extends CatsEffectSuite with Http4sDsl[IO] {
   }
 
   test("Zone Settings client should contain the default rules for all zone settings") {
-    val zoneSettingsClient = new ZoneSettingsClientImpl(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(HttpRoutes.empty[IO].orNotFound), authorization), 1)
+    val zoneSettingsClient = ZoneSettingsClient(new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(HttpRoutes.empty[IO].orNotFound), authorization), 1)
     assertEquals(zoneSettingsClient.settings, Set(setSecurityLevel, setTlsLevel, setWaf))
   }
 
