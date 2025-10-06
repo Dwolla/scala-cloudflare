@@ -138,9 +138,9 @@ class LogpushClientSpec extends CatsEffectSuite {
     }
   }
 
-  def buildClient[F[_] : Concurrent](http4sClient: Client[F], authorization: CloudflareAuthorization): LogpushClient[F] = {
+  def buildClient[F[_] : Concurrent](http4sClient: Client[F], authorization: CloudflareAuthorization): LogpushClient[fs2.Stream[F, *]] = {
     val fakeHttp4sExecutor = new StreamingCloudflareApiExecutor(http4sClient, authorization)
-    LogpushClient(fakeHttp4sExecutor)
+    LogpushClient[F](fakeHttp4sExecutor)
   }
 
   private object SampleResponses {

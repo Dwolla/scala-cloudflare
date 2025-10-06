@@ -23,9 +23,9 @@ class FirewallRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   val authorization = CloudflareAuthorization("email", "key")
 
-  private def buildFirewallRuleClient(service: HttpRoutes[IO]): FirewallRuleClient[IO] = {
+  private def buildFirewallRuleClient(service: HttpRoutes[IO]): FirewallRuleClient[fs2.Stream[IO, *]] = {
     val fakeService = new FakeCloudflareService(authorization)
-    FirewallRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    FirewallRuleClient[IO](new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
   test("list should list the firewall rules for the given zone") {
@@ -211,11 +211,12 @@ class FirewallRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
     forAll { (zoneId: ZoneId, firewallRuleId: FirewallRuleId) =>
       val client = new FirewallRuleClient[IO] {
-        override def list(zoneId: ZoneId): fs2.Stream[IO, FirewallRule] = ???
-        override def getById(zoneId: ZoneId, firewallRuleId: String): fs2.Stream[IO, FirewallRule] = ???
-        override def create(zoneId: ZoneId, firewallRule: FirewallRule): fs2.Stream[IO, FirewallRule] = ???
-        override def update(zoneId: ZoneId, firewallRule: FirewallRule): fs2.Stream[IO, FirewallRule] = ???
-        override def delete(zoneId: ZoneId, firewallRuleId: String): fs2.Stream[IO, FirewallRuleId] = ???
+        override def list(zoneId: ZoneId): IO[FirewallRule] = ???
+        override def getById(zoneId: ZoneId, firewallRuleId: String): IO[FirewallRule] = ???
+        override def create(zoneId: ZoneId, firewallRule: FirewallRule): IO[FirewallRule] = ???
+        override def update(zoneId: ZoneId, firewallRule: FirewallRule): IO[FirewallRule] = ???
+        override def delete(zoneId: ZoneId, firewallRuleId: String): IO[FirewallRuleId] = ???
+        override def getByUri(uri: String): IO[FirewallRule] = ???
       }
 
       assertEquals(client.parseUri(client.buildUri(zoneId, firewallRuleId).renderString), Some((zoneId, firewallRuleId)))
