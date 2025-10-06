@@ -1,6 +1,5 @@
 package dwolla.cloudflare
 
-import cats.data.*
 import cats.effect.*
 import cats.syntax.all.*
 import com.dwolla.cloudflare.{*, given}

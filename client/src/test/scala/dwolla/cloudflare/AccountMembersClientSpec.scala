@@ -291,8 +291,8 @@ class AccountMembersClientSpec extends CatsEffectSuite {
     }
   }
 
-  private def buildAccountMembersClient[F[_]: Concurrent](http4sClient: Client[F], authorization: CloudflareAuthorization): AccountMembersClient[F] =
-    AccountMembersClient(new StreamingCloudflareApiExecutor(http4sClient, authorization))
+  private def buildAccountMembersClient(http4sClient: Client[IO], authorization: CloudflareAuthorization): com.dwolla.cloudflare.AccountMembersClient[fs2.Stream[IO, *]] =
+    AccountMembersClient(new StreamingCloudflareApiExecutor[IO](http4sClient, authorization))
 
   private object SampleResponses {
     object Successes {
