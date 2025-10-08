@@ -16,9 +16,9 @@ class ZoneClientSpec extends CatsEffectSuite {
   private val authorization = CloudflareAuthorization("email", "key")
   private val getZoneId = new FakeCloudflareService(authorization).listZones("dwolla.com", SampleResponses.Successes.getZones)
 
-  private def client: Reader[HttpRoutes[IO], ZoneClient[IO]] = for {
+  private def client: Reader[HttpRoutes[IO], ZoneClient[fs2.Stream[IO, *]]] = for {
     fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
-  } yield new ZoneClientImpl(fakeExecutor)
+  } yield ZoneClient[IO](fakeExecutor)
 
   test("ZoneClient should accept a domain name and find a Zone ID") {
     val domain = "dwolla.com"

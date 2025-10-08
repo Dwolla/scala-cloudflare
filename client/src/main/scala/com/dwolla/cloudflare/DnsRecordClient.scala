@@ -3,12 +3,13 @@ package com.dwolla.cloudflare
 import cats.*
 import cats.effect.{Trace as _, *}
 import cats.syntax.all.*
+import cats.tagless.aop.Aspect
 import com.dwolla.cloudflare.DnsRecordClientImpl.{DnsRecordContent, DnsRecordName, DnsRecordType}
 import com.dwolla.cloudflare.domain.dto.dns.*
 import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.tagless.*
-import com.dwolla.tracing.syntax.*
+import com.dwolla.tracing.TraceWeaveCapturingInputsAndOutputs
 import io.circe.optics.JsonPath.*
 import io.circe.syntax.*
 import io.circe.{Error as _, *}
@@ -38,22 +39,26 @@ trait DnsRecordClient[F[_]] {
 }
 
 object DnsRecordClient extends DnsRecordClientInstances {
-  def apply[F[_] : MonadCancelThrow : Trace](executor: StreamingCloudflareApiExecutor[F]): DnsRecordClient[Stream[F, *]] =
-    apply(executor, _.traceWithInputsAndOutputs)
+  def apply[F[_] : Concurrent : Trace](executor: StreamingCloudflareApiExecutor[F]): DnsRecordClient[Stream[F, *]] =
+    apply(executor, new TraceWeaveCapturingInputsAndOutputs)
 
-  def apply[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F],
-                                     transform: DnsRecordClient[Stream[F, *]] => DnsRecordClient[Stream[F, *]]): DnsRecordClient[Stream[F, *]] =
-    WeaveKnot(knot(executor))(transform)
+  def apply[F[_] : Concurrent, Dom[_], Cod[_]](executor: StreamingCloudflareApiExecutor[F],
+                                               transform: Aspect.Weave[Stream[F, *], Dom, Cod, *] ~> Stream[F, *])
+                                              (implicit A: Aspect[DnsRecordClient, Dom, Cod],
+                                               A2: Aspect[ZoneClient, Dom, Cod]): DnsRecordClient[Stream[F, *]] =
+    WeaveKnot.weave(knot(executor, transform), transform)
 
-  private def knot[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]): Eval[DnsRecordClient[Stream[F, *]]] => DnsRecordClient[Stream[F, *]] =
-    new DnsRecordClientImpl[F](executor, _)
+  private def knot[F[_] : Concurrent, Dom[_], Cod[_]](executor: StreamingCloudflareApiExecutor[F],
+                                                      transform: Aspect.Weave[Stream[F, *], Dom, Cod, *] ~> Stream[F, *])
+                                                     (implicit A: Aspect[ZoneClient, Dom, Cod]): Eval[DnsRecordClient[Stream[F, *]]] => DnsRecordClient[Stream[F, *]] =
+    new DnsRecordClientImpl[F](executor, _, ZoneClient(executor, transform))
 
   val uriRegex: Regex = """https://api.cloudflare.com/client/v4/zones/(.+?)/dns_records/(.+)""".r
 }
 
 private object DnsRecordClientImpl {
   val notFoundCodes = List(1032)
-  
+
   private[DnsRecordClientImpl] type DnsRecordName = DnsRecordName.Type
   private[DnsRecordClientImpl] object DnsRecordName extends CloudflareNewtype[String] {
     implicit val queryParam: QueryParam[DnsRecordName] = new QueryParam[DnsRecordName] {
@@ -77,13 +82,12 @@ private object DnsRecordClientImpl {
   }
 }
 
-private class DnsRecordClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F],
-                                                           self: Eval[DnsRecordClient[Stream[F, *]]])
+private class DnsRecordClientImpl[F[_] : Concurrent](executor: StreamingCloudflareApiExecutor[F],
+                                                     self: Eval[DnsRecordClient[Stream[F, *]]],
+                                                     zoneClient: ZoneClient[Stream[F, *]])
   extends DnsRecordClient[Stream[F, *]]
     with Http4sClientDsl[F] {
   import com.dwolla.cloudflare.domain.model.Implicits.*
-
-  private val zoneClient = ZoneClient(executor) // TODO instrument
 
   override def getByUri(uri: String): Stream[F, IdentifiedDnsRecord] =
     self.value.parseUri(uri)
