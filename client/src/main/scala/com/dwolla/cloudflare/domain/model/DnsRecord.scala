@@ -3,6 +3,8 @@ package domain
 package model
 
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
+import io.circe.*
+import io.circe.generic.semiauto.*
 
 import scala.util.matching.Regex
 
@@ -44,6 +46,10 @@ case class UnidentifiedDnsRecord(name: String,
 
 }
 
+object UnidentifiedDnsRecord {
+  implicit val codec: Codec[UnidentifiedDnsRecord] = deriveCodec
+}
+
 case class IdentifiedDnsRecord(physicalResourceId: PhysicalResourceId,
                                zoneId: ZoneId,
                                resourceId: ResourceId,
@@ -67,6 +73,8 @@ case class IdentifiedDnsRecord(physicalResourceId: PhysicalResourceId,
 
 object IdentifiedDnsRecord {
   val dnsRecordIdUrlRegex: Regex = "https://api.cloudflare.com/client/v4/zones/(?<zoneId>[^/]+)/dns_records/(?<recordId>[^/]+)".r
+
+  implicit val codec: Codec[IdentifiedDnsRecord] = deriveCodec
 }
 
 object Implicits {

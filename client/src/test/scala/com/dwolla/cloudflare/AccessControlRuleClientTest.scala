@@ -10,6 +10,8 @@ import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
 import munit.CatsEffectSuite
 import munit.ScalaCheckSuite
+import natchez.Trace.Implicits.noop
+import fs2.Stream
 
 class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   // Common setup values and helper
@@ -19,15 +21,16 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   val authorization = CloudflareAuthorization("email", "key")
 
-  private def buildAccessControlRuleClient(service: HttpRoutes[IO]): AccessControlRuleClient[IO] = {
+  private def buildAccessControlRuleClient(service: HttpRoutes[IO]): AccessControlRuleClient[Stream[IO, *]] = {
     val fakeService = new FakeCloudflareService(authorization)
-    AccessControlRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    val exec: StreamingCloudflareApiExecutor[IO] = new StreamingCloudflareApiExecutor[IO](fakeService.client(service), authorization)
+    AccessControlRuleClient[IO](exec)
   }
 
   test("list should list the access control rules for the given account") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByAccount(accountId))
-    val output = client.list(Level.Account(accountId))
+    val output = client.list(Level.Account(accountId), None)
 
     val expected = List(
       AccessControlRule(
@@ -70,7 +73,7 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
   test("list should list the access control rules for the given zone") {
     val fakeService = new FakeCloudflareService(authorization)
     val client = buildAccessControlRuleClient(fakeService.listAccessControlRulesByZone(zoneId))
-    val output = client.list(Level.Zone(zoneId))
+    val output = client.list(Level.Zone(zoneId), None)
 
     val expected = List(
       AccessControlRule(
@@ -376,11 +379,12 @@ class AccessControlRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
     forAll { (level: Level, ruleId: AccessControlRuleId) =>
       val client = new AccessControlRuleClient[IO] {
-        override def list(level: Level, mode: Option[String] = None): fs2.Stream[IO, AccessControlRule] = ???
-        override def getById(level: Level, ruleId: String): fs2.Stream[IO, AccessControlRule] = ???
-        override def create(level: Level, ruleId: AccessControlRule): fs2.Stream[IO, AccessControlRule] = ???
-        override def update(level: Level, ruleId: AccessControlRule): fs2.Stream[IO, AccessControlRule] = ???
-        override def delete(level: Level, ruleId: String): fs2.Stream[IO, AccessControlRuleId] = ???
+        override def list(level: Level, mode: Option[String] = None): IO[AccessControlRule] = ???
+        override def getById(level: Level, ruleId: String): IO[AccessControlRule] = ???
+        override def create(level: Level, rule: AccessControlRule): IO[AccessControlRule] = ???
+        override def update(level: Level, rule: AccessControlRule): IO[AccessControlRule] = ???
+        override def delete(level: Level, ruleId: String): IO[AccessControlRuleId] = ???
+        override def getByUri(uri: String): IO[AccessControlRule] = ???
       }
 
       assertEquals(client.parseUri(client.buildUri(level, ruleId).renderString), Some((level, ruleId)))

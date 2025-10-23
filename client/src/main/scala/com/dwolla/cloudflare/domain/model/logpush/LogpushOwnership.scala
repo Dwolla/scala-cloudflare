@@ -5,3 +5,10 @@ case class LogpushOwnership(
   message: String,
   valid: Boolean
 )
+
+
+object LogpushOwnership {
+  import io.circe.Codec
+  import io.circe.generic.semiauto.deriveCodec
+  implicit val codec: Codec[LogpushOwnership] = deriveCodec
+}

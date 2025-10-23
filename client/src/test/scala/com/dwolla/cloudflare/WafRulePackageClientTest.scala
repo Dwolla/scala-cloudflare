@@ -5,8 +5,10 @@ import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.wafrulepackages.*
 import dwolla.cloudflare.FakeCloudflareService
 import munit.{CatsEffectSuite, ScalaCheckSuite}
+import natchez.Trace.Implicits.noop
 import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
+import fs2.Stream
 
 class WafRulePackageClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
@@ -16,9 +18,9 @@ class WafRulePackageClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   val authorization = CloudflareAuthorization("email", "key")
 
-  private def buildWafRulePackageClient(service: HttpRoutes[IO]): WafRulePackageClient[IO] = {
+  private def buildWafRulePackageClient(service: HttpRoutes[IO]): WafRulePackageClient[Stream[IO, *]] = {
     val fakeService = new FakeCloudflareService(authorization)
-    WafRulePackageClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    WafRulePackageClient[IO](new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
   test("list should list the waf rule packages for the given zone") {
@@ -121,10 +123,11 @@ class WafRulePackageClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
     forAll { (zoneId: ZoneId, wafRulePackageId: WafRulePackageId) =>
       val client = new WafRulePackageClient[IO] {
-        override def list(zoneId: ZoneId): fs2.Stream[IO, WafRulePackage] = ???
-        override def getById(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): fs2.Stream[IO, WafRulePackage] = ???
-        override def edit(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, sensitivity: Sensitivity, actionMode: ActionMode): fs2.Stream[IO, WafRulePackage] = ???
-        override def getRulePackageId(zoneId: ZoneId, name: WafRulePackageName): fs2.Stream[IO, WafRulePackageId] = ???
+        override def list(zoneId: ZoneId): IO[WafRulePackage] = ???
+        override def getById(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): IO[WafRulePackage] = ???
+        override def edit(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, sensitivity: Sensitivity, actionMode: ActionMode): IO[WafRulePackage] = ???
+        override def getRulePackageId(zoneId: ZoneId, name: WafRulePackageName): IO[WafRulePackageId] = ???
+        override def getByUri(uri: String): IO[WafRulePackage] = ???
       }
 
       assertEquals(client.parseUri(client.buildUri(zoneId, wafRulePackageId).renderString), Some((zoneId, wafRulePackageId)))

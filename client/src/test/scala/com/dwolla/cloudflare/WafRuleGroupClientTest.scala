@@ -5,9 +5,11 @@ import com.dwolla.cloudflare.domain.model.*
 import com.dwolla.cloudflare.domain.model.wafrulegroups.*
 import dwolla.cloudflare.FakeCloudflareService
 import munit.{CatsEffectSuite, ScalaCheckSuite}
+import natchez.Trace.Implicits.noop
 import org.http4s.HttpRoutes
 import org.http4s.server.Router
 import org.scalacheck.{Arbitrary, Gen}
+import fs2.Stream
 
 class WafRuleGroupClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
@@ -18,9 +20,9 @@ class WafRuleGroupClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   val authorization = CloudflareAuthorization("email", "key")
 
-  private def buildWafRuleGroupClient(service: HttpRoutes[IO]): WafRuleGroupClient[IO] = {
+  private def buildWafRuleGroupClient(service: HttpRoutes[IO]): WafRuleGroupClient[Stream[IO, *]] = {
     val fakeService = new FakeCloudflareService(authorization)
-    WafRuleGroupClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    WafRuleGroupClient[IO](new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
   test("list should list the waf rule groups for the given zone") {
@@ -169,10 +171,11 @@ class WafRuleGroupClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
     forAll { (zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleGroupId: WafRuleGroupId) =>
       val client = new WafRuleGroupClient[IO] {
-        override def list(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): fs2.Stream[IO, WafRuleGroup] = ???
-        override def getById(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleGroupId): fs2.Stream[IO, WafRuleGroup] = ???
-        override def setMode(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleGroupId, mode: Mode): fs2.Stream[IO, WafRuleGroup] = ???
-        override def getRuleGroupId(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, name: WafRuleGroupName): fs2.Stream[IO, WafRuleGroupId] = ???
+        override def list(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): IO[WafRuleGroup] = ???
+        override def getById(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleGroupId): IO[WafRuleGroup] = ???
+        override def setMode(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleGroupId, mode: Mode): IO[WafRuleGroup] = ???
+        override def getRuleGroupId(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, name: WafRuleGroupName): IO[WafRuleGroupId] = ???
+        override def getByUri(uri: String): IO[WafRuleGroup] = ???
       }
 
       assertEquals(client.parseUri(client.buildUri(zoneId, wafRulePackageId, wafRuleGroupId).renderString), Some((zoneId, wafRulePackageId, wafRuleGroupId)))

@@ -1,6 +1,6 @@
 package com.dwolla.cloudflare
 
-import cats.effect.*
+import cats.effect.{Trace as _, *}
 import cats.syntax.all.*
 import com.dwolla.cloudflare.StreamingCloudflareApiExecutor.*
 import com.dwolla.cloudflare.domain.dto.*
@@ -16,6 +16,8 @@ import org.http4s.client.*
 import org.http4s.headers.`Content-Type`
 import org.http4s.syntax.all.*
 import org.typelevel.ci.*
+import natchez.Trace
+import com.dwolla.tracing.LowPriorityTraceableValueInstances.*
 
 case class CloudflareAuthorization(email: String, key: String)
 
@@ -31,38 +33,44 @@ object StreamingCloudflareApiExecutor {
   }
 }
 
-class StreamingCloudflareApiExecutor[F[_] : Concurrent](client: Client[F], authorization: CloudflareAuthorization) {
+class StreamingCloudflareApiExecutor[F[_] : Concurrent : Trace](client: Client[F], authorization: CloudflareAuthorization) {
 
   def raw[T](request: Request[F])(f: Response[F] => F[T]): F[T] =
     client.run(setupRequest(request)).use(f)
 
   def fetch[T: Decoder](req: Request[F]): Stream[F, T] =
-    Pagination.offsetUnfoldChunkEval[F, Int, T] { (maybePageNumber: Option[Int]) =>
-      val pagedRequest = maybePageNumber.fold(req) { pageNumber =>
-        req.withUri(req.uri.withQueryParam("page", pageNumber))
-      }
-
-      for {
-        pageData <- raw(pagedRequest)(responseToJson[T])
-        tuple <- pageData match {
-          case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == Option(81057)) =>
-            RecordAlreadyExists.raiseError
-          case BaseResponseDTO(false, Some(errors), _) if errors.exists(cloudflareAuthorizationFormatError) =>
-            AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten).raiseError
-          case single: ResponseDTO[T] if single.success =>
-            (Chunk.from(single.result.toSeq), None).pure[F]
-          case PagedResponseDTO(result, true, _, _, Some(result_info)) =>
-            (Chunk.from(result), calculateNextPage(result_info.page, result_info.total_pages)).pure[F]
-          case PagedResponseDTO(result, true, _, _, None) =>
-            (Chunk.from(result), None).pure[F]
-          case e =>
-            val errors = e.errors.toList.flatten.map(Implicits.toError)
-            val messages = e.messages.toList.flatten.map(r => com.dwolla.cloudflare.domain.model.Message(r.code, r.message, None))
-
-            UnexpectedCloudflareErrorException(errors, messages).raiseError
+    Trace[Stream[F, *]].span("StreamingCloudflareApiExecutor.fetch") {
+      Pagination.offsetUnfoldChunkEval[F, Int, T] { (maybePageNumber: Option[Int]) =>
+        val pagedRequest = maybePageNumber.fold(req) { pageNumber =>
+          req.withUri(req.uri.withQueryParam("page", pageNumber))
         }
-        (chunk, nextPage) = tuple
-      } yield (chunk, nextPage)
+
+        Trace[F].span("StreamingCloudflareApiExecutor.fetch.page") {
+          for {
+            _ <- Trace[F].put("maybePageNumber" -> maybePageNumber)
+            pageData <- raw(pagedRequest)(responseToJson[T])
+            tuple <- pageData match {
+              case BaseResponseDTO(false, Some(errors), _) if errors.exists(_.code == Option(81057)) =>
+                RecordAlreadyExists.raiseError
+              case BaseResponseDTO(false, Some(errors), _) if errors.exists(cloudflareAuthorizationFormatError) =>
+                AccessDenied(errors.find(cloudflareAuthorizationFormatError).flatMap(_.error_chain).toList.flatten).raiseError
+              case single: ResponseDTO[T] if single.success =>
+                (Chunk.from(single.result.toSeq), None).pure[F]
+              case PagedResponseDTO(result, true, _, _, Some(result_info)) =>
+                (Chunk.from(result), calculateNextPage(result_info.page, result_info.total_pages)).pure[F]
+              case PagedResponseDTO(result, true, _, _, None) =>
+                (Chunk.from(result), None).pure[F]
+              case e =>
+                val errors = e.errors.toList.flatten.map(Implicits.toError)
+                val messages = e.messages.toList.flatten.map(r => com.dwolla.cloudflare.domain.model.Message(r.code, r.message, None))
+
+                UnexpectedCloudflareErrorException(errors, messages).raiseError
+            }
+            (chunk, nextPage) = tuple
+            _ <- Trace[F].put("nextPage" -> nextPage)
+          } yield (chunk, nextPage)
+        }
+      }
     }
 
   private def setupRequest(request: Request[F]) =

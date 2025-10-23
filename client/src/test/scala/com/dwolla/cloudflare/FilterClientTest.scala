@@ -1,14 +1,15 @@
 package com.dwolla.cloudflare
 
 import cats.effect.*
-import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.*
+import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorException
 import com.dwolla.cloudflare.domain.model.filters.*
 import dwolla.cloudflare.FakeCloudflareService
+import fs2.Stream
+import munit.{CatsEffectSuite, ScalaCheckSuite}
+import natchez.Trace.Implicits.noop
 import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
-import munit.CatsEffectSuite
-import munit.ScalaCheckSuite
 
 class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
@@ -18,9 +19,9 @@ class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   val authorization = CloudflareAuthorization("email", "key")
 
-  private def buildFilterClient(service: HttpRoutes[IO]): FilterClient[IO] = {
+  private def buildFilterClient(service: HttpRoutes[IO]): FilterClient[Stream[IO, *]] = {
     val fakeService = new FakeCloudflareService(authorization)
-    FilterClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    FilterClient[IO](new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
   test("list should list the filters for the given zone") {
@@ -164,11 +165,12 @@ class FilterClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
     forAll { (zoneId: ZoneId, filterId: FilterId) =>
       val client = new FilterClient[IO] {
-        override def list(zoneId: ZoneId): fs2.Stream[IO, Filter] = ???
-        override def getById(zoneId: ZoneId, filterId: String): fs2.Stream[IO, Filter] = ???
-        override def create(zoneId: ZoneId, filter: Filter): fs2.Stream[IO, Filter] = ???
-        override def update(zoneId: ZoneId, filter: Filter): fs2.Stream[IO, Filter] = ???
-        override def delete(zoneId: ZoneId, filterId: String): fs2.Stream[IO, FilterId] = ???
+        override def list(zoneId: ZoneId): IO[Filter] = ???
+        override def getById(zoneId: ZoneId, filterId: String): IO[Filter] = ???
+        override def create(zoneId: ZoneId, filter: Filter): IO[Filter] = ???
+        override def update(zoneId: ZoneId, filter: Filter): IO[Filter] = ???
+        override def delete(zoneId: ZoneId, filterId: String): IO[FilterId] = ???
+        override def getByUri(uri: String): IO[Filter] = ???
       }
 
       assertEquals(client.parseUri(client.buildUri(zoneId, filterId).renderString), Some((zoneId, filterId)))
