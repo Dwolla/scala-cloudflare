@@ -13,13 +13,20 @@ import org.http4s.*
 import org.http4s.Header.Single
 import org.http4s.circe.*
 import org.http4s.client.*
-import org.http4s.headers.`Content-Type`
+import org.http4s.headers.{Authorization, `Content-Type`}
 import org.http4s.syntax.all.*
 import org.typelevel.ci.*
 import natchez.Trace
 import com.dwolla.tracing.LowPriorityTraceableValueInstances.*
 
-case class CloudflareAuthorization(email: String, key: String)
+sealed trait CloudflareAuthorization
+object CloudflareAuthorization {
+  def apply(token: String): CloudflareAuthorization = ApiToken(token)
+  def apply(email: String, key: String): CloudflareAuthorization = ApiKey(email, key)
+}
+
+case class ApiToken(token: String) extends CloudflareAuthorization
+case class ApiKey(email: String, key: String) extends CloudflareAuthorization
 
 object StreamingCloudflareApiExecutor {
   type `X-Auth-Email` = `X-Auth-Email`.Type
@@ -73,12 +80,19 @@ class StreamingCloudflareApiExecutor[F[_] : Concurrent : Trace](client: Client[F
       }
     }
 
-  private def setupRequest(request: Request[F]) =
-    request.withHeaders(Headers(
-      `X-Auth-Email`(authorization.email),
-      `X-Auth-Key`(authorization.key),
-      `Content-Type`(mediaType"application/json"),
-    ))
+  private def addAuthorization(request: Request[F]): Request[F] =
+    authorization match {
+      case ApiToken(token) =>
+        request.putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, token)))
+      case ApiKey(email, key) =>
+        request.putHeaders(
+          `X-Auth-Email`(email),
+          `X-Auth-Key`(key),
+        )
+    }
+
+  private def setupRequest: Request[F] => Request[F] =
+    addAuthorization(_).putHeaders(`Content-Type`(mediaType"application/json"))
 
   private def responseToJson[T: Decoder](resp: Response[F]): F[BaseResponseDTO[T]] =
     resp match {
