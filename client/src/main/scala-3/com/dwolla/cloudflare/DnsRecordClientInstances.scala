@@ -59,6 +59,16 @@ trait DnsRecordClientInstances:
               Aspect.Advice("deleteDnsRecord", af.deleteDnsRecord(physicalResourceId))
             )
 
+          @annotation.targetName("deleteDnsRecordNewtype")
+          override def deleteDnsRecord(physicalResourceId: PhysicalResourceId): Aspect.Weave[F, TraceableValue, TraceableValue, PhysicalResourceId] =
+            Aspect.Weave(
+              "DnsRecordClient",
+              List(List(
+                Aspect.Advice.byValue("physicalResourceId", physicalResourceId),
+              )),
+              Aspect.Advice("deleteDnsRecord", af.deleteDnsRecord(physicalResourceId))
+            )
+
           override def getByUri(uri: String): Aspect.Weave[F, TraceableValue, TraceableValue, IdentifiedDnsRecord] =
             Aspect.Weave(
               "DnsRecordClient",
@@ -83,6 +93,10 @@ trait DnsRecordClientInstances:
             fk(af.getExistingDnsRecords(name, content, recordType))
 
           override def deleteDnsRecord(physicalResourceId: String): G[PhysicalResourceId] =
+            fk(af.deleteDnsRecord(physicalResourceId))
+
+          @annotation.targetName("deleteDnsRecordNewtype")
+          override def deleteDnsRecord(physicalResourceId: PhysicalResourceId): G[PhysicalResourceId] =
             fk(af.deleteDnsRecord(physicalResourceId))
 
           override def getByUri(uri: String): G[IdentifiedDnsRecord] =

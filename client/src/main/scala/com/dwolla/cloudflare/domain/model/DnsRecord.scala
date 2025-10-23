@@ -7,6 +7,7 @@ import io.circe.*
 import io.circe.generic.semiauto.*
 
 import scala.util.matching.Regex
+import org.typelevel.scalaccompat.annotation.*
 
 sealed trait DnsRecord {
   val name: String
@@ -27,10 +28,14 @@ case class UnidentifiedDnsRecord(name: String,
 
   import IdentifiedDnsRecord._
 
-  def identifyAs(physicalResourceId: String): IdentifiedDnsRecord = physicalResourceId match {
-    case dnsRecordIdUrlRegex(zoneId, recordId) => identifyAs(ZoneId(zoneId), ResourceId(recordId))
-    case _ => throw new RuntimeException("Passed string does not match URL pattern for Cloudflare DNS record")
-  }
+  def identifyAs(physicalResourceId: PhysicalResourceId): Option[IdentifiedDnsRecord] =
+    identifyAs(physicalResourceId.value)
+
+  @targetName3("identifyAsRaw")
+  def identifyAs(physicalResourceId: String): Option[IdentifiedDnsRecord] =
+    dnsRecordIdUrlRegex.unapplySeq(physicalResourceId).collect {
+      case Seq(zoneId, recordId) => identifyAs(ZoneId(zoneId), ResourceId(recordId))
+    }
 
   def identifyAs(zoneId: ZoneId, recordId: ResourceId): IdentifiedDnsRecord = IdentifiedDnsRecord(
     physicalResourceId = tagPhysicalResourceId(s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records/$recordId"),
