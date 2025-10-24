@@ -22,7 +22,7 @@ trait AccessControlRuleClient[F[_]] {
   def delete(level: Level, ruleId: String): Stream[F, AccessControlRuleId]
 
   def getByUri(uri: String): Stream[F, AccessControlRule] = parseUri(uri).fold(Stream.empty.covaryAll[F, AccessControlRule]) {
-    case (level, ruleId) => getById(level, ruleId)
+    case (level, AccessControlRuleId(ruleId)) => getById(level, ruleId)
   }
 
   def parseUri(uri: String): Option[(Level, AccessControlRuleId)] = uri match {

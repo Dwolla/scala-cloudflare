@@ -6,26 +6,25 @@ import com.dwolla.circe._
 import io.circe._
 import io.circe.generic.semiauto
 import io.circe.literal._
-import shapeless.tag.@@
+import com.dwolla.cloudflare.CloudflareNewtype
 
 package object firewallrules {
 
-  type FirewallRuleId = String @@ FirewallRuleIdTag
-  type FirewallRulePriority = Int @@ FirewallRulePriorityTag
-  type FirewallRuleRef = String @@ FirewallRuleRefTag
+  type FirewallRuleId = FirewallRuleId.Type
+  object FirewallRuleId extends CloudflareNewtype[String]
+  type FirewallRulePriority = FirewallRulePriority.Type
+  object FirewallRulePriority extends CloudflareNewtype[Int]
+  type FirewallRuleRef = FirewallRuleRef.Type
+  object FirewallRuleRef extends CloudflareNewtype[String]
 
-  private[cloudflare] val tagFirewallRuleId: String => FirewallRuleId = shapeless.tag[FirewallRuleIdTag][String]
-  private[cloudflare] val tagFirewallRulePriority: Int => FirewallRulePriority = shapeless.tag[FirewallRulePriorityTag][Int]
-  private[cloudflare] val tagFirewallRuleRef: String => FirewallRuleRef = shapeless.tag[FirewallRuleRefTag][String]
+  private[cloudflare] val tagFirewallRuleId: String => FirewallRuleId = FirewallRuleId(_)
+  private[cloudflare] val tagFirewallRulePriority: Int => FirewallRulePriority = FirewallRulePriority(_)
+  private[cloudflare] val tagFirewallRuleRef: String => FirewallRuleRef = FirewallRuleRef(_)
 }
 
 //TODO: Can you add support for dependencies withing dwolla-cloudformation. For filter -> rule relationship.
 package firewallrules {
   import com.dwolla.cloudflare.domain.model.filters._
-
-  trait FirewallRuleIdTag
-  trait FirewallRulePriorityTag
-  trait FirewallRuleRefTag
 
   case class FirewallRule(id: Option[FirewallRuleId] = None,
                           filter: FirewallRuleFilter,

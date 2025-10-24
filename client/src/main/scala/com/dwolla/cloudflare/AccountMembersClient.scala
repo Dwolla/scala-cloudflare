@@ -26,7 +26,7 @@ trait AccountMembersClient[F[_]] {
   def removeMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMemberId]
 
   def getByUri(uri: String): Stream[F, AccountMember] = parseUri(uri).fold(Stream.empty.covaryAll[F, AccountMember]) {
-    case (accountId, memberId) => getById(accountId, memberId)
+    case (accountId, AccountMemberId(memberId)) => getById(accountId, memberId)
   }
 
   def parseUri(uri: String): Option[(AccountId, AccountMemberId)] = uri match {
@@ -44,7 +44,7 @@ object AccountMembersClient {
 class AccountMembersClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloudflareApiExecutor[F]) extends AccountMembersClient[F] with Http4sClientDsl[F] {
   override def getById(accountId: AccountId, accountMemberId: String): Stream[F, AccountMember] =
     for {
-      res <- executor.fetch[AccountMemberDTO](GET(buildAccountMemberUri(accountId, accountMemberId))).returningEmptyOnErrorCodes(notFoundCodes: _*)
+      res <- executor.fetch[AccountMemberDTO](GET(buildAccountMemberUri(accountId, AccountMemberId(accountMemberId)))).returningEmptyOnErrorCodes(notFoundCodes: _*)
     } yield res
 
   override def addMember(accountId: AccountId, emailAddress: String, roleIds: List[String]): Stream[F, AccountMember] =
@@ -55,13 +55,13 @@ class AccountMembersClientImpl[F[_] : ApplicativeThrow](executor: StreamingCloud
 
   override def removeMember(accountId: AccountId, accountMemberId: String): Stream[F, AccountMemberId] =
     for {
-      json <- executor.fetch[Json](DELETE(buildAccountMemberUri(accountId, accountMemberId))).last.adaptError {
+      json <- executor.fetch[Json](DELETE(buildAccountMemberUri(accountId, AccountMemberId(accountMemberId)))).last.adaptError {
         case ex: UnexpectedCloudflareErrorException if ex.errors.flatMap(_.code.toSeq).exists(notFoundCodes.contains) =>
           AccountMemberDoesNotExistException(accountId, accountMemberId)
       }
     } yield tagAccountMemberId(json.flatMap(deletedRecordLens).getOrElse(accountMemberId))
 
-  private def buildAccountMemberUri(accountId: AccountId, accountMemberId: String): Uri =
+  private def buildAccountMemberUri(accountId: AccountId, accountMemberId: AccountMemberId): Uri =
     BaseUrl / "accounts" / accountId / "members" / accountMemberId
 
   private def createOrUpdate(request: Request[F]): Stream[F, AccountMember] =

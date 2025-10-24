@@ -160,9 +160,9 @@ class WafRuleGroupClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   // property-based: buildUri and parseUri are inverses
   private val nonEmptyAlphaNumericString = Gen.identifier
-  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[ZoneIdTag][String]))
-  implicit private val arbitraryWafRulePackageId: Arbitrary[WafRulePackageId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[WafRulePackageIdTag][String]))
-  implicit private val arbitraryWafRuleGroupId: Arbitrary[WafRuleGroupId] = Arbitrary(nonEmptyAlphaNumericString.map(shapeless.tag[WafRuleGroupIdTag][String]))
+  implicit private val arbitraryZoneId: Arbitrary[ZoneId] = Arbitrary(nonEmptyAlphaNumericString.map(ZoneId(_)))
+  implicit private val arbitraryWafRulePackageId: Arbitrary[WafRulePackageId] = Arbitrary(nonEmptyAlphaNumericString.map(WafRulePackageId(_)))
+  implicit private val arbitraryWafRuleGroupId: Arbitrary[WafRuleGroupId] = Arbitrary(nonEmptyAlphaNumericString.map(WafRuleGroupId(_)))
 
   property("buildUri and parseUri should be inverses") {
     import org.scalacheck.Prop.forAll

@@ -7,20 +7,16 @@ import com.dwolla.cloudflare.domain.model.accounts.*
 import io.circe.literal.*
 import org.http4s.client.Client
 import org.http4s.{HttpRoutes, Status}
-import shapeless.tag.@@
 import munit.CatsEffectSuite
 
 class AccountsClientSpec extends CatsEffectSuite {
-
-  def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
-
   // Common setup
   val authorization = CloudflareAuthorization("email", "key")
   val fakeService = new FakeCloudflareService(authorization)
 
-  val fakeAccountId1 = tagString[AccountIdTag]("fake-account-id1")
-  val fakeAccountId2 = tagString[AccountIdTag]("fake-account-id2")
-  val fakeAccountId3 = tagString[AccountIdTag]("fake-account-id3")
+  val fakeAccountId1 = AccountId("fake-account-id1")
+  val fakeAccountId2 = AccountId("fake-account-id2")
+  val fakeAccountId3 = AccountId("fake-account-id3")
 
   test("list should return all accounts across pages") {
     val http4sClient = fakeService.client(fakeService.listAccounts(Map(1 -> SampleResponses.Successes.listAccountsPage1, 2 -> SampleResponses.Successes.listAccountsPage2, 3 -> SampleResponses.Successes.listAccountsPage3)))
@@ -91,13 +87,13 @@ class AccountsClientSpec extends CatsEffectSuite {
   }
 
   test("getById should get account by id") {
-    val accountId: String = fakeAccountId1
+    val accountId = fakeAccountId1
 
     val http4sClient = fakeService.client(fakeService.accountById(SampleResponses.Successes.getAccount, accountId))
     val client = buildAccountsClient(http4sClient, authorization)
 
     val output = client
-      .getById(accountId)
+      .getById(accountId.value)
       .compile
       .toList
       .map(_.headOption)
@@ -114,14 +110,14 @@ class AccountsClientSpec extends CatsEffectSuite {
   }
 
   test("getById should return None if not found (getById)") {
-    val accountId = tagString[AccountIdTag]("missing-id")
+    val accountId = AccountId("missing-id")
 
     val failure = SampleResponses.Failures.accountDoesNotExist
     val http4sClient = fakeService.client(fakeService.accountById(failure.json, accountId, failure.status))
     val client = buildAccountsClient(http4sClient, authorization)
 
     val output = client
-      .getById(accountId)
+      .getById(accountId.value)
       .compile
       .toList
       .map(_.headOption)
@@ -189,7 +185,7 @@ class AccountsClientSpec extends CatsEffectSuite {
   }
 
   test("listRoles should return all account roles across pages") {
-    val accountId = tagString[AccountIdTag]("fake-account-id")
+    val accountId = AccountId("fake-account-id")
 
     val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 -> SampleResponses.Successes.getRolesPage1, 2 -> SampleResponses.Successes.getRolesPage2, 3 -> SampleResponses.Successes.getRolesPage3), accountId))
     val client = buildAccountsClient(http4sClient, authorization)
@@ -230,7 +226,7 @@ class AccountsClientSpec extends CatsEffectSuite {
   }
 
   test("listRoles should return all account roles across pages doesn't fetch eagerly") {
-    val accountId = tagString[AccountIdTag]("fake-account-id")
+    val accountId = AccountId("fake-account-id")
 
     val http4sClient = fakeService.client(fakeService.listAccountRoles(Map(1 -> SampleResponses.Successes.getRolesPage1), accountId))
     val client = buildAccountsClient(http4sClient, authorization)
@@ -261,7 +257,7 @@ class AccountsClientSpec extends CatsEffectSuite {
   private object SampleResponses {
     object Successes {
       val listAccounts =
-    json"""{
+        json"""{
             "result": [
               {
                 "id": "fake-account-id1",
@@ -294,7 +290,7 @@ class AccountsClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val listAccountsPage1 =
-    json"""{
+        json"""{
             "result": [
               {
                 "id": "fake-account-id1",
@@ -319,7 +315,7 @@ class AccountsClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val listAccountsPage2 =
-    json"""{
+        json"""{
             "result": [
               {
                 "id": "fake-account-id2",
@@ -344,7 +340,7 @@ class AccountsClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val listAccountsPage3 =
-    json"""{
+        json"""{
             "result": [
               {
                 "id": "fake-account-id3",
@@ -369,7 +365,7 @@ class AccountsClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val getAccount =
-    json"""{
+        json"""{
             "result": {
               "id": "fake-account-id1",
               "name": "Fake Account Org",
@@ -384,7 +380,7 @@ class AccountsClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val getRoles =
-    json"""
+        json"""
           {
             "result": [
               {
@@ -433,7 +429,7 @@ class AccountsClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val getRolesPage1 =
-    json"""
+        json"""
           {
             "result": [
               {
@@ -464,7 +460,7 @@ class AccountsClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val getRolesPage2 =
-    json"""
+        json"""
           {
             "result": [
               {
@@ -500,7 +496,7 @@ class AccountsClientSpec extends CatsEffectSuite {
         """.noSpaces
 
       val getRolesPage3 =
-    json"""
+        json"""
           {
             "result": [
               {
@@ -537,10 +533,8 @@ class AccountsClientSpec extends CatsEffectSuite {
     }
 
     object Failures {
-      case class Failure(status: Status, json: String)
-
       val accountDoesNotExist = Failure(Status.NotFound,
-    json"""{
+        json"""{
             "success": false,
             "errors": [
               {
@@ -552,6 +546,8 @@ class AccountsClientSpec extends CatsEffectSuite {
             "result": null
           }
         """.noSpaces)
+
+      case class Failure(status: Status, json: String)
     }
   }
 }

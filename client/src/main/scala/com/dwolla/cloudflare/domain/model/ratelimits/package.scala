@@ -5,17 +5,17 @@ import java.time.Duration
 import com.dwolla.circe._
 import io.circe.generic.semiauto
 import io.circe._
-import shapeless.tag.@@
+import com.dwolla.cloudflare.CloudflareNewtype
 
 package object ratelimits {
 
-  type RateLimitId = String @@ RateLimitIdTag
+  type RateLimitId = RateLimitId.Type
+  object RateLimitId extends CloudflareNewtype[String]
 
-  private[cloudflare] val tagRateLimitId: String => RateLimitId = shapeless.tag[RateLimitIdTag][String]
+  private[cloudflare] val tagRateLimitId: String => RateLimitId = RateLimitId(_)
 }
 
 package ratelimits {
-  trait RateLimitIdTag
 
   case class RateLimit(id: Option[RateLimitId] = None,
                        disabled: Option[Boolean] = None,

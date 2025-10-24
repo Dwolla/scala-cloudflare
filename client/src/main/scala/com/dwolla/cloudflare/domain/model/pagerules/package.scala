@@ -1,6 +1,5 @@
 package com.dwolla.cloudflare.domain.model
 
-import com.dwolla.circe.*
 import io.circe.*
 import io.circe.generic.extras.Configuration
 import io.circe.generic.extras.semiauto.*
@@ -9,18 +8,18 @@ import io.circe.literal.*
 import io.circe.syntax.EncoderOps
 import org.http4s.Uri
 import org.http4s.circe.*
-import shapeless.tag.@@
+import com.dwolla.cloudflare.CloudflareNewtype
 
 import java.time.Instant
 
 package object pagerules {
-  type PageRuleId = String @@ PageRuleIdTag
+  type PageRuleId = PageRuleId.Type
+  object PageRuleId extends CloudflareNewtype[String]
 
-  private[cloudflare] val tagPageRuleId: String => PageRuleId = shapeless.tag[PageRuleIdTag][String]
+  private[cloudflare] val tagPageRuleId: String => PageRuleId = PageRuleId(_)
 }
 
 package pagerules {
-  trait PageRuleIdTag
 
   case class PageRule(id: Option[PageRuleId] = None,
                       targets: List[PageRuleTarget],

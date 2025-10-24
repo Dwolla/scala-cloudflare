@@ -1,18 +1,11 @@
 package com.dwolla.cloudflare.domain.dto
 
-import shapeless.tag.@@
+import com.dwolla.cloudflare.CloudflareNewtype
 
 package object dns {
-  type DnsRecordAccountId = String @@ DnsRecordAccountIdTag
-  type DnsRecordAccountName = String @@ DnsRecordAccountNameTag
+  type DnsRecordAccountId = DnsRecordAccountId.Type
+  object DnsRecordAccountId extends CloudflareNewtype[String]
 
-  private[cloudflare] val tagDnsRecordAccountId: String => DnsRecordAccountId = shapeless.tag[DnsRecordAccountIdTag][String]
-  private[cloudflare] val tagDnsRecordAccountName: String => DnsRecordAccountName = shapeless.tag[DnsRecordAccountNameTag][String]
+  type DnsRecordAccountName = DnsRecordAccountName.Type
+  object DnsRecordAccountName extends CloudflareNewtype[String]
 }
-
-package dns {
-  trait DnsRecordAccountIdTag
-  trait DnsRecordAccountNameTag
-}
-
-

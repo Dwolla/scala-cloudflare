@@ -16,7 +16,7 @@ ThisBuild / developers := List(
       url("https://dwolla.com")
     ),
   )
-ThisBuild / crossScalaVersions := Seq("2.12.20", "2.13.17")
+ThisBuild / crossScalaVersions := Seq("2.12.20", "2.13.17", "3.3.7")
 ThisBuild / startYear := Option(2016)
 ThisBuild / tlBaseVersion := "4.0"
 ThisBuild / tlJdkRelease := Option(8)
@@ -33,12 +33,21 @@ lazy val dto = crossProject(JVMPlatform, JSPlatform)
   .settings(
     name := "cloudflare-api-dto",
     libraryDependencies ++= Seq(
+      "io.monix" %%% "newtypes-core" % "0.3.0",
+      "io.monix" %%% "newtypes-circe-v0-14" % "0.3.0",
       "io.circe" %%% "circe-generic" % "0.14.15",
       "io.circe" %%% "circe-literal" % "0.14.15",
       "io.circe" %%% "circe-parser" % "0.14.15",
-      "io.circe" %%% "circe-generic-extras" % "0.14.4",
-      "io.circe" %%% "circe-optics" % "0.14.1",
+      "io.circe" %%% "circe-generic-extras" % "0.14.5-RC1",
     ),
+    libraryDependencies ++= {
+      if (scalaVersion.value.startsWith("2.12")) Seq(
+        "io.circe" %%% "circe-optics" % "0.14.1",
+      )
+      else Seq(
+        "io.circe" %%% "circe-optics" % "0.15.1",
+      )
+    }
   )
   .jsSettings(
     tlVersionIntroduced ++= Map("2.12" -> "4.0.0", "2.13" -> "4.0.0"),
@@ -62,12 +71,10 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
           "com.dwolla" %%% "fs2-utils" % "3.0.0-RC2",
           "org.typelevel" %%% "cats-core" % "2.13.0",
           "org.typelevel" %%% "cats-effect" % "3.6.3",
-          "com.chuusai" %%% "shapeless" % "2.3.13",
           "io.monix" %%% "newtypes-core" % "0.3.0",
           "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
         ) ++
         Seq(
-          "com.github.alexarchambault" %%% "scalacheck-shapeless_1.15" % "1.3.0",
           "org.http4s" %%% "http4s-server" % http4sVersion,
           "org.http4s" %%% "http4s-laws" % http4sVersion,
           "org.typelevel" %%% "cats-effect-laws" % "3.6.3",
@@ -86,6 +93,9 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(dto)
   .jsSettings(
     tlVersionIntroduced ++= Map("2.12" -> "4.0.0", "2.13" -> "4.0.0"),
+    libraryDependencies ++= Seq(
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.6.0" % Test,
+    ),
   )
 
 lazy val scalaCloudflare = tlCrossRootProject.aggregate(

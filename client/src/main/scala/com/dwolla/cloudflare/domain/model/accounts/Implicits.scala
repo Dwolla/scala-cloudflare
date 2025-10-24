@@ -3,7 +3,7 @@ package domain
 package model
 package accounts
 
-import com.dwolla.cloudflare.domain.dto.accounts._
+import com.dwolla.cloudflare.domain.dto.accounts.*
 
 object Implicits {
   implicit def toModel(dto: AccountDTO): Account = {
@@ -57,7 +57,7 @@ object Implicits {
 
   implicit def toDto(model: AccountMember): AccountMemberDTO = {
     AccountMemberDTO(
-      id = model.id,
+      id = model.id.value,
       user = model.user,
       status = model.status,
       roles = model.roles.map(toDto)
@@ -66,7 +66,7 @@ object Implicits {
 
   implicit def toDto(model: User): UserDTO = {
     UserDTO(
-      id = model.id,
+      id = model.id.value,
       first_name = model.firstName,
       last_name = model.lastName,
       email = model.emailAddress,

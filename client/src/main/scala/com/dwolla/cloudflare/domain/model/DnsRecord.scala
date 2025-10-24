@@ -26,14 +26,14 @@ case class UnidentifiedDnsRecord(name: String,
   import IdentifiedDnsRecord._
 
   def identifyAs(physicalResourceId: String): IdentifiedDnsRecord = physicalResourceId match {
-    case dnsRecordIdUrlRegex(zoneId, recordId) => identifyAs(zoneId, recordId)
+    case dnsRecordIdUrlRegex(zoneId, recordId) => identifyAs(ZoneId(zoneId), ResourceId(recordId))
     case _ => throw new RuntimeException("Passed string does not match URL pattern for Cloudflare DNS record")
   }
 
-  def identifyAs(zoneId: String, recordId: String): IdentifiedDnsRecord = IdentifiedDnsRecord(
+  def identifyAs(zoneId: ZoneId, recordId: ResourceId): IdentifiedDnsRecord = IdentifiedDnsRecord(
     physicalResourceId = tagPhysicalResourceId(s"https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records/$recordId"),
-    zoneId = tagZoneId(zoneId),
-    resourceId = tagResourceId(recordId),
+    zoneId = zoneId,
+    resourceId = recordId,
     name = this.name,
     content = this.content,
     recordType = this.recordType,
@@ -70,9 +70,9 @@ object IdentifiedDnsRecord {
 }
 
 object Implicits {
-  implicit def toDto(dnsRecord: DnsRecord): DnsRecordDTO = DnsRecordDTO(
+  def toDto(dnsRecord: DnsRecord): DnsRecordDTO = DnsRecordDTO(
     id = dnsRecord match {
-      case identified: IdentifiedDnsRecord => Option(identified.resourceId)
+      case identified: IdentifiedDnsRecord => Option(identified.resourceId.value)
       case _: UnidentifiedDnsRecord => None
     },
     name = dnsRecord.name,
@@ -83,7 +83,7 @@ object Implicits {
     priority = dnsRecord.priority,
   )
 
-  implicit def fromDto(dnsRecordDto: DnsRecordDTO): UnidentifiedDnsRecord = UnidentifiedDnsRecord(
+  def fromDto(dnsRecordDto: DnsRecordDTO): UnidentifiedDnsRecord = UnidentifiedDnsRecord(
     name = dnsRecordDto.name,
     content = dnsRecordDto.content,
     recordType = dnsRecordDto.`type`,
@@ -92,11 +92,8 @@ object Implicits {
     priority = dnsRecordDto.priority,
   )
 
-  implicit def fromDtoZoneIdTuple(tuple: (DnsRecordDTO, String))(implicit ev: DnsRecordDTO => UnidentifiedDnsRecord): IdentifiedDnsRecord = tuple match {
-    case (dnsRecordDTO: DnsRecordDTO, zoneId: String) => dnsRecordDTO.id.fold(throw new RuntimeException) { recordId =>
-      dnsRecordDTO.identifyAs(zoneId, recordId)
-    }
-  }
+  def fromDtoZoneId(dnsRecordDTO: DnsRecordDTO, zoneId: ZoneId): Option[IdentifiedDnsRecord] =
+    dnsRecordDTO.id.map(ResourceId(_)).map(fromDto(dnsRecordDTO).identifyAs(zoneId, _))
 
   implicit class DnsRecordToDto(dnsRecord: DnsRecord) {
     def toDto: DnsRecordDTO = Implicits.toDto(dnsRecord)

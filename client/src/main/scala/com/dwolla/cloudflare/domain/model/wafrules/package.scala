@@ -1,21 +1,20 @@
 package com.dwolla.cloudflare.domain.model
 
-import com.dwolla.circe._
-import io.circe._
+import io.circe.*
 import io.circe.generic.semiauto
-import shapeless.tag.@@
+import com.dwolla.cloudflare.CloudflareNewtype
 
 package object wafrules {
-  type WafRuleId = String @@ WafRuleIdTag
-  type WafRulePriority = String @@ WafPriorityTag
+  type WafRuleId = WafRuleId.Type
+  object WafRuleId extends CloudflareNewtype[String]
+  type WafRulePriority = WafRulePriority.Type
+  object WafRulePriority extends CloudflareNewtype[String]
 
-  private[cloudflare] val tagWafRuleId: String => WafRuleId = shapeless.tag[WafRuleIdTag][String]
-  private[cloudflare] val tagWafRulePriority: String => WafRulePriority = shapeless.tag[WafPriorityTag][String]
+  private[cloudflare] val tagWafRuleId: String => WafRuleId = WafRuleId(_)
+  private[cloudflare] val tagWafRulePriority: String => WafRulePriority = WafRulePriority(_)
 }
 
 package wafrules {
-  trait WafRuleIdTag
-  trait WafPriorityTag
   
   case class WafRule(id: WafRuleId,
                      description: String,

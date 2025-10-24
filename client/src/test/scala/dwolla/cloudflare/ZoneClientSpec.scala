@@ -9,11 +9,8 @@ import munit.CatsEffectSuite
 import org.http4s.*
 import org.http4s.client.Client
 import org.http4s.syntax.all.*
-import shapeless.tag.@@
 
 class ZoneClientSpec extends CatsEffectSuite {
-
-  private def tagString[T](s: String): String @@ T = shapeless.tag[T][String](s)
 
   private val authorization = CloudflareAuthorization("email", "key")
   private val getZoneId = new FakeCloudflareService(authorization).listZones("dwolla.com", SampleResponses.Successes.getZones)
@@ -30,7 +27,7 @@ class ZoneClientSpec extends CatsEffectSuite {
       .compile
       .last
 
-    assertIO(output, Some(tagString[ZoneIdTag]("fake-zone-id")))
+    assertIO(output, Some(ZoneId("fake-zone-id")))
   }
 
   private object SampleResponses {

@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        scala: [2.12, 2.13]
+        scala: [2.12, 2.13, 3]
         java: [temurin@17]
         project: [scalaCloudflareJVM, scalaCloudflareJS]
     runs-on: ${{ matrix.os }}
@@ -159,6 +159,26 @@ jobs:
           tar xf targets.tar
           rm targets.tar
 
+      - name: Download target directories (3, scalaCloudflareJVM)
+        uses: actions/download-artifact@v4
+        with:
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3-scalaCloudflareJVM
+
+      - name: Inflate target directories (3, scalaCloudflareJVM)
+        run: |
+          tar xf targets.tar
+          rm targets.tar
+
+      - name: Download target directories (3, scalaCloudflareJS)
+        uses: actions/download-artifact@v4
+        with:
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3-scalaCloudflareJS
+
+      - name: Inflate target directories (3, scalaCloudflareJS)
+        run: |
+          tar xf targets.tar
+          rm targets.tar
+
       - name: Import signing key
         if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE == ''
         env:
@@ -216,5 +236,5 @@ jobs:
       - name: Submit Dependencies
         uses: scalacenter/sbt-dependency-submission@v2
         with:
-          modules-ignore: scalacloudflarenative_2.12 scalacloudflarenative_2.13 scalacloudflarejvm_2.12 scalacloudflarejvm_2.13 scalacloudflarejs_2.12 scalacloudflarejs_2.13
+          modules-ignore: scalacloudflarenative_2.12 scalacloudflarenative_2.13 scalacloudflarenative_3 scalacloudflarejvm_2.12 scalacloudflarejvm_2.13 scalacloudflarejvm_3 scalacloudflarejs_2.12 scalacloudflarejs_2.13 scalacloudflarejs_3
           configs-ignore: test scala-tool scala-doc-tool test-internal
