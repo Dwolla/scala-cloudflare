@@ -6,6 +6,7 @@ import com.dwolla.cloudflare.domain.model.Exceptions.UnexpectedCloudflareErrorEx
 import com.dwolla.cloudflare.domain.model.ratelimits.*
 import dwolla.cloudflare.FakeCloudflareService
 import munit.{CatsEffectSuite, ScalaCheckSuite}
+import natchez.Trace.Implicits.noop
 import org.http4s.HttpRoutes
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -19,9 +20,9 @@ class RateLimitClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   val authorization = CloudflareAuthorization("email", "key")
 
-  private def buildRateLimitClient(service: HttpRoutes[IO]): RateLimitClient[IO] = {
+  private def buildRateLimitClient(service: HttpRoutes[IO]): RateLimitClient[fs2.Stream[IO, *]] = {
     val fakeService = new FakeCloudflareService(authorization)
-    RateLimitClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    RateLimitClient[IO](new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
   test("list should list the rate limits for the given zone") {
@@ -217,11 +218,12 @@ class RateLimitClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
     forAll { (zoneId: ZoneId, rateLimitId: RateLimitId) =>
       val client = new RateLimitClient[IO] {
-        override def list(zoneId: ZoneId): fs2.Stream[IO, RateLimit] = ???
-        override def getById(zoneId: ZoneId, rateLimitId: String): fs2.Stream[IO, RateLimit] = ???
-        override def create(zoneId: ZoneId, rateLimitId: RateLimit): fs2.Stream[IO, RateLimit] = ???
-        override def update(zoneId: ZoneId, rateLimitId: RateLimit): fs2.Stream[IO, RateLimit] = ???
-        override def delete(zoneId: ZoneId, rateLimitId: String): fs2.Stream[IO, RateLimitId] = ???
+        override def list(zoneId: ZoneId): IO[RateLimit] = ???
+        override def getById(zoneId: ZoneId, rateLimitId: String): IO[RateLimit] = ???
+        override def create(zoneId: ZoneId, rateLimit: RateLimit): IO[RateLimit] = ???
+        override def update(zoneId: ZoneId, rateLimit: RateLimit): IO[RateLimit] = ???
+        override def delete(zoneId: ZoneId, rateLimitId: String): IO[RateLimitId] = ???
+        override def getByUri(uri: String): IO[RateLimit] = ???
       }
 
       assertEquals(client.parseUri(client.buildUri(zoneId, rateLimitId).renderString), Some((zoneId, rateLimitId)))

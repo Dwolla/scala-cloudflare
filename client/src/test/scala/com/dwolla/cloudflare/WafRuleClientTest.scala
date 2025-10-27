@@ -9,6 +9,7 @@ import org.http4s.server.Router
 import org.scalacheck.{Arbitrary, Gen}
 import munit.CatsEffectSuite
 import munit.ScalaCheckSuite
+import natchez.Trace.Implicits.noop
 
 class WafRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
@@ -19,9 +20,9 @@ class WafRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   val authorization = CloudflareAuthorization("email", "key")
 
-  private def buildWafRuleClient(service: HttpRoutes[IO]): WafRuleClient[IO] = {
+  private def buildWafRuleClient(service: HttpRoutes[IO]): WafRuleClient[fs2.Stream[IO, *]] = {
     val fakeService = new FakeCloudflareService(authorization)
-    WafRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    WafRuleClient[IO](new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
   test("list should list the waf rules for the given zone") {
@@ -168,9 +169,10 @@ class WafRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
     forAll { (zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId) =>
       val client = new WafRuleClient[IO] {
-        override def list(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): fs2.Stream[IO, WafRule] = ???
-        override def getById(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId): fs2.Stream[IO, WafRule] = ???
-        override def setMode(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId, mode: Mode): fs2.Stream[IO, WafRule] = ???
+        override def list(zoneId: ZoneId, wafRulePackageId: WafRulePackageId): IO[WafRule] = ???
+        override def getById(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId): IO[WafRule] = ???
+        override def setMode(zoneId: ZoneId, wafRulePackageId: WafRulePackageId, wafRuleId: WafRuleId, mode: Mode): IO[WafRule] = ???
+        override def getByUri(uri: String): IO[WafRule] = ???
       }
 
       assertEquals(client.parseUri(client.buildUri(zoneId, wafRulePackageId, wafRuleId).renderString), Some((zoneId, wafRulePackageId, wafRuleId)))

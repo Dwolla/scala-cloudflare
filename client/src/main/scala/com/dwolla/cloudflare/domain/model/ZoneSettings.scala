@@ -70,3 +70,7 @@ case class Zone(name: String,
                 securityLevel: Option[CloudflareSecurityLevel],
                 waf: Option[CloudflareWaf],
                )
+
+object Zone {
+  implicit val zoneEncoder: Encoder[Zone] = deriveEncoder
+}

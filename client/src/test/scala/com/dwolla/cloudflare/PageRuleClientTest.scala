@@ -7,6 +7,7 @@ import com.dwolla.cloudflare.domain.model.pagerules.*
 import com.dwolla.cloudflare.domain.model.pagerules.PageRuleStatus.{Active, Disabled}
 import dwolla.cloudflare.FakeCloudflareService
 import munit.{CatsEffectSuite, ScalaCheckSuite}
+import natchez.Trace.Implicits.noop
 import org.http4s.HttpRoutes
 import org.http4s.syntax.all.*
 import org.scalacheck.{Arbitrary, Gen}
@@ -21,9 +22,9 @@ class PageRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
   val authorization = CloudflareAuthorization("email", "key")
 
-  private def buildPageRuleClient(service: HttpRoutes[IO]): PageRuleClient[IO] = {
+  private def buildPageRuleClient(service: HttpRoutes[IO]): PageRuleClient[fs2.Stream[IO, *]] = {
     val fakeService = new FakeCloudflareService(authorization)
-    PageRuleClient(new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
+    PageRuleClient[IO](new StreamingCloudflareApiExecutor(fakeService.client(service), authorization))
   }
 
   test("list should list the page rules for the given zone") {
@@ -203,11 +204,12 @@ class PageRuleClientTest extends CatsEffectSuite with ScalaCheckSuite {
 
     forAll { (zoneId: ZoneId, pageRuleId: PageRuleId) =>
       val client = new PageRuleClient[IO] {
-        override def list(zoneId: ZoneId): fs2.Stream[IO, PageRule] = ???
-        override def getById(zoneId: ZoneId, pageRuleId: String): fs2.Stream[IO, PageRule] = ???
-        override def create(zoneId: ZoneId, pageRule: PageRule): fs2.Stream[IO, PageRule] = ???
-        override def update(zoneId: ZoneId, pageRule: PageRule): fs2.Stream[IO, PageRule] = ???
-        override def delete(zoneId: ZoneId, pageRuleId: String): fs2.Stream[IO, PageRuleId] = ???
+        override def list(zoneId: ZoneId): IO[PageRule] = ???
+        override def getById(zoneId: ZoneId, pageRuleId: String): IO[PageRule] = ???
+        override def create(zoneId: ZoneId, pageRule: PageRule): IO[PageRule] = ???
+        override def update(zoneId: ZoneId, pageRule: PageRule): IO[PageRule] = ???
+        override def delete(zoneId: ZoneId, pageRuleId: String): IO[PageRuleId] = ???
+        override def getByUri(uri: String): IO[PageRule] = ???
       }
 
       assertEquals(client.parseUri(client.buildUri(zoneId, pageRuleId).renderString), Some((zoneId, pageRuleId)))

@@ -6,6 +6,7 @@ import com.dwolla.cloudflare.*
 import com.dwolla.cloudflare.domain.model.*
 import io.circe.literal.*
 import munit.CatsEffectSuite
+import natchez.Trace.Implicits.noop
 import org.http4s.*
 import org.http4s.client.Client
 import org.http4s.syntax.all.*
@@ -15,9 +16,9 @@ class ZoneClientSpec extends CatsEffectSuite {
   private val authorization = CloudflareAuthorization("email", "key")
   private val getZoneId = new FakeCloudflareService(authorization).listZones("dwolla.com", SampleResponses.Successes.getZones)
 
-  private def client: Reader[HttpRoutes[IO], ZoneClient[IO]] = for {
+  private def client: Reader[HttpRoutes[IO], ZoneClient[fs2.Stream[IO, *]]] = for {
     fakeExecutor <- Reader((fakeService: HttpRoutes[IO]) => new StreamingCloudflareApiExecutor[IO](Client.fromHttpApp(fakeService.orNotFound), authorization))
-  } yield new ZoneClientImpl(fakeExecutor)
+  } yield ZoneClient[IO](fakeExecutor)
 
   test("ZoneClient should accept a domain name and find a Zone ID") {
     val domain = "dwolla.com"
