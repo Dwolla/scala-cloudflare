@@ -21,6 +21,7 @@ import org.http4s.circe.*
 import org.http4s.client.dsl.Http4sClientDsl
 
 import scala.util.matching.Regex
+import org.typelevel.scalaccompat.annotation.*
 
 trait DnsRecordClient[F[_]] {
   def getById(zoneId: ZoneId, resourceId: ResourceId): F[IdentifiedDnsRecord]
@@ -28,6 +29,9 @@ trait DnsRecordClient[F[_]] {
   def updateDnsRecord(record: IdentifiedDnsRecord): F[IdentifiedDnsRecord]
   def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): F[IdentifiedDnsRecord]
   def deleteDnsRecord(physicalResourceId: String): F[PhysicalResourceId]
+
+  @targetName3("deleteDnsRecordNewtype")
+  def deleteDnsRecord(physicalResourceId: PhysicalResourceId): F[PhysicalResourceId]
   def getByUri(uri: String): F[IdentifiedDnsRecord]
 
   def parseUri(uri: String): Option[(ZoneId, ResourceId)] = uri match {
@@ -122,7 +126,8 @@ private class DnsRecordClientImpl[F[_] : Concurrent](executor: StreamingCloudfla
     for {
       uri <- Stream.emit(toUri(zoneId, resourceId)).covary[F]
       dto <- getExistingDnsRecordDto(uri).returningEmptyOnErrorCodes(7000, 7003)
-    } yield fromDto(dto).identifyAs(uri.toString())
+      out <- Stream.emits(fromDto(dto).identifyAs(uri.toString()).toList)
+    } yield out
 
   override def getExistingDnsRecords(name: String, content: Option[String] = None, recordType: Option[String] = None): Stream[F, IdentifiedDnsRecord] =
     for {
@@ -139,6 +144,10 @@ private class DnsRecordClientImpl[F[_] : Concurrent](executor: StreamingCloudfla
           DnsRecordIdDoesNotExistException(physicalResourceId)
       }
     } yield tagPhysicalResourceId(json.flatMap(zoneIdLens).getOrElse(physicalResourceId))
+
+  @targetName3("deleteDnsRecordNewtype")
+  override def deleteDnsRecord(physicalResourceId: PhysicalResourceId): Stream[F, PhysicalResourceId] =
+    self.value.deleteDnsRecord(physicalResourceId.value)
 
   private val zoneIdLens: Json => Option[String] = root.id.string.getOption
 

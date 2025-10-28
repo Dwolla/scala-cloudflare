@@ -29,6 +29,9 @@ trait AccountMembersClient[F[_]] {
   def removeMember(accountId: AccountId, accountMemberId: String): F[AccountMemberId]
   def getByUri(uri: String): F[AccountMember]
 
+  def removeMember(accountId: AccountId, accountMember: AccountMember): F[AccountMemberId] =
+    removeMember(accountId, accountMember.id.value)
+
   def parseUri(uri: String): Option[(AccountId, AccountMemberId)] = uri match {
     case AccountMembersClient.uriRegex(accountId, memberId) => Option((tagAccountId(accountId), tagAccountMemberId(memberId)))
     case _ => None
