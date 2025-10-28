@@ -25,6 +25,7 @@ import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.client.Client
 import org.http4s.dsl.Http4sDsl
+import org.http4s.headers.Authorization
 import org.http4s.server.middleware.VirtualHost
 import org.http4s.server.middleware.VirtualHost.exact
 import org.http4s.syntax.all.*
@@ -1751,15 +1752,21 @@ class FakeCloudflareService(authorization: CloudflareAuthorization) extends Http
   }
 
   def cloudflareApi(service: HttpRoutes[IO]) = Kleisli[OptionT[IO, *], Request[IO], Response[IO]] { req =>
-    req.headers.get[`X-Auth-Email`] match {
-      case Some(`X-Auth-Email`(email)) if email == authorization.email =>
-        req.headers.get[`X-Auth-Key`] match {
-          case Some(`X-Auth-Key`(key)) if key == authorization.key =>
+    authorization match {
+      case ApiKey(givenEmail, givenKey) =>
+        (req.headers.get[`X-Auth-Email`], req.headers.get[`X-Auth-Key`]) match {
+          case (Some(`X-Auth-Email`(`givenEmail`)), Some(`X-Auth-Key`(`givenKey`))) =>
             VirtualHost(exact(service, "api.cloudflare.com")).run(req)
           case _ => OptionT.liftF(Forbidden())
         }
-      case _ => OptionT.liftF(Forbidden())
+      case ApiToken(givenToken) =>
+        req.headers.get[Authorization] match {
+          case Some(Authorization(Credentials.Token(AuthScheme.Bearer, token))) if token == givenToken =>
+            VirtualHost(exact(service, "api.cloudflare.com")).run(req)
+          case _ => OptionT.liftF(Forbidden())
+        }
     }
+
   }
 
   def client(service: HttpRoutes[IO]) = Client.fromHttpApp(cloudflareApi(service).orNotFound)
