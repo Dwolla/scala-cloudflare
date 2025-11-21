@@ -62,7 +62,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
   .settings(
     name := "cloudflare-api-client",
     libraryDependencies ++= {
-      val http4sVersion = "0.23.32"
+      val http4sVersion = "0.23.33"
       Seq(
         "org.http4s" %%% "http4s-dsl",
         "org.http4s" %%% "http4s-circe",
