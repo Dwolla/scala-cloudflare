@@ -16,7 +16,7 @@ ThisBuild / developers := List(
       url("https://dwolla.com")
     ),
   )
-ThisBuild / crossScalaVersions := Seq("2.12.20", "2.13.17", "3.3.7")
+ThisBuild / crossScalaVersions := Seq("2.12.20", "2.13.18", "3.3.7")
 ThisBuild / startYear := Option(2016)
 ThisBuild / tlBaseVersion := "4.0"
 ThisBuild / tlJdkRelease := Option(8)
