@@ -40,7 +40,7 @@ lazy val dto = crossProject(JVMPlatform, JSPlatform)
       "io.circe" %%% "circe-literal" % "0.14.15",
       "io.circe" %%% "circe-parser" % "0.14.15",
       "io.circe" %%% "circe-generic-extras" % "0.14.5-RC1",
-      "org.tpolecat" %%% "natchez-core" % "0.3.8",
+      "org.tpolecat" %%% "natchez-core" % "0.3.9",
     ),
     libraryDependencies ++= {
       if (scalaVersion.value.startsWith("2.12")) Seq(
