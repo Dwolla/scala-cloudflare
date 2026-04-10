@@ -73,7 +73,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
           "com.dwolla" %%% "fs2-utils" % "3.0.0-RC2",
           "com.dwolla" %%% "natchez-tagless" % "0.2.6-175-79a50e4-SNAPSHOT",
           "org.typelevel" %%% "cats-core" % "2.13.0",
-          "org.typelevel" %%% "cats-effect" % "3.6.3",
+          "org.typelevel" %%% "cats-effect" % "3.7.0",
           "org.typelevel" %%% "cats-tagless-core" % "0.16.5",
           "io.monix" %%% "newtypes-core" % "0.3.0",
           "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
@@ -87,7 +87,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
       Seq(
           "org.http4s" %%% "http4s-server" % http4sVersion,
           "org.http4s" %%% "http4s-laws" % http4sVersion,
-          "org.typelevel" %%% "cats-effect-laws" % "3.6.3",
+          "org.typelevel" %%% "cats-effect-laws" % "3.7.0",
           "org.specs2" %%% "specs2-core" % "4.23.0",
           "org.specs2" %%% "specs2-scalacheck" % "4.23.0",
           "org.specs2" %%% "specs2-cats" % "4.23.0",
