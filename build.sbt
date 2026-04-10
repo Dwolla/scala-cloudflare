@@ -16,7 +16,7 @@ ThisBuild / developers := List(
       url("https://dwolla.com")
     ),
   )
-ThisBuild / crossScalaVersions := Seq("2.12.20", "2.13.18", "3.3.7")
+ThisBuild / crossScalaVersions := Seq("2.12.21", "2.13.18", "3.3.7")
 ThisBuild / startYear := Option(2016)
 ThisBuild / tlBaseVersion := "4.0"
 ThisBuild / tlJdkRelease := Option(8)
@@ -71,7 +71,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
         Seq(
           "co.fs2" %%% "fs2-core" % "3.12.2",
           "com.dwolla" %%% "fs2-utils" % "3.0.0-RC2",
-          "com.dwolla" %%% "natchez-tagless" % "0.2.6-131-d6a1c7c-SNAPSHOT",
+          "com.dwolla" %%% "natchez-tagless" % "0.2.6-175-79a50e4-SNAPSHOT",
           "org.typelevel" %%% "cats-core" % "2.13.0",
           "org.typelevel" %%% "cats-effect" % "3.6.3",
           "org.typelevel" %%% "cats-tagless-core" % "0.16.3",
