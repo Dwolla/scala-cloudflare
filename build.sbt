@@ -93,7 +93,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
           "org.specs2" %%% "specs2-cats" % "4.23.0",
           "org.typelevel" %%% "cats-effect-testing-specs2" % "1.8.0",
 
-          "org.typelevel" %%% "munit-cats-effect" % "2.1.0",
+          "org.typelevel" %%% "munit-cats-effect" % "2.2.0",
           "org.scalameta" %%% "munit" % "1.2.1",
           "org.scalameta" %%% "munit-scalacheck" % "1.2.0",
           "org.typelevel" %%% "scalacheck-effect-munit" % "2.1.0-RC1",
