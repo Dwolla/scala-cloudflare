@@ -5,6 +5,8 @@ import io.circe._
 import io.circe.generic.semiauto
 import com.dwolla.cloudflare.CloudflareNewtype
 
+import com.dwolla.cloudflare.domain.dto.BooleanDecoder
+
 package object filters {
   type FilterId = FilterId.Type
   object FilterId extends CloudflareNewtype[String]
@@ -27,7 +29,7 @@ package filters {
                     description: Option[String] = None,
                     ref: Option[FilterRef] = None)
 
-  object Filter extends StringAsBooleanCodec {
+  object Filter extends BooleanDecoder {
     implicit val FilterCodec: Codec[Filter] = semiauto.deriveCodec
   }
 }

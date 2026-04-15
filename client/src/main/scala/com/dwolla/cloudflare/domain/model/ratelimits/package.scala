@@ -7,6 +7,8 @@ import io.circe.generic.semiauto
 import io.circe._
 import com.dwolla.cloudflare.CloudflareNewtype
 
+import com.dwolla.cloudflare.domain.dto.BooleanDecoder
+
 package object ratelimits {
 
   type RateLimitId = RateLimitId.Type
@@ -102,7 +104,7 @@ package ratelimits {
                                     status: List[Int] = List.empty,
                                    )
 
-  object RateLimitMatchResponse extends NullAsEmptyListCodec with StringAsBooleanCodec {
+  object RateLimitMatchResponse extends NullAsEmptyListCodec with BooleanDecoder {
     implicit val rateLimitMatchResponseCodec: Codec[RateLimitMatchResponse] = semiauto.deriveCodec
   }
 
@@ -181,7 +183,7 @@ package ratelimits {
     implicit val rateLimitActionCodec: Codec[RateLimitAction] = generic.extras.semiauto.deriveConfiguredCodec
   }
 
-  object RateLimit extends DurationAsSecondsCodec with NullAsEmptyListCodec with StringAsBooleanCodec {
+  object RateLimit extends DurationAsSecondsCodec with NullAsEmptyListCodec with BooleanDecoder {
     implicit val rateLimitCodec: Codec[RateLimit] = semiauto.deriveCodec
   }
 }

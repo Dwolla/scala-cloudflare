@@ -8,6 +8,8 @@ import io.circe.generic.semiauto
 import io.circe.literal._
 import com.dwolla.cloudflare.CloudflareNewtype
 
+import com.dwolla.cloudflare.domain.dto.BooleanDecoder
+
 package object firewallrules {
 
   type FirewallRuleId = FirewallRuleId.Type
@@ -37,7 +39,7 @@ package firewallrules {
                           created_on: Option[Instant] = None,
                           modified_on: Option[Instant] = None)
 
-  object FirewallRule extends DurationAsSecondsCodec with NullAsEmptyListCodec with StringAsBooleanCodec {
+  object FirewallRule extends DurationAsSecondsCodec with NullAsEmptyListCodec with BooleanDecoder {
 
     // Cloudflare throws an error if the products key is present and the 'bypass'
     // action is not specified. As a result we, filter out the products key when its value is
@@ -58,7 +60,7 @@ package firewallrules {
                                 description: Option[String] = None,
                                 ref: Option[FilterRef] = None)
 
-  object FirewallRuleFilter extends StringAsBooleanCodec {
+  object FirewallRuleFilter extends BooleanDecoder {
     implicit val firewallRuleFilterCodec: Codec[FirewallRuleFilter] = semiauto.deriveCodec
   }
 

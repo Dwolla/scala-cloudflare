@@ -1,5 +1,6 @@
 package com.dwolla.cloudflare.domain.dto.dns
 
+import com.dwolla.cloudflare.domain.dto.BooleanDecoder
 import io.circe.Codec
 import io.circe.generic.semiauto.deriveCodec
 
@@ -12,7 +13,7 @@ case class DnsRecordDTO(id: Option[String] = None,
                         priority: Option[Int] = None,
                        )
 
-object DnsRecordDTO {
+object DnsRecordDTO extends BooleanDecoder {
   implicit val dnsRecordDTOCodec: Codec[DnsRecordDTO] = deriveCodec
 }
 

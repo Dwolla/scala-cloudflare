@@ -2,6 +2,7 @@ package com.dwolla.cloudflare
 package domain
 package model
 
+import com.dwolla.cloudflare.domain.dto.BooleanDecoder
 import com.dwolla.cloudflare.domain.dto.dns.DnsRecordDTO
 import io.circe.*
 import io.circe.generic.semiauto.*
@@ -51,7 +52,7 @@ case class UnidentifiedDnsRecord(name: String,
 
 }
 
-object UnidentifiedDnsRecord {
+object UnidentifiedDnsRecord extends BooleanDecoder {
   implicit val codec: Codec[UnidentifiedDnsRecord] = deriveCodec
 }
 
@@ -76,7 +77,7 @@ case class IdentifiedDnsRecord(physicalResourceId: PhysicalResourceId,
 
 }
 
-object IdentifiedDnsRecord {
+object IdentifiedDnsRecord extends BooleanDecoder {
   val dnsRecordIdUrlRegex: Regex = "https://api.cloudflare.com/client/v4/zones/(?<zoneId>[^/]+)/dns_records/(?<recordId>[^/]+)".r
 
   implicit val codec: Codec[IdentifiedDnsRecord] = deriveCodec
