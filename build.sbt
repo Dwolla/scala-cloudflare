@@ -71,7 +71,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
         Seq(
           "co.fs2" %%% "fs2-core" % "3.13.0",
           "com.dwolla" %%% "fs2-utils" % "3.0.0-RC2",
-          "com.dwolla" %%% "natchez-tagless" % "0.2.6-175-79a50e4-SNAPSHOT",
+          "com.dwolla" %%% "natchez-tagless" % "0.2.6-179-4a10a67-SNAPSHOT",
           "org.typelevel" %%% "cats-core" % "2.13.0",
           "org.typelevel" %%% "cats-effect" % "3.7.0",
           "org.typelevel" %%% "cats-tagless-core" % "0.16.5",
