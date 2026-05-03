@@ -34,8 +34,8 @@ lazy val dto = crossProject(JVMPlatform, JSPlatform)
   .settings(
     name := "cloudflare-api-dto",
     libraryDependencies ++= Seq(
-      "io.monix" %%% "newtypes-core" % "0.3.0",
-      "io.monix" %%% "newtypes-circe-v0-14" % "0.3.0",
+      "io.monix" %%% "newtypes-core" % "0.4.1",
+      "io.monix" %%% "newtypes-circe-v0-14" % "0.4.1",
       "io.circe" %%% "circe-generic" % "0.14.15",
       "io.circe" %%% "circe-literal" % "0.14.15",
       "io.circe" %%% "circe-parser" % "0.14.15",
@@ -75,7 +75,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
           "org.typelevel" %%% "cats-core" % "2.13.0",
           "org.typelevel" %%% "cats-effect" % "3.7.0",
           "org.typelevel" %%% "cats-tagless-core" % "0.16.5",
-          "io.monix" %%% "newtypes-core" % "0.3.0",
+          "io.monix" %%% "newtypes-core" % "0.4.1",
           "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
         ) ++ {
         if (scalaVersion.value.startsWith("2"))
