@@ -1,4 +1,7 @@
-package com.dwolla.cloudflare.domain.model.response
+package com.dwolla.cloudflare
+package domain
+package model
+package response
 
 import com.dwolla.cloudflare.domain.dto.{ResponseInfoDTO, ResultInfoDTO}
 import com.dwolla.cloudflare.domain.model.Error

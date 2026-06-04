@@ -1,4 +1,7 @@
-package com.dwolla.cloudflare.domain.model.logpush
+package com.dwolla.cloudflare
+package domain
+package model
+package logpush
 
 case class LogpushOwnership(
   filename: String,

@@ -1,6 +1,7 @@
-package com.dwolla.cloudflare.domain.dto
+package com.dwolla.cloudflare
+package domain
+package dto
 
-import com.dwolla.cloudflare.domain.dto.BooleanDecoder
 import io.circe.Codec
 import io.circe.generic.semiauto.deriveCodec
 
@@ -10,6 +11,6 @@ case class ZoneSettingsDTO(id: String,
                            modified_on: Option[String],
                           )
 
-object ZoneSettingsDTO extends BooleanDecoder {
+object ZoneSettingsDTO {
   implicit val zoneSettingsDTOCodec: Codec[ZoneSettingsDTO] = deriveCodec
 }

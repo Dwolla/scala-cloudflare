@@ -1,4 +1,6 @@
-package com.dwolla.cloudflare.domain.model
+package com.dwolla.cloudflare
+package domain
+package model
 
 import com.dwolla.cloudflare.domain.dto.ResponseInfoDTO
 import org.http4s.Status

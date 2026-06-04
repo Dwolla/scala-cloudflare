@@ -1,4 +1,6 @@
-package com.dwolla.cloudflare.domain.dto
+package com.dwolla.cloudflare
+package domain
+package dto
 
 import cats.syntax.all.*
 import io.circe.*

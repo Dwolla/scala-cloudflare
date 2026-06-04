@@ -1,4 +1,7 @@
-package com.dwolla.cloudflare.domain.model.accounts
+package com.dwolla.cloudflare
+package domain
+package model
+package accounts
 
 import com.dwolla.cloudflare.domain.model.AccountId
 import io.circe.Codec

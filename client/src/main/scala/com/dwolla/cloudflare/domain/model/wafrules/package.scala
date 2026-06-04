@@ -1,4 +1,6 @@
-package com.dwolla.cloudflare.domain.model
+package com.dwolla.cloudflare
+package domain
+package model
 
 import io.circe.*
 import io.circe.generic.semiauto

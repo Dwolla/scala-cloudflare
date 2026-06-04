@@ -1,4 +1,7 @@
-package com.dwolla.cloudflare.domain.dto.logpush
+package com.dwolla.cloudflare
+package domain
+package dto
+package logpush
 
 import io.circe.Codec
 import io.circe.generic.semiauto.deriveCodec

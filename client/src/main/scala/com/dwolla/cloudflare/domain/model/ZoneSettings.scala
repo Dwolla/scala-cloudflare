@@ -1,4 +1,6 @@
-package com.dwolla.cloudflare.domain.model
+package com.dwolla.cloudflare
+package domain
+package model
 
 import com.dwolla.cloudflare.domain.model.ZoneSettings._
 import io.circe._

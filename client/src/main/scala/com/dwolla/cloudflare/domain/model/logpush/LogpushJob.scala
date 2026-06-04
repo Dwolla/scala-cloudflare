@@ -1,6 +1,8 @@
-package com.dwolla.cloudflare.domain.model.logpush
+package com.dwolla.cloudflare
+package domain
+package model
+package logpush
 
-import com.dwolla.cloudflare.domain.dto.BooleanDecoder
 import com.dwolla.cloudflare.domain.model.{LogpullOptions, LogpushDestination, LogpushId}
 import io.circe.Codec
 import io.circe.generic.semiauto.deriveCodec
@@ -18,7 +20,7 @@ case class LogpushJob(
   errorMessage: Option[String]
 )
 
-object LogpushJob extends BooleanDecoder {
+object LogpushJob {
   implicit val codec: Codec[LogpushJob] = deriveCodec
 }
 
@@ -30,6 +32,6 @@ case class CreateJob(
   logpullOptions: Option[LogpullOptions]
 )
 
-object CreateJob extends BooleanDecoder {
+object CreateJob {
   implicit val codec: Codec[CreateJob] = deriveCodec
 }
