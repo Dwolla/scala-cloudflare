@@ -104,7 +104,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
   .jsSettings(
     tlVersionIntroduced ++= Map("2.12" -> "4.0.0", "2.13" -> "4.0.0"),
     libraryDependencies ++= Seq(
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.6.0" % Test,
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.7.0" % Test,
     ),
   )
 
