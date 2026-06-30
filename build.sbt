@@ -36,9 +36,9 @@ lazy val dto = crossProject(JVMPlatform, JSPlatform)
     libraryDependencies ++= Seq(
       "io.monix" %%% "newtypes-core" % "0.3.0",
       "io.monix" %%% "newtypes-circe-v0-14" % "0.3.0",
-      "io.circe" %%% "circe-generic" % "0.14.15",
-      "io.circe" %%% "circe-literal" % "0.14.15",
-      "io.circe" %%% "circe-parser" % "0.14.15",
+      "io.circe" %%% "circe-generic" % "0.14.16",
+      "io.circe" %%% "circe-literal" % "0.14.16",
+      "io.circe" %%% "circe-parser" % "0.14.16",
       "io.circe" %%% "circe-generic-extras" % "0.14.5-RC1",
       "org.tpolecat" %%% "natchez-core" % "0.3.10",
     ),
