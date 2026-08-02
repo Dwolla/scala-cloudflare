@@ -76,7 +76,7 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
           "org.typelevel" %%% "cats-effect" % "3.7.0",
           "org.typelevel" %%% "cats-tagless-core" % "0.16.5",
           "io.monix" %%% "newtypes-core" % "0.3.0",
-          "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
+          "org.typelevel" %% "scalac-compat-annotation" % "0.1.5",
         ) ++ {
         if (scalaVersion.value.startsWith("2"))
           Seq(
