@@ -74,13 +74,13 @@ lazy val apiClient = crossProject(JVMPlatform, JSPlatform)
           "com.dwolla" %%% "natchez-tagless" % "0.2.6-175-79a50e4-SNAPSHOT",
           "org.typelevel" %%% "cats-core" % "2.13.0",
           "org.typelevel" %%% "cats-effect" % "3.7.0",
-          "org.typelevel" %%% "cats-tagless-core" % "0.16.5",
+          "org.typelevel" %%% "cats-tagless-core" % "0.16.6",
           "io.monix" %%% "newtypes-core" % "0.3.0",
           "org.typelevel" %% "scalac-compat-annotation" % "0.1.4",
         ) ++ {
         if (scalaVersion.value.startsWith("2"))
           Seq(
-            "org.typelevel" %%% "cats-tagless-macros" % "0.16.5",
+            "org.typelevel" %%% "cats-tagless-macros" % "0.16.6",
           )
         else Seq.empty
       } ++
